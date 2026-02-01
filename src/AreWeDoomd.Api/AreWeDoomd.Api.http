@@ -1,0 +1,6 @@
+@AreWeDoomd.Api_HostAddress = http://localhost:5188
+
+GET {{AreWeDoomd.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
