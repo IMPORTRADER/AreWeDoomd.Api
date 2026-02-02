@@ -7,7 +7,7 @@
         public string Email { get; private set; } = null!;
         public string PasswordHash { get; private set; } = null!;
         public UserType UserType { get; private set; }
-
+        public UserProfile Profile { get; private set; } = null!;
         public DateTimeOffset CreatedAt { get; private set; }
         public DateTimeOffset? UpdatedAt { get; private set; }
 
@@ -21,11 +21,13 @@
             {
                 throw new ArgumentException("Id cannot be empty.", nameof(id));
             }
+            Id = id;
             SetUsername(username);
             SetEmail(email);
             SetPasswordHash(passwordHash);
             UserType = userType;
-            Id = id;
+
+            Profile = UserProfile.CreateEmpty(createdAt);
             CreatedAt = createdAt;
         }
 

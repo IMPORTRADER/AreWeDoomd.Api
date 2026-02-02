@@ -10,8 +10,6 @@ namespace AreWeDoomd.Domain.Comments
         public string Content { get; private set; } = null!;
         public DateTimeOffset CreatedAt { get; private set; }
         public DateTimeOffset? UpdatedAt { get; private set; }
-
-        // Navigation (opsiyonel)
         public Post Post { get; private set; } = null!;
 
         private Comment() { } // EF Core
