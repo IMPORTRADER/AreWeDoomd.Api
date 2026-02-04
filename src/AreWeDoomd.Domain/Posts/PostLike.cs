@@ -6,8 +6,6 @@
         public Guid PostId { get; private set; }
         public Guid UserId { get; private set; }
         public DateTimeOffset CreatedAt { get; private set; }
-
-        // Navigation (opsiyonel ama EF ergonomisi için yararlı)
         public Post Post { get; private set; } = null!;
 
         private PostLike() { } // EF Core

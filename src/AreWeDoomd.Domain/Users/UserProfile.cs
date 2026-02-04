@@ -2,7 +2,6 @@
 
 public sealed class UserProfile
 {
-    public Guid UserId { get; private set; }
     public string? ProfileImageUrl { get; private set; }
     public string? Biography { get; private set; }
 
@@ -10,24 +9,20 @@ public sealed class UserProfile
 
     private UserProfile() { }
 
-    public UserProfile(Guid userId)
+    private UserProfile(string? profileImageUrl, string? biography, DateTimeOffset now)
     {
-        if (userId == Guid.Empty)
-        {
-            throw new ArgumentException("UserId cannot be empty.", nameof(userId));
-        }
-
-        UserId = userId;
-        UpdatedAt = DateTimeOffset.UtcNow;
+        ProfileImageUrl = profileImageUrl;
+        Biography = biography;
+        UpdatedAt = now;
     }
+
+    public static UserProfile CreateEmpty(DateTimeOffset now)
+        => new(profileImageUrl: null, biography: null, now);
+    public static UserProfile Create(string profileImageUrl, string biography, DateTimeOffset now)
+        => new(profileImageUrl, biography, now);
 
     public void ChangeProfileImage(string imageUrl, DateTimeOffset now)
     {
-        if (string.IsNullOrWhiteSpace(imageUrl))
-        {
-            throw new ArgumentException("ImageUrl cannot be empty.", nameof(imageUrl));
-        }
-
         ProfileImageUrl = imageUrl;
         UpdatedAt = now;
     }
