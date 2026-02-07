@@ -12,7 +12,7 @@ internal static class RsaKeyLoader
         }
 
         var rsa = RSA.Create();
-        keyMaterial = keyMaterial.Trim();
+        keyMaterial = NormalizeKeyMaterial(keyMaterial);
 
         if (keyMaterial.StartsWith("-----", StringComparison.Ordinal))
         {
@@ -35,7 +35,7 @@ internal static class RsaKeyLoader
         }
 
         var rsa = RSA.Create();
-        keyMaterial = keyMaterial.Trim();
+        keyMaterial = NormalizeKeyMaterial(keyMaterial);
 
         if (keyMaterial.StartsWith("-----", StringComparison.Ordinal))
         {
@@ -48,6 +48,15 @@ internal static class RsaKeyLoader
         }
 
         return rsa;
+    }
+
+    private static string NormalizeKeyMaterial(string keyMaterial)
+    {
+        // Environment variables often store PEM blocks with escaped newlines.
+        return keyMaterial
+            .Trim()
+            .Replace("\\r", "\r", StringComparison.Ordinal)
+            .Replace("\\n", "\n", StringComparison.Ordinal);
     }
 }
 
