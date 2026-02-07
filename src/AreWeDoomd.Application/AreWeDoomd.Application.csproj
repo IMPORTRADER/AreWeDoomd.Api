@@ -10,4 +10,15 @@
     <ProjectReference Include="..\AreWeDoomd.Domain\AreWeDoomd.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Common\**\*.cs" />
+    <Compile Update="Features\**\*.cs" />
+    <Compile Update="DependencyInjection.cs" />
+  </ItemGroup>
+
 </Project>
+

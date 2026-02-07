@@ -7,13 +7,25 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.2" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.7.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AreWeDoomd.Application\AreWeDoomd.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Update="Authentication\**\*.cs" />
+    <Compile Update="Common\Email\**\*.cs" />
+    <Compile Update="Common\Options\**\*.cs" />
+    <Compile Update="Common\Repositories\**\*.cs" />
+    <Compile Update="Common\Services\**\*.cs" />
+    <Compile Update="Common\Persistence\Configurations\PasswordResetRequestConfiguration.cs" />
+  </ItemGroup>
+
 </Project>
+
