@@ -173,3 +173,6 @@ The configured `EnableRetryOnFailure` option will automatically retry transient 
 - `appsettings.json` must exist in the startup project  
 - Migrations are created in the Infrastructure project  
 - Database updates use the API project configuration  
+
+## Diagrams
+![Alternatif metin](AreWeDoomdApi.AuthDiagram.png)
