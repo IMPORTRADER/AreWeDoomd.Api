@@ -13,7 +13,6 @@ public sealed class ForgotPasswordCommandHandler(
     IPasswordResetCodeGenerator codeGenerator,
     IDateTimeProvider dateTimeProvider,
     IEmailSender emailSender,
-    IClientContextAccessor clientContextAccessor,
     IPasswordResetRequestRepository passwordResetRequestRepository,
     IPasswordResetSettings passwordResetSettings,
     IUnitOfWork unitOfWork)
@@ -32,13 +31,6 @@ public sealed class ForgotPasswordCommandHandler(
         if (user is null)
         {
             throw new NotFoundException("User not found.");
-        }
-
-        var clientContext = await clientContextAccessor.GetCurrentAsync(cancellationToken);
-
-        if (user.UserType != clientContext.UserType)
-        {
-            throw new ClientAuthenticationException("Client is not allowed to manage this user type.");
         }
 
         var now = dateTimeProvider.UtcNow;

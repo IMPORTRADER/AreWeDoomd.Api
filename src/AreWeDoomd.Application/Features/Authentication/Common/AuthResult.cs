@@ -6,7 +6,5 @@ public sealed record AuthResult(
     Guid UserId,
     string Username,
     string Email,
-    UserType UserType,
-    string AccessToken,
-    DateTimeOffset ExpiresAt);
+    UserType UserType);
 

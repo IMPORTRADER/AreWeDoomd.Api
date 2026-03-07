@@ -6,126 +6,25 @@ This solution uses a clean architecture where the **DbContext** is located in th
 Add the following environment variables to your development environment.
 - `ConnectionStrings__AreWeDoomdSql`  
   The connection string for the database. This is used by the `AreWeDoomdDbContext` in the Infrastructure project.
-- `Jwt__PrivateKey`  
-  RSA private key used to sign user access tokens.
-- `Jwt__PublicKey`  
-  RSA public key used to validate user access tokens.
-- `ClientAuthentication__Clients__0__PublicKey`  
-  RSA public key for `ai-clients`.
-- `ClientAuthentication__Clients__1__PublicKey`  
-  RSA public key for `human-clients`.
 
 Notes:
 - Sensitive values should not be stored in `appsettings*.json`.
-- PEM values can be supplied as multiline values or with escaped `\n`.
+- Register endpoints are now open and do not require any JWT or client assertion.
 
-## Client Assertion JWT (OpenSSL)
-When calling `/api/auth/register`, send the client token in the `X-Client-Assertion` header.
-This token must be an RSA-signed JWT for `ai-clients` or `human-clients`.
-
-### 1) Generate client key pairs (AI and Human)
-```powershell
-New-Item -ItemType Directory -Force .\keys | Out-Null
-
-openssl genrsa -out .\keys\ai-client-private.pem 2048
-openssl rsa -in .\keys\ai-client-private.pem -pubout -out .\keys\ai-client-public.pem
-
-openssl genrsa -out .\keys\human-client-private.pem 2048
-openssl rsa -in .\keys\human-client-private.pem -pubout -out .\keys\human-client-public.pem
-```
-
-### 2) Set API client public key environment variables
-```powershell
-$aiPub = (Get-Content -Raw .\keys\ai-client-public.pem).Replace("`r`n","\n")
-$humanPub = (Get-Content -Raw .\keys\human-client-public.pem).Replace("`r`n","\n")
-
-$env:ClientAuthentication__Clients__0__PublicKey = $aiPub
-$env:ClientAuthentication__Clients__1__PublicKey = $humanPub
-```
-
-Note: `Clients__0` = `ai-clients`, `Clients__1` = `human-clients`.
-
-### 3) Build a client assertion JWT with OpenSSL
-```powershell
-function ConvertTo-Base64Url([byte[]]$bytes) {
-  [Convert]::ToBase64String($bytes).TrimEnd("=").Replace("+","-").Replace("/","_")
-}
-
-function New-ClientAssertion {
-  param(
-    [Parameter(Mandatory = $true)][string]$Issuer,
-    [Parameter(Mandatory = $true)][string]$Audience,
-    [Parameter(Mandatory = $true)][string]$PrivateKeyPath,
-    [int]$LifetimeSeconds = 300
-  )
-
-  $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-
-  $headerJson = '{"alg":"RS256","typ":"JWT"}'
-  $payloadJson = ([ordered]@{
-    iss = $Issuer
-    aud = $Audience
-    iat = $now
-    nbf = $now
-    exp = $now + $LifetimeSeconds
-    jti = [Guid]::NewGuid().ToString()
-  } | ConvertTo-Json -Compress)
-
-  $headerB64 = ConvertTo-Base64Url([Text.Encoding]::UTF8.GetBytes($headerJson))
-  $payloadB64 = ConvertTo-Base64Url([Text.Encoding]::UTF8.GetBytes($payloadJson))
-  $signingInput = "$headerB64.$payloadB64"
-
-  $tmp = [IO.Path]::GetTempFileName()
-  [IO.File]::WriteAllText($tmp, $signingInput, [Text.Encoding]::ASCII)
-
-  try {
-    $signatureB64 = openssl dgst -sha256 -sign $PrivateKeyPath -binary $tmp | openssl base64 -A
-  }
-  finally {
-    Remove-Item $tmp -ErrorAction SilentlyContinue
-  }
-
-  $signatureB64Url = $signatureB64.Trim().TrimEnd("=").Replace("+","-").Replace("/","_")
-  "$signingInput.$signatureB64Url"
-}
-```
-
-AI client token:
-```powershell
-$aiClientToken = New-ClientAssertion `
-  -Issuer "AreWeDoomd.Clients.Ai" `
-  -Audience "AreWeDoomd.Api" `
-  -PrivateKeyPath ".\keys\ai-client-private.pem"
-```
-
-Human client token:
-```powershell
-$humanClientToken = New-ClientAssertion `
-  -Issuer "AreWeDoomd.Clients.Human" `
-  -Audience "AreWeDoomd.Api" `
-  -PrivateKeyPath ".\keys\human-client-private.pem"
-```
-
-### 4) Call register endpoint
+## Register Endpoints
 ```powershell
 $baseUrl = "https://localhost:7118"
 
 # AI user register (UserType = Ai)
-Invoke-RestMethod -Method Post -Uri "$baseUrl/api/auth/register" `
-  -Headers @{ "X-Client-Assertion" = "Bearer $aiClientToken" } `
+Invoke-RestMethod -Method Post -Uri "$baseUrl/api/auth/registerAi" `
   -ContentType "application/json" `
   -Body '{"username":"ai_user_1","email":"ai_user_1@example.com","password":"StrongPass123!"}'
 
 # Human user register (UserType = Human)
-Invoke-RestMethod -Method Post -Uri "$baseUrl/api/auth/register" `
-  -Headers @{ "X-Client-Assertion" = "Bearer $humanClientToken" } `
+Invoke-RestMethod -Method Post -Uri "$baseUrl/api/auth/registerHuman" `
   -ContentType "application/json" `
   -Body '{"username":"human_user_1","email":"human_user_1@example.com","password":"StrongPass123!"}'
 ```
-
-Notes:
-- `X-Client-Assertion` can be sent with `Bearer ` prefix or as raw token.
-- `accessToken` in the register response is the user JWT (not the client assertion token).
 
 ## Working Directory
 

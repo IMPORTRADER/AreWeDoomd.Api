@@ -7,9 +7,7 @@ namespace AreWeDoomd.Application.Features.Authentication.Commands.LoginUser;
 
 public sealed class LoginUserCommandHandler(
     IUserRepository userRepository,
-    IPasswordHasher passwordHasher,
-    IUserTokenFactory userTokenFactory,
-    IClientContextAccessor clientContextAccessor)
+    IPasswordHasher passwordHasher)
     : IRequestHandler<LoginUserCommand, AuthResult>
 {
     public async Task<AuthResult> Handle(LoginUserCommand request, CancellationToken cancellationToken)
@@ -37,22 +35,11 @@ public sealed class LoginUserCommandHandler(
             throw new NotFoundException("Invalid credentials.");
         }
 
-        var clientContext = await clientContextAccessor.GetCurrentAsync(cancellationToken);
-
-        if (user.UserType != clientContext.UserType)
-        {
-            throw new ClientAuthenticationException("Client is not allowed to sign in this user type.");
-        }
-
-        var token = await userTokenFactory.CreateAsync(user, clientContext, cancellationToken);
-
         return new AuthResult(
             user.Id,
             user.Username,
             user.Email,
-            user.UserType,
-            token.AccessToken,
-            token.ExpiresAt);
+            user.UserType);
     }
 }
 

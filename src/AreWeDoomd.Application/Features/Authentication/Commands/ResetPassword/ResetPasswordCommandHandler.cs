@@ -9,8 +9,6 @@ public sealed class ResetPasswordCommandHandler(
     IUserRepository userRepository,
     IPasswordHasher passwordHasher,
     IDateTimeProvider dateTimeProvider,
-    IUserTokenFactory userTokenFactory,
-    IClientContextAccessor clientContextAccessor,
     IPasswordResetRequestRepository passwordResetRequestRepository,
     IUnitOfWork unitOfWork)
     : IRequestHandler<ResetPasswordCommand, AuthResult>
@@ -55,13 +53,6 @@ public sealed class ResetPasswordCommandHandler(
             throw new InvalidOperationException("Reset code is invalid.");
         }
 
-        var clientContext = await clientContextAccessor.GetCurrentAsync(cancellationToken);
-
-        if (user.UserType != clientContext.UserType)
-        {
-            throw new ClientAuthenticationException("Client is not allowed to reset this user type.");
-        }
-
         user.SetPassword(passwordHasher.Hash(request.NewPassword), now);
         resetRequest.Consume(now);
 
@@ -69,15 +60,11 @@ public sealed class ResetPasswordCommandHandler(
         await passwordResetRequestRepository.UpdateAsync(resetRequest, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var token = await userTokenFactory.CreateAsync(user, clientContext, cancellationToken);
-
         return new AuthResult(
             user.Id,
             user.Username,
             user.Email,
-            user.UserType,
-            token.AccessToken,
-            token.ExpiresAt);
+            user.UserType);
     }
 }
 

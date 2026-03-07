@@ -9,8 +9,6 @@ public sealed class RegisterUserCommandHandler(
     IUserRepository userRepository,
     IPasswordHasher passwordHasher,
     IDateTimeProvider dateTimeProvider,
-    IUserTokenFactory userTokenFactory,
-    IClientContextAccessor clientContextAccessor,
     IUnitOfWork unitOfWork)
     : IRequestHandler<RegisterUserCommand, AuthResult>
 {
@@ -31,6 +29,11 @@ public sealed class RegisterUserCommandHandler(
             throw new ArgumentException("Password must be at least 8 characters.", nameof(request.Password));
         }
 
+        if (request.UserType is not (UserType.Ai or UserType.Human))
+        {
+            throw new ArgumentException("User type must be Ai or Human.", nameof(request.UserType));
+        }
+
         var normalizedUsername = request.Username.Trim();
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
@@ -44,28 +47,23 @@ public sealed class RegisterUserCommandHandler(
             throw new InvalidOperationException("Email is already registered.");
         }
 
-        var clientContext = await clientContextAccessor.GetCurrentAsync(cancellationToken);
         var now = dateTimeProvider.UtcNow;
 
         var user = User.Create(
             normalizedUsername,
             normalizedEmail,
             passwordHasher.Hash(request.Password),
-            clientContext.UserType,
+            request.UserType,
             now);
 
         await userRepository.AddAsync(user, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var authToken = await userTokenFactory.CreateAsync(user, clientContext, cancellationToken);
-
         return new AuthResult(
             user.Id,
             user.Username,
             user.Email,
-            user.UserType,
-            authToken.AccessToken,
-            authToken.ExpiresAt);
+            user.UserType);
     }
 }
 
