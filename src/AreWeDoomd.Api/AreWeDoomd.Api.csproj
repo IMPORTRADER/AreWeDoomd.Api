@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -16,7 +16,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AreWeDoomd.Application\AreWeDoomd.Application.csproj" />
     <ProjectReference Include="..\AreWeDoomd.Infrastructure\AreWeDoomd.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Update="Contracts\**\*.cs" />
+    <Compile Update="Controllers\AuthController.cs" />
+  </ItemGroup>
+
 </Project>
+

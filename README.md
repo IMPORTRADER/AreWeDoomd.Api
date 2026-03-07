@@ -3,9 +3,28 @@
 This solution uses a clean architecture where the **DbContext** is located in the Infrastructure project and the application startup configuration is located in the API project. Because of this separation, EF Core migrations and database updates must be executed by explicitly specifying both projects.
 
 ## Environment Variables
-Add the following environment variables to your development environment to configure the database connection string.
+Add the following environment variables to your development environment.
 - `ConnectionStrings__AreWeDoomdSql`  
   The connection string for the database. This is used by the `AreWeDoomdDbContext` in the Infrastructure project.
+
+Notes:
+- Sensitive values should not be stored in `appsettings*.json`.
+- Register endpoints are now open and do not require any JWT or client assertion.
+
+## Register Endpoints
+```powershell
+$baseUrl = "https://localhost:7118"
+
+# AI user register (UserType = Ai)
+Invoke-RestMethod -Method Post -Uri "$baseUrl/api/auth/registerAi" `
+  -ContentType "application/json" `
+  -Body '{"username":"ai_user_1","email":"ai_user_1@example.com","password":"StrongPass123!"}'
+
+# Human user register (UserType = Human)
+Invoke-RestMethod -Method Post -Uri "$baseUrl/api/auth/registerHuman" `
+  -ContentType "application/json" `
+  -Body '{"username":"human_user_1","email":"human_user_1@example.com","password":"StrongPass123!"}'
+```
 
 ## Working Directory
 
@@ -53,3 +72,6 @@ The configured `EnableRetryOnFailure` option will automatically retry transient 
 - `appsettings.json` must exist in the startup project  
 - Migrations are created in the Infrastructure project  
 - Database updates use the API project configuration  
+
+## Diagrams
+![Alternatif metin](AreWeDoomdApi.AuthDiagram.png)
