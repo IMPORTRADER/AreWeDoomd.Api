@@ -170,3 +170,24 @@ Examples:
 
 Authorization rules should not be implemented manually inside
 controllers.
+
+------------------------------------------------------------------------
+
+## 11. Postman Synchronization
+
+When an endpoint is added, removed, or modified, the Postman files must
+be updated in the same change.
+
+Rules:
+
+-   Keep `postman/AreWeDoomd.Api.postman_collection.json` aligned with
+    the current controller routes, methods, request bodies, and auth
+    requirements.
+-   Keep `postman/AreWeDoomd.Local.postman_environment.json` aligned
+    with the local development URL.
+-   Use the `baseUrl` environment variable in requests instead of
+    hardcoded hosts.
+-   The local Postman environment should use the HTTPS localhost
+    address when the API runs locally.
+-   If an endpoint requires authorization, the Postman collection must
+    include the required Bearer token usage or token capture flow.
