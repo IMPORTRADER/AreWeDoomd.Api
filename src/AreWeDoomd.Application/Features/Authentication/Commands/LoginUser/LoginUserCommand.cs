@@ -3,5 +3,5 @@ using MediatR;
 
 namespace AreWeDoomd.Application.Features.Authentication.Commands.LoginUser;
 
-public sealed record LoginUserCommand(string Email, string Password) : IRequest<AuthResult>;
+public sealed record LoginUserCommand(string Username, string Password) : IRequest<AuthResult>;
 

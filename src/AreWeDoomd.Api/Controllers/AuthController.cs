@@ -57,7 +57,7 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
     {
         try
         {
-            var result = await mediator.Send(new LoginUserCommand(request.Email, request.Password), cancellationToken);
+            var result = await mediator.Send(new LoginUserCommand(request.Username, request.Password), cancellationToken);
             return Ok(Map(result));
         }
         catch (Exception ex)
@@ -125,4 +125,3 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
         };
     }
 }
-
