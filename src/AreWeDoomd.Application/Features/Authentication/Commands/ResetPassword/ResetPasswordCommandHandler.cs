@@ -8,6 +8,7 @@ namespace AreWeDoomd.Application.Features.Authentication.Commands.ResetPassword;
 public sealed class ResetPasswordCommandHandler(
     IUserRepository userRepository,
     IPasswordHasher passwordHasher,
+    IAccessTokenGenerator accessTokenGenerator,
     IDateTimeProvider dateTimeProvider,
     IPasswordResetRequestRepository passwordResetRequestRepository,
     IUnitOfWork unitOfWork)
@@ -64,7 +65,8 @@ public sealed class ResetPasswordCommandHandler(
             user.Id,
             user.Username,
             user.Email,
-            user.UserType);
+            user.UserType,
+            accessTokenGenerator.Generate(user));
     }
 }
 

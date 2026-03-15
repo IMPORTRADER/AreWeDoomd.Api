@@ -7,7 +7,8 @@ namespace AreWeDoomd.Application.Features.Authentication.Commands.LoginUser;
 
 public sealed class LoginUserCommandHandler(
     IUserRepository userRepository,
-    IPasswordHasher passwordHasher)
+    IPasswordHasher passwordHasher,
+    IAccessTokenGenerator accessTokenGenerator)
     : IRequestHandler<LoginUserCommand, AuthResult>
 {
     public async Task<AuthResult> Handle(LoginUserCommand request, CancellationToken cancellationToken)
@@ -39,6 +40,7 @@ public sealed class LoginUserCommandHandler(
             user.Id,
             user.Username,
             user.Email,
-            user.UserType);
+            user.UserType,
+            accessTokenGenerator.Generate(user));
     }
 }
