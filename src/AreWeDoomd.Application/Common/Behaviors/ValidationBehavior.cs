@@ -1,11 +1,13 @@
 using FluentValidation;
 using MediatR;
+using AreWeDoomd.Application.Common.Results;
 
 namespace AreWeDoomd.Application.Common.Behaviors;
 
 public sealed class ValidationBehavior<TRequest, TResponse>(IEnumerable<IValidator<TRequest>> validators)
     : IPipelineBehavior<TRequest, TResponse>
-    where TRequest : notnull
+    where TRequest : notnull, IRequest<TResponse>
+    where TResponse : IResult
 {
     public async Task<TResponse> Handle(
         TRequest request,
@@ -27,7 +29,10 @@ public sealed class ValidationBehavior<TRequest, TResponse>(IEnumerable<IValidat
 
         if (failures.Count != 0)
         {
-            throw new ValidationException(failures);
+            return ResultFactory.CreateValidation<TResponse>(
+                failures
+                    .Select(failure => new ValidationError(failure.PropertyName, failure.ErrorMessage))
+                    .ToArray());
         }
 
         return await next();

@@ -1,5 +1,3 @@
-using AreWeDoomd.Application.Common.Exceptions;
-using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,45 +21,11 @@ public sealed class ApiExceptionHandler(IProblemDetailsService problemDetailsSer
 
     private static ProblemDetails CreateProblemDetails(Exception exception)
     {
-        return exception switch
+        return new ProblemDetails
         {
-            ValidationException validationException => CreateValidationProblem(validationException),
-            NotFoundException notFoundException => new ProblemDetails
-            {
-                Title = "Resource not found",
-                Detail = notFoundException.Message,
-                Status = StatusCodes.Status404NotFound
-            },
-            ArgumentException or InvalidOperationException => new ProblemDetails
-            {
-                Title = "Request failed",
-                Detail = exception.Message,
-                Status = StatusCodes.Status400BadRequest
-            },
-            _ => new ProblemDetails
-            {
-                Title = "Unexpected error",
-                Detail = "Unexpected error occurred.",
-                Status = StatusCodes.Status500InternalServerError
-            }
-        };
-    }
-
-    private static HttpValidationProblemDetails CreateValidationProblem(ValidationException exception)
-    {
-        var errors = exception.Errors
-            .GroupBy(
-                failure => failure.PropertyName,
-                failure => failure.ErrorMessage)
-            .ToDictionary(
-                group => group.Key,
-                group => group.Distinct().ToArray());
-
-        return new HttpValidationProblemDetails(errors)
-        {
-            Title = "Validation failed",
-            Detail = "One or more validation errors occurred.",
-            Status = StatusCodes.Status400BadRequest
+            Title = "Unexpected error",
+            Detail = "Unexpected error occurred.",
+            Status = StatusCodes.Status500InternalServerError
         };
     }
 }

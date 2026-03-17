@@ -1,5 +1,5 @@
-﻿using AreWeDoomd.Application.Common.Exceptions;
 using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Application.Features.Authentication.Common;
 using MediatR;
 
@@ -12,16 +12,16 @@ public sealed class ResetPasswordCommandHandler(
     IDateTimeProvider dateTimeProvider,
     IPasswordResetRequestRepository passwordResetRequestRepository,
     IUnitOfWork unitOfWork)
-    : IRequestHandler<ResetPasswordCommand, AuthResult>
+    : IRequestHandler<ResetPasswordCommand, Result<AuthResult>>
 {
-    public async Task<AuthResult> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
+    public async Task<Result<AuthResult>> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
     {
         var username = request.Username.Trim();
         var user = await userRepository.GetByUsernameAsync(username, cancellationToken);
 
         if (user is null)
         {
-            throw new NotFoundException("User not found.");
+            return Result<AuthResult>.NotFound("auth.user_not_found", "User not found.");
         }
 
         var now = dateTimeProvider.UtcNow;
@@ -31,12 +31,12 @@ public sealed class ResetPasswordCommandHandler(
 
         if (resetRequest is null || !resetRequest.IsActive(now))
         {
-            throw new InvalidOperationException("Reset code is invalid or expired.");
+            return Result<AuthResult>.Failure("auth.reset_code_invalid", "Reset code is invalid or expired.");
         }
 
         if (!passwordHasher.Verify(resetRequest.CodeHash, request.Code))
         {
-            throw new InvalidOperationException("Reset code is invalid.");
+            return Result<AuthResult>.Failure("auth.reset_code_invalid", "Reset code is invalid.");
         }
 
         user.SetPassword(passwordHasher.Hash(request.NewPassword), now);
@@ -46,12 +46,12 @@ public sealed class ResetPasswordCommandHandler(
         await passwordResetRequestRepository.UpdateAsync(resetRequest, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new AuthResult(
-            user.Id,
-            user.Username,
-            user.Email,
-            user.UserType,
-            accessTokenGenerator.Generate(user));
+        return Result<AuthResult>.Success(
+            new AuthResult(
+                user.Id,
+                user.Username,
+                user.Email,
+                user.UserType,
+                accessTokenGenerator.Generate(user)));
     }
 }
-

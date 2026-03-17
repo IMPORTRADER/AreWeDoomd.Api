@@ -1,5 +1,6 @@
 ﻿using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Features.Authentication.Common;
+using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Domain.Users;
 using MediatR;
 
@@ -11,21 +12,21 @@ public sealed class RegisterUserCommandHandler(
     IAccessTokenGenerator accessTokenGenerator,
     IDateTimeProvider dateTimeProvider,
     IUnitOfWork unitOfWork)
-    : IRequestHandler<RegisterUserCommand, AuthResult>
+    : IRequestHandler<RegisterUserCommand, Result<AuthResult>>
 {
-    public async Task<AuthResult> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
+    public async Task<Result<AuthResult>> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
     {
         var normalizedUsername = request.Username.Trim();
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
         if (await userRepository.IsUsernameTakenAsync(normalizedUsername, cancellationToken))
         {
-            throw new InvalidOperationException("Username is already taken.");
+            return Result<AuthResult>.Conflict("auth.username_taken", "Username is already taken.");
         }
 
         if (await userRepository.IsEmailTakenAsync(normalizedEmail, cancellationToken))
         {
-            throw new InvalidOperationException("Email is already registered.");
+            return Result<AuthResult>.Conflict("auth.email_taken", "Email is already registered.");
         }
 
         var now = dateTimeProvider.UtcNow;
@@ -40,11 +41,12 @@ public sealed class RegisterUserCommandHandler(
         await userRepository.AddAsync(user, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new AuthResult(
-            user.Id,
-            user.Username,
-            user.Email,
-            user.UserType,
-            accessTokenGenerator.Generate(user));
+        return Result<AuthResult>.Success(
+            new AuthResult(
+                user.Id,
+                user.Username,
+                user.Email,
+                user.UserType,
+                accessTokenGenerator.Generate(user)));
     }
 }

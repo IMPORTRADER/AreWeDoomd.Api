@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using AreWeDoomd.Api.Common.Results;
 using AreWeDoomd.Api.Contracts.Auth;
 using AreWeDoomd.Application.Features.Authentication.Commands.ForgotPassword;
 using AreWeDoomd.Application.Features.Authentication.Commands.LoginUser;
@@ -19,57 +20,68 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
     [AllowAnonymous]
     [HttpPost("registerAi")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<AuthResponse>> RegisterAi([FromBody] RegisterRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
             new RegisterUserCommand(request.Username, request.Email, request.Password, UserType.Ai),
             cancellationToken);
 
-        return Ok(Map(result));
+        return this.ToActionResult(result, Map);
     }
 
     [AllowAnonymous]
     [HttpPost("registerHuman")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<AuthResponse>> RegisterHuman([FromBody] RegisterRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
             new RegisterUserCommand(request.Username, request.Email, request.Password, UserType.Human),
             cancellationToken);
 
-        return Ok(Map(result));
+        return this.ToActionResult(result, Map);
     }
 
     [AllowAnonymous]
     [HttpPost("login")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new LoginUserCommand(request.Username, request.Password), cancellationToken);
 
-        return Ok(Map(result));
+        return this.ToActionResult(result, Map);
     }
 
     [AllowAnonymous]
     [HttpPost("forgot-password")]
     [ProducesResponseType(typeof(ForgotPasswordResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ForgotPasswordResponse>> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new ForgotPasswordCommand(request.Username), cancellationToken);
 
-        return Ok(new ForgotPasswordResponse(result.ResetCode, result.ExpiresAt));
+        return this.ToActionResult(result, value => new ForgotPasswordResponse(value.ResetCode, value.ExpiresAt));
     }
 
     [AllowAnonymous]
     [HttpPost("reset-password")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AuthResponse>> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
             new ResetPasswordCommand(request.Username, request.Code, request.NewPassword),
             cancellationToken);
 
-        return Ok(Map(result));
+        return this.ToActionResult(result, Map);
     }
 
     [Authorize]
