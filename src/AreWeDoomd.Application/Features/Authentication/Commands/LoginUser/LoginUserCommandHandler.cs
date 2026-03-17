@@ -7,14 +7,15 @@ namespace AreWeDoomd.Application.Features.Authentication.Commands.LoginUser;
 
 public sealed class LoginUserCommandHandler(
     IUserRepository userRepository,
-    IPasswordHasher passwordHasher)
+    IPasswordHasher passwordHasher,
+    IAccessTokenGenerator accessTokenGenerator)
     : IRequestHandler<LoginUserCommand, AuthResult>
 {
     public async Task<AuthResult> Handle(LoginUserCommand request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Email))
+        if (string.IsNullOrWhiteSpace(request.Username))
         {
-            throw new ArgumentException("Email is required.", nameof(request.Email));
+            throw new ArgumentException("Username is required.", nameof(request.Username));
         }
 
         if (string.IsNullOrWhiteSpace(request.Password))
@@ -22,8 +23,8 @@ public sealed class LoginUserCommandHandler(
             throw new ArgumentException("Password is required.", nameof(request.Password));
         }
 
-        var email = request.Email.Trim().ToLowerInvariant();
-        var user = await userRepository.GetByEmailAsync(email, cancellationToken);
+        var username = request.Username.Trim();
+        var user = await userRepository.GetByUsernameAsync(username, cancellationToken);
 
         if (user is null)
         {
@@ -39,7 +40,7 @@ public sealed class LoginUserCommandHandler(
             user.Id,
             user.Username,
             user.Email,
-            user.UserType);
+            user.UserType,
+            accessTokenGenerator.Generate(user));
     }
 }
-

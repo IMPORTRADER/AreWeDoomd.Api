@@ -8,6 +8,7 @@ namespace AreWeDoomd.Application.Features.Authentication.Commands.RegisterUser;
 public sealed class RegisterUserCommandHandler(
     IUserRepository userRepository,
     IPasswordHasher passwordHasher,
+    IAccessTokenGenerator accessTokenGenerator,
     IDateTimeProvider dateTimeProvider,
     IUnitOfWork unitOfWork)
     : IRequestHandler<RegisterUserCommand, AuthResult>
@@ -63,7 +64,7 @@ public sealed class RegisterUserCommandHandler(
             user.Id,
             user.Username,
             user.Email,
-            user.UserType);
+            user.UserType,
+            accessTokenGenerator.Generate(user));
     }
 }
-

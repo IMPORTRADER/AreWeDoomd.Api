@@ -14,6 +14,13 @@ public sealed class UserRepository(AreWeDoomdDbContext dbContext) : IUserReposit
             .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
     }
 
+    public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken)
+    {
+        return dbContext.Users
+            .Include(u => u.Profile)
+            .FirstOrDefaultAsync(u => u.Username == username, cancellationToken);
+    }
+
     public Task<bool> IsUsernameTakenAsync(string username, CancellationToken cancellationToken)
         => dbContext.Users.AnyAsync(u => u.Username == username, cancellationToken);
 
