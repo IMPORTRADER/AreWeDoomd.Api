@@ -1,10 +1,13 @@
-﻿using AreWeDoomd.Application;
+using AreWeDoomd.Api.Common.Errors;
+using AreWeDoomd.Application;
 using AreWeDoomd.Infrastructure;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddOpenApi();
 
 builder.Services.AddApplication();
@@ -21,6 +24,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseExceptionHandler();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -28,4 +32,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-

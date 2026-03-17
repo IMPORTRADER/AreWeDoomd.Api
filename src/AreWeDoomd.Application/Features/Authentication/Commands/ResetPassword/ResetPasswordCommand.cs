@@ -3,5 +3,5 @@ using MediatR;
 
 namespace AreWeDoomd.Application.Features.Authentication.Commands.ResetPassword;
 
-public sealed record ResetPasswordCommand(string Email, string Code, string NewPassword) : IRequest<AuthResult>;
+public sealed record ResetPasswordCommand(string Username, string Code, string NewPassword) : IRequest<AuthResult>;
 

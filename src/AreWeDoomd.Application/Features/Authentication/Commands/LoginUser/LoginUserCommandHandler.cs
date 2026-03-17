@@ -13,16 +13,6 @@ public sealed class LoginUserCommandHandler(
 {
     public async Task<AuthResult> Handle(LoginUserCommand request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Username))
-        {
-            throw new ArgumentException("Username is required.", nameof(request.Username));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Password))
-        {
-            throw new ArgumentException("Password is required.", nameof(request.Password));
-        }
-
         var username = request.Username.Trim();
         var user = await userRepository.GetByUsernameAsync(username, cancellationToken);
 

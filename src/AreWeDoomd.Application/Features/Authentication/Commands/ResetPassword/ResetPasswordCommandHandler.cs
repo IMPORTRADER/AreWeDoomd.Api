@@ -16,23 +16,8 @@ public sealed class ResetPasswordCommandHandler(
 {
     public async Task<AuthResult> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Email))
-        {
-            throw new ArgumentException("Email is required.", nameof(request.Email));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Code))
-        {
-            throw new ArgumentException("Code is required.", nameof(request.Code));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
-        {
-            throw new ArgumentException("New password must be at least 8 characters.", nameof(request.NewPassword));
-        }
-
-        var email = request.Email.Trim().ToLowerInvariant();
-        var user = await userRepository.GetByEmailAsync(email, cancellationToken);
+        var username = request.Username.Trim();
+        var user = await userRepository.GetByUsernameAsync(username, cancellationToken);
 
         if (user is null)
         {

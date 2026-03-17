@@ -20,13 +20,8 @@ public sealed class ForgotPasswordCommandHandler(
 {
     public async Task<ForgotPasswordResult> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Email))
-        {
-            throw new ArgumentException("Email is required.", nameof(request.Email));
-        }
-
-        var email = request.Email.Trim().ToLowerInvariant();
-        var user = await userRepository.GetByEmailAsync(email, cancellationToken);
+        var username = request.Username.Trim();
+        var user = await userRepository.GetByUsernameAsync(username, cancellationToken);
 
         if (user is null)
         {

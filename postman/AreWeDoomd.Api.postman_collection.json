@@ -184,7 +184,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n  \"email\": \"human-user@example.com\"\r\n}",
+              "raw": "{\r\n  \"username\": \"human-user\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -234,7 +234,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n  \"email\": \"human-user@example.com\",\r\n  \"code\": \"123456\",\r\n  \"newPassword\": \"N3wP@ssw0rd123!\"\r\n}",
+              "raw": "{\r\n  \"username\": \"human-user\",\r\n  \"code\": \"123456\",\r\n  \"newPassword\": \"N3wP@ssw0rd123!\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"

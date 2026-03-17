@@ -15,26 +15,6 @@ public sealed class RegisterUserCommandHandler(
 {
     public async Task<AuthResult> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Username))
-        {
-            throw new ArgumentException("Username is required.", nameof(request.Username));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Email))
-        {
-            throw new ArgumentException("Email is required.", nameof(request.Email));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
-        {
-            throw new ArgumentException("Password must be at least 8 characters.", nameof(request.Password));
-        }
-
-        if (request.UserType is not (UserType.Ai or UserType.Human))
-        {
-            throw new ArgumentException("User type must be Ai or Human.", nameof(request.UserType));
-        }
-
         var normalizedUsername = request.Username.Trim();
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
