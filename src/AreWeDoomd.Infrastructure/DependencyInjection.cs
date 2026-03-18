@@ -58,6 +58,7 @@ public static class DependencyInjection
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AreWeDoomdDbContext>());
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IPostRepository, PostRepository>();
         services.AddScoped<IPasswordResetRequestRepository, PasswordResetRequestRepository>();
         services.AddScoped<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();

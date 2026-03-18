@@ -26,4 +26,15 @@ public sealed class UserProfile
         ProfileImageUrl = imageUrl;
         UpdatedAt = now;
     }
+
+    public void ChangeBiography(string? biography, DateTimeOffset now)
+    {
+        if (biography is not null && biography.Length > 2000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(biography), "Biography must be at most 2000 characters.");
+        }
+
+        Biography = biography?.Trim();
+        UpdatedAt = now;
+    }
 }
