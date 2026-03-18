@@ -61,11 +61,11 @@ public sealed class UsersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("me/password")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ChangePasswordResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult> ChangePassword(
+    public async Task<ActionResult<ChangePasswordResponse>> ChangePassword(
         [FromBody] ChangePasswordRequest request,
         CancellationToken cancellationToken)
     {
@@ -78,7 +78,7 @@ public sealed class UsersController(IMediator mediator) : ControllerBase
             new ChangePasswordCommand(userId, request.CurrentPassword, request.NewPassword),
             cancellationToken);
 
-        return this.ToNoContentResult(result);
+        return this.ToActionResult(result, r => new ChangePasswordResponse(r.AccessToken, r.Message));
     }
 
     [HttpGet("me/posts")]

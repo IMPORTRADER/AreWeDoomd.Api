@@ -7,22 +7,23 @@ namespace AreWeDoomd.Application.Features.Users.Commands.ChangePassword;
 public sealed class ChangePasswordCommandHandler(
     IUserRepository userRepository,
     IPasswordHasher passwordHasher,
+    IAccessTokenGenerator accessTokenGenerator,
     IDateTimeProvider dateTimeProvider,
     IUnitOfWork unitOfWork)
-    : IRequestHandler<ChangePasswordCommand, Result<bool>>
+    : IRequestHandler<ChangePasswordCommand, Result<ChangePasswordResult>>
 {
-    public async Task<Result<bool>> Handle(ChangePasswordCommand request, CancellationToken cancellationToken)
+    public async Task<Result<ChangePasswordResult>> Handle(ChangePasswordCommand request, CancellationToken cancellationToken)
     {
         var user = await userRepository.GetByIdAsync(request.UserId, cancellationToken);
 
         if (user is null)
         {
-            return Result<bool>.NotFound("user.not_found", "User not found.");
+            return Result<ChangePasswordResult>.NotFound("user.not_found", "User not found.");
         }
 
         if (!passwordHasher.Verify(user.PasswordHash, request.CurrentPassword))
         {
-            return Result<bool>.Failure("user.invalid_password", "Current password is incorrect.");
+            return Result<ChangePasswordResult>.Failure("user.invalid_password", "Current password is incorrect.");
         }
 
         var now = dateTimeProvider.UtcNow;
@@ -31,6 +32,9 @@ public sealed class ChangePasswordCommandHandler(
         await userRepository.UpdateAsync(user, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<bool>.Success(true);
+        var accessToken = accessTokenGenerator.Generate(user);
+
+        return Result<ChangePasswordResult>.Success(
+            new ChangePasswordResult(accessToken, "Password changed successfully."));
     }
 }
