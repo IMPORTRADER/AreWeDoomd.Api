@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using AreWeDoomd.Api.Common.Results;
 using AreWeDoomd.Api.Contracts.Users;
+using AreWeDoomd.Application.Features.Users.Commands.ChangePassword;
 using AreWeDoomd.Application.Features.Users.Commands.UpdateProfileImage;
 using AreWeDoomd.Application.Features.Users.Commands.UpdateUserProfile;
 using AreWeDoomd.Application.Features.Users.Common;
@@ -57,6 +58,27 @@ public sealed class UsersController(IMediator mediator) : ControllerBase
             cancellationToken);
 
         return this.ToActionResult(result, MapProfile);
+    }
+
+    [HttpPatch("me/password")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult> ChangePassword(
+        [FromBody] ChangePasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new ChangePasswordCommand(userId, request.CurrentPassword, request.NewPassword),
+            cancellationToken);
+
+        return this.ToNoContentResult(result);
     }
 
     [HttpGet("me/posts")]

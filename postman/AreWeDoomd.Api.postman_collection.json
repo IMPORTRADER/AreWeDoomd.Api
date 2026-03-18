@@ -347,6 +347,40 @@
           "response": []
         },
         {
+          "name": "Change Password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"currentPassword\": \"P@ssw0rd123!\",\r\n  \"newPassword\": \"N3wP@ssw0rd456!\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/Users/me/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Users",
+                "me",
+                "password"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Get My Posts",
           "request": {
             "method": "GET",
