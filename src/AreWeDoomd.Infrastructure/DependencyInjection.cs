@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IPostRepository, PostRepository>();
         services.AddScoped<IPasswordResetRequestRepository, PasswordResetRequestRepository>();
+        services.AddScoped<IUserFollowRepository, UserFollowRepository>();
         services.AddScoped<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddScoped<IAccessTokenGenerator, JwtAccessTokenGenerator>();
