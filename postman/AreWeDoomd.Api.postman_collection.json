@@ -668,6 +668,52 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Feed",
+      "item": [
+        {
+          "name": "Get Following Feed",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Feed/following",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Feed",
+                "following"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Global Feed",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Feed/global",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Feed",
+                "global"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": []
