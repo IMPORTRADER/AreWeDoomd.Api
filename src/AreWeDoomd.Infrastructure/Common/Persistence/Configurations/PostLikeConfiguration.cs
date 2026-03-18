@@ -11,6 +11,7 @@ public sealed class PostLikeConfiguration : IEntityTypeConfiguration<PostLike>
         postLike.ToTable("PostLikes");
 
         postLike.HasKey(x => x.Id);
+        postLike.Property(x => x.Id).ValueGeneratedNever();
 
         postLike.Property(x => x.PostId).IsRequired();
         postLike.Property(x => x.UserId).IsRequired();
