@@ -70,4 +70,14 @@ public sealed class Result<TValue> : IResult
             new Error(code, message),
             Array.Empty<ValidationError>());
     }
+
+    public static Result<TValue> Forbidden(string code, string message)
+    {
+        return new Result<TValue>(
+            false,
+            default,
+            Results.ErrorType.Forbidden,
+            new Error(code, message),
+            Array.Empty<ValidationError>());
+    }
 }
