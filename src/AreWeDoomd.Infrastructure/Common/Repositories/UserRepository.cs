@@ -7,6 +7,13 @@ namespace AreWeDoomd.Infrastructure.Common.Repositories;
 
 public sealed class UserRepository(AreWeDoomdDbContext dbContext) : IUserRepository
 {
+    public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return dbContext.Users
+            .Include(u => u.Profile)
+            .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+    }
+
     public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken)
     {
         return dbContext.Users

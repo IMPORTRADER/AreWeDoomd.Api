@@ -1,6 +1,6 @@
-using AreWeDoomd.Application.Common.Exceptions;
 using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Common.Models;
+using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Application.Features.Authentication.Common;
 using AreWeDoomd.Domain.Users;
 using MediatR;
@@ -16,21 +16,16 @@ public sealed class ForgotPasswordCommandHandler(
     IPasswordResetRequestRepository passwordResetRequestRepository,
     IPasswordResetSettings passwordResetSettings,
     IUnitOfWork unitOfWork)
-    : IRequestHandler<ForgotPasswordCommand, ForgotPasswordResult>
+    : IRequestHandler<ForgotPasswordCommand, Result<ForgotPasswordResult>>
 {
-    public async Task<ForgotPasswordResult> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
+    public async Task<Result<ForgotPasswordResult>> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Email))
-        {
-            throw new ArgumentException("Email is required.", nameof(request.Email));
-        }
-
-        var email = request.Email.Trim().ToLowerInvariant();
-        var user = await userRepository.GetByEmailAsync(email, cancellationToken);
+        var username = request.Username.Trim();
+        var user = await userRepository.GetByUsernameAsync(username, cancellationToken);
 
         if (user is null)
         {
-            throw new NotFoundException("User not found.");
+            return Result<ForgotPasswordResult>.NotFound("auth.user_not_found", "User not found.");
         }
 
         var now = dateTimeProvider.UtcNow;
@@ -59,6 +54,7 @@ public sealed class ForgotPasswordCommandHandler(
 
         await emailSender.SendAsync(message, cancellationToken);
 
-        return new ForgotPasswordResult(code, resetRequest.ExpiresAt);
+        return Result<ForgotPasswordResult>.Success(
+            new ForgotPasswordResult(code, resetRequest.ExpiresAt));
     }
 }

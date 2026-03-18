@@ -1,3 +1,4 @@
+using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Application.Features.Authentication.Common;
 using AreWeDoomd.Domain.Users;
 using MediatR;
@@ -8,4 +9,4 @@ public sealed record RegisterUserCommand(
     string Username,
     string Email,
     string Password,
-    UserType UserType) : IRequest<AuthResult>;
+    UserType UserType) : IRequest<Result<AuthResult>>;

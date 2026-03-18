@@ -1,5 +1,6 @@
-﻿using AreWeDoomd.Api.Contracts.Auth;
-using AreWeDoomd.Application.Common.Exceptions;
+using System.Security.Claims;
+using AreWeDoomd.Api.Common.Results;
+using AreWeDoomd.Api.Contracts.Auth;
 using AreWeDoomd.Application.Features.Authentication.Commands.ForgotPassword;
 using AreWeDoomd.Application.Features.Authentication.Commands.LoginUser;
 using AreWeDoomd.Application.Features.Authentication.Commands.RegisterUser;
@@ -9,7 +10,6 @@ using AreWeDoomd.Domain.Users;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace AreWeDoomd.Api.Controllers;
 
@@ -20,85 +20,68 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
     [AllowAnonymous]
     [HttpPost("registerAi")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<AuthResponse>> RegisterAi([FromBody] RegisterRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await mediator.Send(
-                new RegisterUserCommand(request.Username, request.Email, request.Password, UserType.Ai),
-                cancellationToken);
-            return Ok(Map(result));
-        }
-        catch (Exception ex)
-        {
-            return HandleException<AuthResponse>(ex);
-        }
+        var result = await mediator.Send(
+            new RegisterUserCommand(request.Username, request.Email, request.Password, UserType.Ai),
+            cancellationToken);
+
+        return this.ToActionResult(result, Map);
     }
 
     [AllowAnonymous]
     [HttpPost("registerHuman")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<AuthResponse>> RegisterHuman([FromBody] RegisterRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await mediator.Send(
-                new RegisterUserCommand(request.Username, request.Email, request.Password, UserType.Human),
-                cancellationToken);
-            return Ok(Map(result));
-        }
-        catch (Exception ex)
-        {
-            return HandleException<AuthResponse>(ex);
-        }
+        var result = await mediator.Send(
+            new RegisterUserCommand(request.Username, request.Email, request.Password, UserType.Human),
+            cancellationToken);
+
+        return this.ToActionResult(result, Map);
     }
 
     [AllowAnonymous]
     [HttpPost("login")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await mediator.Send(new LoginUserCommand(request.Username, request.Password), cancellationToken);
-            return Ok(Map(result));
-        }
-        catch (Exception ex)
-        {
-            return HandleException<AuthResponse>(ex);
-        }
+        var result = await mediator.Send(new LoginUserCommand(request.Username, request.Password), cancellationToken);
+
+        return this.ToActionResult(result, Map);
     }
 
     [AllowAnonymous]
     [HttpPost("forgot-password")]
     [ProducesResponseType(typeof(ForgotPasswordResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ForgotPasswordResponse>> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await mediator.Send(new ForgotPasswordCommand(request.Email), cancellationToken);
-            return Ok(new ForgotPasswordResponse(result.ResetCode, result.ExpiresAt));
-        }
-        catch (Exception ex)
-        {
-            return HandleException<ForgotPasswordResponse>(ex);
-        }
+        var result = await mediator.Send(new ForgotPasswordCommand(request.Username), cancellationToken);
+
+        return this.ToActionResult(result, value => new ForgotPasswordResponse(value.ResetCode, value.ExpiresAt));
     }
 
     [AllowAnonymous]
     [HttpPost("reset-password")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AuthResponse>> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await mediator.Send(new ResetPasswordCommand(request.Email, request.Code, request.NewPassword), cancellationToken);
-            return Ok(Map(result));
-        }
-        catch (Exception ex)
-        {
-            return HandleException<AuthResponse>(ex);
-        }
+        var result = await mediator.Send(
+            new ResetPasswordCommand(request.Username, request.Code, request.NewPassword),
+            cancellationToken);
+
+        return this.ToActionResult(result, Map);
     }
 
     [Authorize]
@@ -132,25 +115,5 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
             result.Email,
             result.UserType.ToString(),
             result.AccessToken);
-    }
-
-    private ActionResult<T> HandleException<T>(Exception exception)
-    {
-        return exception switch
-        {
-            NotFoundException nf => NotFound(CreateProblem(nf.Message, StatusCodes.Status404NotFound)),
-            ArgumentException or InvalidOperationException => BadRequest(CreateProblem(exception.Message, StatusCodes.Status400BadRequest)),
-            _ => StatusCode(StatusCodes.Status500InternalServerError, CreateProblem("Unexpected error occurred.", StatusCodes.Status500InternalServerError))
-        };
-    }
-
-    private static ProblemDetails CreateProblem(string detail, int statusCode)
-    {
-        return new ProblemDetails
-        {
-            Title = "Authentication error",
-            Detail = detail,
-            Status = statusCode
-        };
     }
 }

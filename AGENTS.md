@@ -24,9 +24,11 @@ Guide | When to Load
 ----- | ------------
 /docs/ai/unit-test-rules.md | unit test creation or modification
 /docs/ai/endpoint-rules.md | editing API controllers or endpoint contracts
+/docs/ai/error-handling-rules.md | modifying exception handling, result models, endpoint error responses, or MediatR request failure flow
 /docs/ai/validation-rules.md | input validation or FluentValidation usage
 /docs/ai/architecture-layer-details.md | when modifying or creating layer-specific logic
 /docs/ai/clean-code-guidelines.md | when refactoring or improving code quality
+/docs/ai/running-and-testing-api.md | running the API, testing endpoints, or making HTTP requests
 
 ---
 

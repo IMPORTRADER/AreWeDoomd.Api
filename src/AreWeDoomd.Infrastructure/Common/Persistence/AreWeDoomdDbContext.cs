@@ -13,6 +13,8 @@ public class AreWeDoomdDbContext(DbContextOptions<AreWeDoomdDbContext> options) 
     public DbSet<User> Users => Set<User>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<PasswordResetRequest> PasswordResetRequests => Set<PasswordResetRequest>();
+    public DbSet<UserFollow> UserFollows => Set<UserFollow>();
+    public DbSet<PostLike> PostLikes => Set<PostLike>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
