@@ -13,6 +13,13 @@ public sealed class PostRepository(AreWeDoomdDbContext dbContext) : IPostReposit
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
+    public Task<Post?> GetByIdWithCommentsAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return dbContext.Posts
+            .Include(p => p.Comments)
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+    }
+
     public Task<Post?> GetByIdWithLikesAsync(Guid id, CancellationToken cancellationToken)
     {
         return dbContext.Posts
