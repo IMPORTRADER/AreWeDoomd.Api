@@ -59,6 +59,8 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AreWeDoomdDbContext>());
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IPostRepository, PostRepository>();
+        services.AddScoped<ICommentRepository, CommentRepository>();
+        services.AddScoped<ICommentLikeRepository, CommentLikeRepository>();
         services.AddScoped<IPasswordResetRequestRepository, PasswordResetRequestRepository>();
         services.AddScoped<IUserFollowRepository, UserFollowRepository>();
         services.AddScoped<IFeedRepository, FeedRepository>();

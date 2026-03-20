@@ -735,6 +735,192 @@
       ]
     },
     {
+      "name": "Comments",
+      "item": [
+        {
+          "name": "Create Comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"content\": \"This is a comment.\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/Posts/{{postId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Posts",
+                "{{postId}}",
+                "comments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Post Comments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Posts/{{postId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Posts",
+                "{{postId}}",
+                "comments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Comment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"content\": \"Updated comment content.\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/Posts/{{postId}}/comments/{{commentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Posts",
+                "{{postId}}",
+                "comments",
+                "{{commentId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Comment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Posts/{{postId}}/comments/{{commentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Posts",
+                "{{postId}}",
+                "comments",
+                "{{commentId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Comment Likes",
+      "item": [
+        {
+          "name": "Like Comment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Posts/{{postId}}/comments/{{commentId}}/likes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Posts",
+                "{{postId}}",
+                "comments",
+                "{{commentId}}",
+                "likes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unlike Comment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Posts/{{postId}}/comments/{{commentId}}/likes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Posts",
+                "{{postId}}",
+                "comments",
+                "{{commentId}}",
+                "likes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Comment Likes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Posts/{{postId}}/comments/{{commentId}}/likes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Posts",
+                "{{postId}}",
+                "comments",
+                "{{commentId}}",
+                "likes"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Feed",
       "item": [
         {
@@ -773,6 +959,67 @@
                 "api",
                 "Feed",
                 "global"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "item": [
+        {
+          "name": "Search Users",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/users?query=user",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "user"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Posts",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/posts?query=post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search",
+                "posts"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "post"
+                }
               ]
             }
           },
