@@ -5,5 +5,6 @@ public sealed record CommentResult(
     Guid PostId,
     Guid UserId,
     string Content,
+    int LikeCount,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);

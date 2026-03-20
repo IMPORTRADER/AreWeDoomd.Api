@@ -19,8 +19,19 @@ public sealed class CommentConfiguration : IEntityTypeConfiguration<Comment>
             .IsRequired()
             .HasMaxLength(2_000);
 
+        comment.Property(x => x.LikeCount).IsRequired();
         comment.Property(x => x.CreatedAt).IsRequired();
         comment.Property(x => x.UpdatedAt);
+
+        comment.Navigation(x => x.Likes)
+            .HasField("_likes")
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        comment.HasMany(x => x.Likes)
+            .WithOne(x => x.Comment)
+            .HasForeignKey(x => x.CommentId)
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Cascade);
 
         comment.HasIndex(x => x.PostId);
         comment.HasIndex(x => x.UserId);

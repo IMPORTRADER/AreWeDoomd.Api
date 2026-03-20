@@ -114,6 +114,7 @@ public sealed class CommentsController(IMediator mediator) : ControllerBase
             result.PostId,
             result.UserId,
             result.Content,
+            result.LikeCount,
             result.CreatedAt,
             result.UpdatedAt);
     }

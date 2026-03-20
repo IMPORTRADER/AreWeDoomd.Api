@@ -16,6 +16,15 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
                 cancellationToken);
     }
 
+    public Task<Comment?> GetByIdWithLikesAsync(Guid postId, Guid commentId, CancellationToken cancellationToken)
+    {
+        return dbContext.Comments
+            .Include(x => x.Likes)
+            .FirstOrDefaultAsync(
+                x => x.PostId == postId && x.Id == commentId,
+                cancellationToken);
+    }
+
     public async Task<IReadOnlyList<CommentResult>> GetByPostIdAsync(
         Guid postId, CancellationToken cancellationToken)
     {
@@ -28,6 +37,7 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
                 x.PostId,
                 x.UserId,
                 x.Content,
+                x.LikeCount,
                 x.CreatedAt,
                 x.UpdatedAt))
             .ToListAsync(cancellationToken);

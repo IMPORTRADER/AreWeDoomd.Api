@@ -44,6 +44,7 @@ public sealed class UpdateCommentCommandHandler(
                 comment.PostId,
                 comment.UserId,
                 comment.Content,
+                comment.LikeCount,
                 comment.CreatedAt,
                 comment.UpdatedAt));
     }

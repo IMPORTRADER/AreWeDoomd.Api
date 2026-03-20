@@ -33,6 +33,7 @@ public sealed class CreateCommentCommandHandler(
                 comment.PostId,
                 comment.UserId,
                 comment.Content,
+                comment.LikeCount,
                 comment.CreatedAt,
                 comment.UpdatedAt));
     }
