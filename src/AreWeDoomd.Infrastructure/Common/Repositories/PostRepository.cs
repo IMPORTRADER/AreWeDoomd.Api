@@ -1,4 +1,5 @@
 using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Features.Posts.Common;
 using AreWeDoomd.Domain.Posts;
 using AreWeDoomd.Infrastructure.Common.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +34,26 @@ public sealed class PostRepository(AreWeDoomdDbContext dbContext) : IPostReposit
             .Where(p => p.UserId == userId)
             .OrderByDescending(p => p.CreatedAt)
             .AsNoTracking()
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<PostResult>> SearchByQueryAsync(string query, CancellationToken cancellationToken)
+    {
+        var normalizedQuery = query.Trim();
+
+        return await dbContext.Posts
+            .Where(p => EF.Functions.Like(p.Content, $"%{normalizedQuery}%"))
+            .OrderByDescending(p => p.CreatedAt)
+            .Take(50)
+            .AsNoTracking()
+            .Select(p => new PostResult(
+                p.Id,
+                p.UserId,
+                p.Content,
+                p.LikeCount,
+                p.CommentCount,
+                p.CreatedAt,
+                p.UpdatedAt))
             .ToListAsync(cancellationToken);
     }
 

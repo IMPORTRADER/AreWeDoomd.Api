@@ -1,3 +1,4 @@
+using AreWeDoomd.Application.Features.Posts.Common;
 using AreWeDoomd.Domain.Posts;
 
 namespace AreWeDoomd.Application.Common.Interfaces;
@@ -8,6 +9,7 @@ public interface IPostRepository
     Task<Post?> GetByIdWithCommentsAsync(Guid id, CancellationToken cancellationToken);
     Task<Post?> GetByIdWithLikesAsync(Guid id, CancellationToken cancellationToken);
     Task<IReadOnlyList<Post>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<PostResult>> SearchByQueryAsync(string query, CancellationToken cancellationToken);
     Task AddAsync(Post post, CancellationToken cancellationToken);
     Task UpdateAsync(Post post, CancellationToken cancellationToken);
     Task DeleteAsync(Post post, CancellationToken cancellationToken);
