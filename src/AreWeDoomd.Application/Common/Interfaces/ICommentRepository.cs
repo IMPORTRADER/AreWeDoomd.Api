@@ -9,7 +9,10 @@ public interface ICommentRepository
     Task<Comment?> GetByIdWithLikesAsync(Guid postId, Guid commentId, CancellationToken cancellationToken);
     Task<CommentResult?> GetByIdProjectedAsync(Guid postId, Guid commentId, CancellationToken cancellationToken);
     Task<IReadOnlyList<CommentResult>> GetByPostIdAsync(Guid postId, CancellationToken cancellationToken);
-    Task<IReadOnlyList<CommentResult>> GetByPostIdProjectedAsync(Guid postId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<CommentResult>> GetByPostIdProjectedAsync(
+        Guid postId,
+        int? maxComments,
+        CancellationToken cancellationToken);
     Task AddAsync(Comment comment, CancellationToken cancellationToken);
     Task UpdateAsync(Comment comment, CancellationToken cancellationToken);
     Task DeleteAsync(Comment comment, CancellationToken cancellationToken);

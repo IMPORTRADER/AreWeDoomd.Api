@@ -49,13 +49,15 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
     public async Task<IReadOnlyList<CommentResult>> GetByPostIdAsync(
         Guid postId, CancellationToken cancellationToken)
     {
-        return await GetByPostIdProjectedAsync(postId, cancellationToken);
+        return await GetByPostIdProjectedAsync(postId, maxComments: null, cancellationToken);
     }
 
     public async Task<IReadOnlyList<CommentResult>> GetByPostIdProjectedAsync(
-        Guid postId, CancellationToken cancellationToken)
+        Guid postId,
+        int? maxComments,
+        CancellationToken cancellationToken)
     {
-        return await dbContext.Comments
+        IQueryable<CommentResult> query = dbContext.Comments
             .Where(x => x.PostId == postId)
             .OrderBy(x => x.CreatedAt)
             .AsNoTracking()
@@ -69,7 +71,14 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
                     c.Content,
                     c.LikeCount,
                     c.CreatedAt,
-                    c.UpdatedAt))
+                    c.UpdatedAt));
+
+        if (maxComments is not null)
+        {
+            query = query.Take(maxComments.Value);
+        }
+
+        return await query
             .ToListAsync(cancellationToken);
     }
 

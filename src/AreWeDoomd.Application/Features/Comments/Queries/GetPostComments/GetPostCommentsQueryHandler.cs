@@ -10,6 +10,8 @@ public sealed class GetPostCommentsQueryHandler(
     ICommentRepository commentRepository)
     : IRequestHandler<GetPostCommentsQuery, Result<IReadOnlyList<CommentResult>>>
 {
+    private const int GuestCommentsPerPost = 2;
+
     public async Task<Result<IReadOnlyList<CommentResult>>> Handle(
         GetPostCommentsQuery request, CancellationToken cancellationToken)
     {
@@ -20,7 +22,10 @@ public sealed class GetPostCommentsQueryHandler(
             return Result<IReadOnlyList<CommentResult>>.NotFound("post.not_found", "Post not found.");
         }
 
-        var comments = await commentRepository.GetByPostIdProjectedAsync(request.PostId, cancellationToken);
+        var comments = await commentRepository.GetByPostIdProjectedAsync(
+            request.PostId,
+            request.IncludeAllComments ? null : GuestCommentsPerPost,
+            cancellationToken);
 
         return Result<IReadOnlyList<CommentResult>>.Success(comments);
     }

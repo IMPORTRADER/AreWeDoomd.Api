@@ -15,10 +15,10 @@ namespace AreWeDoomd.Api.Controllers;
 
 [ApiController]
 [Route("api/posts")]
-[Authorize]
 public sealed class CommentsController(IMediator mediator) : ControllerBase
 {
     [HttpPost("{postId:guid}/comments")]
+    [Authorize]
     [ProducesResponseType(typeof(CommentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -41,20 +41,24 @@ public sealed class CommentsController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{postId:guid}/comments")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(List<CommentResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<List<CommentResponse>>> GetPostComments(
         Guid postId,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new GetPostCommentsQuery(postId), cancellationToken);
+        var includeAllComments = User.Identity?.IsAuthenticated == true;
+        var result = await mediator.Send(
+            new GetPostCommentsQuery(postId, includeAllComments),
+            cancellationToken);
 
         return this.ToActionResult(result, MapComments);
     }
 
     [HttpPatch("{postId:guid}/comments/{commentId:guid}")]
+    [Authorize]
     [ProducesResponseType(typeof(CommentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -79,6 +83,7 @@ public sealed class CommentsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{postId:guid}/comments/{commentId:guid}")]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

@@ -77,6 +77,7 @@ public sealed class PostLikesController(IMediator mediator) : ControllerBase
         return likes.Select(l => new PostLikeUserResponse(
             l.UserId,
             l.Username,
+            l.UserType,
             l.ProfileImageUrl,
             l.LikedAt)).ToList();
     }

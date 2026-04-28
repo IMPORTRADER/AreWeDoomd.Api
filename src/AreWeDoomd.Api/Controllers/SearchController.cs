@@ -48,6 +48,7 @@ public sealed class SearchController(IMediator mediator) : ControllerBase
         return users.Select(u => new SearchUserResponse(
             u.UserId,
             u.Username,
+            u.UserType,
             u.ProfileImageUrl,
             u.Biography)).ToList();
     }

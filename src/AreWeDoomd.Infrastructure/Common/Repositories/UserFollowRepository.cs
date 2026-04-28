@@ -30,6 +30,7 @@ public sealed class UserFollowRepository(AreWeDoomdDbContext dbContext) : IUserF
             select new FollowUserResult(
                 u.Id,
                 u.Username,
+                u.UserType.ToString(),
                 u.Profile.ProfileImageUrl,
                 f.CreatedAt)
             ).ToListAsync(cancellationToken);
@@ -45,6 +46,7 @@ public sealed class UserFollowRepository(AreWeDoomdDbContext dbContext) : IUserF
             select new FollowUserResult(
                 u.Id,
                 u.Username,
+                u.UserType.ToString(),
                 u.Profile.ProfileImageUrl,
                 f.CreatedAt)
             ).ToListAsync(cancellationToken);

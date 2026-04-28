@@ -132,6 +132,7 @@ public sealed class UsersController(IMediator mediator) : ControllerBase
     {
         return posts.Select(p => new UserPostResponse(
             p.Id,
+            p.UserType,
             p.Content,
             p.LikeCount,
             p.CommentCount,
