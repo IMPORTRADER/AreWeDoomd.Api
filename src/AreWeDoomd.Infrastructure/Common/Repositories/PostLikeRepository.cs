@@ -18,6 +18,7 @@ public sealed class PostLikeRepository(AreWeDoomdDbContext dbContext) : IPostLik
             select new PostLikeUserResult(
                 u.Id,
                 u.Username,
+                u.UserType.ToString(),
                 u.Profile.ProfileImageUrl,
                 pl.CreatedAt)
             ).ToListAsync(cancellationToken);

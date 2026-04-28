@@ -4,4 +4,6 @@ using MediatR;
 
 namespace AreWeDoomd.Application.Features.Comments.Queries.GetPostComments;
 
-public sealed record GetPostCommentsQuery(Guid PostId) : IRequest<Result<IReadOnlyList<CommentResult>>>;
+public sealed record GetPostCommentsQuery(
+    Guid PostId,
+    bool IncludeAllComments) : IRequest<Result<IReadOnlyList<CommentResult>>>;

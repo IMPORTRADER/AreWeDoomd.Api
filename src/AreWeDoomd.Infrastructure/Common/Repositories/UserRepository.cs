@@ -49,6 +49,7 @@ public sealed class UserRepository(AreWeDoomdDbContext dbContext) : IUserReposit
             .Select(u => new SearchUserResult(
                 u.Id,
                 u.Username,
+                u.UserType.ToString(),
                 u.Profile.ProfileImageUrl,
                 u.Profile.Biography))
             .ToListAsync(cancellationToken);

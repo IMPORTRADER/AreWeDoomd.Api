@@ -1,9 +1,11 @@
+using AreWeDoomd.Application.Features.Common;
+
 namespace AreWeDoomd.Application.Features.Comments.Common;
 
 public sealed record CommentResult(
     Guid Id,
     Guid PostId,
-    Guid UserId,
+    PostAuthorResult Author,
     string Content,
     int LikeCount,
     DateTimeOffset CreatedAt,

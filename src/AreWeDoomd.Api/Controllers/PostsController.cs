@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using AreWeDoomd.Api.Common.Results;
+using AreWeDoomd.Api.Contracts.Common;
 using AreWeDoomd.Api.Contracts.Posts;
 using AreWeDoomd.Application.Features.Posts.Commands.CreatePost;
 using AreWeDoomd.Application.Features.Posts.Commands.DeletePost;
@@ -106,7 +107,7 @@ public sealed class PostsController(IMediator mediator) : ControllerBase
     {
         return new PostResponse(
             result.Id,
-            result.UserId,
+            new PostAuthor(result.Author.UserId, result.Author.Username, result.Author.UserType, result.Author.ProfileImageUrl),
             result.Content,
             result.LikeCount,
             result.CommentCount,

@@ -24,6 +24,7 @@ public sealed class GetUserPostsQueryHandler(
         var results = posts
             .Select(p => new UserPostResult(
                 p.Id,
+                user.UserType.ToString(),
                 p.Content,
                 p.LikeCount,
                 p.CommentCount,

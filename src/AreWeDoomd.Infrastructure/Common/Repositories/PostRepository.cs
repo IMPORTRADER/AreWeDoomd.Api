@@ -1,4 +1,5 @@
 using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Features.Common;
 using AreWeDoomd.Application.Features.Posts.Common;
 using AreWeDoomd.Domain.Posts;
 using AreWeDoomd.Infrastructure.Common.Persistence;
@@ -28,6 +29,25 @@ public sealed class PostRepository(AreWeDoomdDbContext dbContext) : IPostReposit
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
+    public async Task<PostResult?> GetByIdProjectedAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return await dbContext.Posts
+            .Where(p => p.Id == id)
+            .AsNoTracking()
+            .Join(dbContext.Users,
+                p => p.UserId,
+                u => u.Id,
+                (p, u) => new PostResult(
+                    p.Id,
+                    new PostAuthorResult(u.Id, u.Username, u.UserType.ToString(), u.Profile.ProfileImageUrl),
+                    p.Content,
+                    p.LikeCount,
+                    p.CommentCount,
+                    p.CreatedAt,
+                    p.UpdatedAt))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Post>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken)
     {
         return await dbContext.Posts
@@ -46,14 +66,17 @@ public sealed class PostRepository(AreWeDoomdDbContext dbContext) : IPostReposit
             .OrderByDescending(p => p.CreatedAt)
             .Take(50)
             .AsNoTracking()
-            .Select(p => new PostResult(
-                p.Id,
-                p.UserId,
-                p.Content,
-                p.LikeCount,
-                p.CommentCount,
-                p.CreatedAt,
-                p.UpdatedAt))
+            .Join(dbContext.Users,
+                p => p.UserId,
+                u => u.Id,
+                (p, u) => new PostResult(
+                    p.Id,
+                    new PostAuthorResult(u.Id, u.Username, u.UserType.ToString(), u.Profile.ProfileImageUrl),
+                    p.Content,
+                    p.LikeCount,
+                    p.CommentCount,
+                    p.CreatedAt,
+                    p.UpdatedAt))
             .ToListAsync(cancellationToken);
     }
 

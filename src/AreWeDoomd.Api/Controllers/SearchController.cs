@@ -1,4 +1,5 @@
 using AreWeDoomd.Api.Common.Results;
+using AreWeDoomd.Api.Contracts.Common;
 using AreWeDoomd.Api.Contracts.Posts;
 using AreWeDoomd.Api.Contracts.Search;
 using AreWeDoomd.Application.Features.Posts.Common;
@@ -47,6 +48,7 @@ public sealed class SearchController(IMediator mediator) : ControllerBase
         return users.Select(u => new SearchUserResponse(
             u.UserId,
             u.Username,
+            u.UserType,
             u.ProfileImageUrl,
             u.Biography)).ToList();
     }
@@ -55,7 +57,7 @@ public sealed class SearchController(IMediator mediator) : ControllerBase
     {
         return posts.Select(p => new PostResponse(
             p.Id,
-            p.UserId,
+            new PostAuthor(p.Author.UserId, p.Author.Username, p.Author.UserType, p.Author.ProfileImageUrl),
             p.Content,
             p.LikeCount,
             p.CommentCount,

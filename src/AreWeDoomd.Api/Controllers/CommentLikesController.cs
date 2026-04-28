@@ -84,6 +84,7 @@ public sealed class CommentLikesController(IMediator mediator) : ControllerBase
         return likes.Select(l => new CommentLikeUserResponse(
             l.UserId,
             l.Username,
+            l.UserType,
             l.ProfileImageUrl,
             l.LikedAt)).ToList();
     }

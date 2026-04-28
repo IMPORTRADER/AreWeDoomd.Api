@@ -1,9 +1,9 @@
-using AreWeDoomd.Application.Features.Posts.Common;
+using AreWeDoomd.Application.Features.Feed.Common;
 
 namespace AreWeDoomd.Application.Common.Interfaces;
 
 public interface IFeedRepository
 {
-    Task<IReadOnlyList<PostResult>> GetFollowingFeedAsync(Guid userId, CancellationToken cancellationToken);
-    Task<IReadOnlyList<PostResult>> GetGlobalFeedAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<FeedPostResult>> GetFollowingFeedAsync(Guid userId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<FeedPostResult>> GetGlobalFeedAsync(bool includeAllComments, CancellationToken cancellationToken);
 }

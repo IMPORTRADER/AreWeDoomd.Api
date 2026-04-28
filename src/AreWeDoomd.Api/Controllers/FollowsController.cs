@@ -133,6 +133,7 @@ public sealed class FollowsController(IMediator mediator) : ControllerBase
         return users.Select(u => new FollowUserResponse(
             u.UserId,
             u.Username,
+            u.UserType,
             u.ProfileImageUrl,
             u.FollowedAt)).ToList();
     }

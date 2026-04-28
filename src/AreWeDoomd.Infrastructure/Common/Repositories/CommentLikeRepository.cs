@@ -18,6 +18,7 @@ public sealed class CommentLikeRepository(AreWeDoomdDbContext dbContext) : IComm
             select new CommentLikeUserResult(
                 u.Id,
                 u.Username,
+                u.UserType.ToString(),
                 u.Profile.ProfileImageUrl,
                 cl.CreatedAt)
         ).ToListAsync(cancellationToken);
