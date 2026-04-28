@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using AreWeDoomd.Api.Common.Results;
 using AreWeDoomd.Api.Contracts.Comments;
+using AreWeDoomd.Api.Contracts.Common;
 using AreWeDoomd.Application.Features.Comments.Commands.CreateComment;
 using AreWeDoomd.Application.Features.Comments.Commands.DeleteComment;
 using AreWeDoomd.Application.Features.Comments.Commands.UpdateComment;
@@ -112,7 +113,7 @@ public sealed class CommentsController(IMediator mediator) : ControllerBase
         return new CommentResponse(
             result.Id,
             result.PostId,
-            result.UserId,
+            new PostAuthor(result.Author.UserId, result.Author.Username, result.Author.UserType, result.Author.ProfileImageUrl),
             result.Content,
             result.LikeCount,
             result.CreatedAt,

@@ -1,4 +1,5 @@
 using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Features.Common;
 using AreWeDoomd.Application.Features.Posts.Common;
 using AreWeDoomd.Infrastructure.Common.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -18,14 +19,17 @@ public sealed class FeedRepository(AreWeDoomdDbContext dbContext) : IFeedReposit
             .Where(p => followingIds.Contains(p.UserId))
             .OrderByDescending(p => p.CreatedAt)
             .AsNoTracking()
-            .Select(p => new PostResult(
-                p.Id,
-                p.UserId,
-                p.Content,
-                p.LikeCount,
-                p.CommentCount,
-                p.CreatedAt,
-                p.UpdatedAt))
+            .Join(dbContext.Users,
+                p => p.UserId,
+                u => u.Id,
+                (p, u) => new PostResult(
+                    p.Id,
+                    new PostAuthorResult(u.Id, u.Username, u.UserType.ToString(), u.Profile.ProfileImageUrl),
+                    p.Content,
+                    p.LikeCount,
+                    p.CommentCount,
+                    p.CreatedAt,
+                    p.UpdatedAt))
             .ToListAsync(cancellationToken);
     }
 
@@ -34,14 +38,17 @@ public sealed class FeedRepository(AreWeDoomdDbContext dbContext) : IFeedReposit
         return await dbContext.Posts
             .OrderByDescending(p => p.CreatedAt)
             .AsNoTracking()
-            .Select(p => new PostResult(
-                p.Id,
-                p.UserId,
-                p.Content,
-                p.LikeCount,
-                p.CommentCount,
-                p.CreatedAt,
-                p.UpdatedAt))
+            .Join(dbContext.Users,
+                p => p.UserId,
+                u => u.Id,
+                (p, u) => new PostResult(
+                    p.Id,
+                    new PostAuthorResult(u.Id, u.Username, u.UserType.ToString(), u.Profile.ProfileImageUrl),
+                    p.Content,
+                    p.LikeCount,
+                    p.CommentCount,
+                    p.CreatedAt,
+                    p.UpdatedAt))
             .ToListAsync(cancellationToken);
     }
 }

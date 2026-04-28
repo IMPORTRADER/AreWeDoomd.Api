@@ -31,14 +31,8 @@ public sealed class UpdatePostCommandHandler(
         await postRepository.UpdateAsync(post, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<PostResult>.Success(
-            new PostResult(
-                post.Id,
-                post.UserId,
-                post.Content,
-                post.LikeCount,
-                post.CommentCount,
-                post.CreatedAt,
-                post.UpdatedAt));
+        var result = await postRepository.GetByIdProjectedAsync(post.Id, cancellationToken);
+
+        return Result<PostResult>.Success(result!);
     }
 }

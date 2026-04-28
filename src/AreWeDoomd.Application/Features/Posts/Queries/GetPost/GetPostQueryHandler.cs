@@ -10,21 +10,13 @@ public sealed class GetPostQueryHandler(IPostRepository postRepository)
 {
     public async Task<Result<PostResult>> Handle(GetPostQuery request, CancellationToken cancellationToken)
     {
-        var post = await postRepository.GetByIdAsync(request.PostId, cancellationToken);
+        var post = await postRepository.GetByIdProjectedAsync(request.PostId, cancellationToken);
 
         if (post is null)
         {
             return Result<PostResult>.NotFound("post.not_found", "Post not found.");
         }
 
-        return Result<PostResult>.Success(
-            new PostResult(
-                post.Id,
-                post.UserId,
-                post.Content,
-                post.LikeCount,
-                post.CommentCount,
-                post.CreatedAt,
-                post.UpdatedAt));
+        return Result<PostResult>.Success(post);
     }
 }

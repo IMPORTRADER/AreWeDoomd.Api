@@ -1,4 +1,5 @@
 using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Features.Common;
 using AreWeDoomd.Application.Features.Comments.Common;
 using AreWeDoomd.Domain.Comments;
 using AreWeDoomd.Infrastructure.Common.Persistence;
@@ -25,21 +26,50 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
                 cancellationToken);
     }
 
+    public async Task<CommentResult?> GetByIdProjectedAsync(
+        Guid postId, Guid commentId, CancellationToken cancellationToken)
+    {
+        return await dbContext.Comments
+            .Where(x => x.PostId == postId && x.Id == commentId)
+            .AsNoTracking()
+            .Join(dbContext.Users,
+                c => c.UserId,
+                u => u.Id,
+                (c, u) => new CommentResult(
+                    c.Id,
+                    c.PostId,
+                    new PostAuthorResult(u.Id, u.Username, u.UserType.ToString(), u.Profile.ProfileImageUrl),
+                    c.Content,
+                    c.LikeCount,
+                    c.CreatedAt,
+                    c.UpdatedAt))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<CommentResult>> GetByPostIdAsync(
+        Guid postId, CancellationToken cancellationToken)
+    {
+        return await GetByPostIdProjectedAsync(postId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CommentResult>> GetByPostIdProjectedAsync(
         Guid postId, CancellationToken cancellationToken)
     {
         return await dbContext.Comments
             .Where(x => x.PostId == postId)
             .OrderBy(x => x.CreatedAt)
             .AsNoTracking()
-            .Select(x => new CommentResult(
-                x.Id,
-                x.PostId,
-                x.UserId,
-                x.Content,
-                x.LikeCount,
-                x.CreatedAt,
-                x.UpdatedAt))
+            .Join(dbContext.Users,
+                c => c.UserId,
+                u => u.Id,
+                (c, u) => new CommentResult(
+                    c.Id,
+                    c.PostId,
+                    new PostAuthorResult(u.Id, u.Username, u.UserType.ToString(), u.Profile.ProfileImageUrl),
+                    c.Content,
+                    c.LikeCount,
+                    c.CreatedAt,
+                    c.UpdatedAt))
             .ToListAsync(cancellationToken);
     }
 

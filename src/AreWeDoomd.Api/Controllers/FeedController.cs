@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using AreWeDoomd.Api.Common.Results;
+using AreWeDoomd.Api.Contracts.Common;
 using AreWeDoomd.Api.Contracts.Posts;
 using AreWeDoomd.Application.Features.Feed.Queries.GetFollowingFeed;
 using AreWeDoomd.Application.Features.Feed.Queries.GetGlobalFeed;
@@ -53,7 +54,7 @@ public sealed class FeedController(IMediator mediator) : ControllerBase
     {
         return results.Select(r => new PostResponse(
             r.Id,
-            r.UserId,
+            new PostAuthor(r.Author.UserId, r.Author.Username, r.Author.UserType, r.Author.ProfileImageUrl),
             r.Content,
             r.LikeCount,
             r.CommentCount,

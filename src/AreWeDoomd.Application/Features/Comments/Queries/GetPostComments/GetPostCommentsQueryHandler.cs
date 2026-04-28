@@ -20,7 +20,7 @@ public sealed class GetPostCommentsQueryHandler(
             return Result<IReadOnlyList<CommentResult>>.NotFound("post.not_found", "Post not found.");
         }
 
-        var comments = await commentRepository.GetByPostIdAsync(request.PostId, cancellationToken);
+        var comments = await commentRepository.GetByPostIdProjectedAsync(request.PostId, cancellationToken);
 
         return Result<IReadOnlyList<CommentResult>>.Success(comments);
     }

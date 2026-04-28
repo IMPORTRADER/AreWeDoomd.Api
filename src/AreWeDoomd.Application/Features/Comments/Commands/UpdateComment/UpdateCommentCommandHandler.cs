@@ -38,14 +38,8 @@ public sealed class UpdateCommentCommandHandler(
         await commentRepository.UpdateAsync(comment, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<CommentResult>.Success(
-            new CommentResult(
-                comment.Id,
-                comment.PostId,
-                comment.UserId,
-                comment.Content,
-                comment.LikeCount,
-                comment.CreatedAt,
-                comment.UpdatedAt));
+        var result = await commentRepository.GetByIdProjectedAsync(comment.PostId, comment.Id, cancellationToken);
+
+        return Result<CommentResult>.Success(result!);
     }
 }
