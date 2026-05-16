@@ -19,12 +19,12 @@ public sealed class RegisterUserCommandHandler(
         var normalizedUsername = request.Username.Trim();
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
-        if (await userRepository.IsUsernameTakenAsync(normalizedUsername, cancellationToken))
+        if (await userRepository.IsUsernameTakenAsync(normalizedUsername, null, cancellationToken))
         {
             return Result<AuthResult>.Conflict("auth.username_taken", "Username is already taken.");
         }
 
-        if (await userRepository.IsEmailTakenAsync(normalizedEmail, cancellationToken))
+        if (await userRepository.IsEmailTakenAsync(normalizedEmail, null, cancellationToken))
         {
             return Result<AuthResult>.Conflict("auth.email_taken", "Email is already registered.");
         }

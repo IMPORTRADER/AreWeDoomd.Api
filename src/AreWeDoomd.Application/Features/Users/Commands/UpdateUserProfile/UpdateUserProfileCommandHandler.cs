@@ -26,7 +26,7 @@ public sealed class UpdateUserProfileCommandHandler(
         {
             var normalizedUsername = request.Username.Trim();
 
-            if (await userRepository.IsUsernameTakenAsync(normalizedUsername, cancellationToken))
+            if (await userRepository.IsUsernameTakenAsync(normalizedUsername, request.UserId, cancellationToken))
             {
                 return Result<UserProfileResult>.Conflict("user.username_taken", "Username is already taken.");
             }
@@ -38,7 +38,7 @@ public sealed class UpdateUserProfileCommandHandler(
         {
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
-            if (await userRepository.IsEmailTakenAsync(normalizedEmail, cancellationToken))
+            if (await userRepository.IsEmailTakenAsync(normalizedEmail, request.UserId, cancellationToken))
             {
                 return Result<UserProfileResult>.Conflict("user.email_taken", "Email is already registered.");
             }
