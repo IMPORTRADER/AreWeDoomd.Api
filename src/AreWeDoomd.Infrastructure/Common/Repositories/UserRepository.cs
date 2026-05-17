@@ -29,11 +29,11 @@ public sealed class UserRepository(AreWeDoomdDbContext dbContext) : IUserReposit
             .FirstOrDefaultAsync(u => u.Username == username, cancellationToken);
     }
 
-    public Task<bool> IsUsernameTakenAsync(string username, CancellationToken cancellationToken)
-        => dbContext.Users.AnyAsync(u => u.Username == username, cancellationToken);
+    public Task<bool> IsUsernameTakenAsync(string username, Guid? excludeUserId, CancellationToken cancellationToken)
+        => dbContext.Users.AnyAsync(u => u.Username == username && u.Id != excludeUserId, cancellationToken);
 
-    public Task<bool> IsEmailTakenAsync(string email, CancellationToken cancellationToken)
-        => dbContext.Users.AnyAsync(u => u.Email == email, cancellationToken);
+    public Task<bool> IsEmailTakenAsync(string email, Guid? excludeUserId, CancellationToken cancellationToken)
+        => dbContext.Users.AnyAsync(u => u.Email == email && u.Id != excludeUserId, cancellationToken);
 
     public async Task<IReadOnlyList<SearchUserResult>> SearchByQueryAsync(
         string query,
