@@ -33,6 +33,7 @@ public sealed class LoggingPipelineBehavior<TRequest, TResponse>(
         {
             var result = await next();
             stopwatch.Stop();
+            // Do not log the result — auth responses contain access tokens that must not be persisted.
             logger.LogInformation("Executed {RequestName} in {ElapsedMs}ms", requestName, stopwatch.ElapsedMilliseconds);
             return result;
         }

@@ -14,6 +14,11 @@ public static class SerilogConfiguration
     {
         var connectionString = configuration.GetConnectionString("AreWeDoomdSql");
 
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("SQL connection string 'AreWeDoomdSql' is not configured.");
+        }
+
         var columnOptions = new ColumnOptions();
         columnOptions.Store.Remove(StandardColumn.Properties);
         columnOptions.Store.Add(StandardColumn.LogEvent);

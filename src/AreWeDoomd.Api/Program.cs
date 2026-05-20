@@ -5,39 +5,54 @@ using AreWeDoomd.Infrastructure.Common.Logging;
 using Scalar.AspNetCore;
 using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
-builder.Host.UseSerilog((ctx, svc, logConfig) => logConfig
-    .ReadFrom.Configuration(ctx.Configuration)
-    .ReadFrom.Services(svc)
-    .Enrich.FromLogContext()
-    .AddInfrastructureSinks(ctx.Configuration));
-
-builder.Services.AddControllers();
-builder.Services.AddProblemDetails();
-builder.Services.AddExceptionHandler<ApiExceptionHandler>();
-builder.Services.AddOpenApi();
-
-builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration);
-
-var app = builder.Build();
-
-if (app.Environment.IsDevelopment())
+try
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference(options =>
+    var builder = WebApplication.CreateBuilder(args);
+
+    builder.Host.UseSerilog((ctx, svc, logConfig) => logConfig
+        .ReadFrom.Configuration(ctx.Configuration)
+        .ReadFrom.Services(svc)
+        .Enrich.FromLogContext()
+        .AddInfrastructureSinks(ctx.Configuration));
+
+    builder.Services.AddControllers();
+    builder.Services.AddProblemDetails();
+    builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+    builder.Services.AddOpenApi();
+
+    builder.Services.AddApplication();
+    builder.Services.AddInfrastructure(builder.Configuration);
+
+    var app = builder.Build();
+
+    if (app.Environment.IsDevelopment())
     {
-        options.Title = "AreWeDoomd? API";
-    });
+        app.MapOpenApi();
+        app.MapScalarApiReference(options =>
+        {
+            options.Title = "AreWeDoomd? API";
+        });
+    }
+
+    app.UseExceptionHandler();
+    app.UseSerilogRequestLogging();
+    app.UseHttpsRedirection();
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.MapControllers();
+
+    app.Run();
 }
-
-app.UseExceptionHandler();
-app.UseSerilogRequestLogging();
-app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers();
-
-app.Run();
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
