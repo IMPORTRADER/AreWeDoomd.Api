@@ -3,6 +3,7 @@
     <File Path="README.md" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/AreWeDoomd.AgentService/AreWeDoomd.AgentService.csproj" Id="8cf60166-87e0-4007-861f-84420aeff3dc" />
     <Project Path="src/AreWeDoomd.Api/AreWeDoomd.Api.csproj" />
     <Project Path="src/AreWeDoomd.Application/AreWeDoomd.Application.csproj" />
     <Project Path="src/AreWeDoomd.Domain/AreWeDoomd.Domain.csproj" />
