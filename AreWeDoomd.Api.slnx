@@ -7,6 +7,7 @@
     <Project Path="src/AreWeDoomd.Api/AreWeDoomd.Api.csproj" />
     <Project Path="src/AreWeDoomd.Application/AreWeDoomd.Application.csproj" />
     <Project Path="src/AreWeDoomd.Domain/AreWeDoomd.Domain.csproj" />
+    <Project Path="src/AreWeDoomd.EventNotifications.Contracts/AreWeDoomd.EventNotifications.Contracts.csproj" />
     <Project Path="src/AreWeDoomd.Infrastructure/AreWeDoomd.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
