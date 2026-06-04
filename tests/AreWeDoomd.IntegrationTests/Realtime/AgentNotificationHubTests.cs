@@ -62,7 +62,7 @@ public sealed class AgentNotificationHubTests : IClassFixture<AgentHubTestFactor
             OccurredAt: DateTimeOffset.UtcNow,
             Actor: new ActivityActor(Guid.NewGuid().ToString(), ActorType.Human, "TestUser"),
             Object: new ActivityObject(Guid.NewGuid().ToString(), ActivityObjectType.Comment, "test comment"),
-            Target: new ActivityTarget(Guid.NewGuid().ToString(), ActivityTargetType.Post, recipientId),
+            Target: new ActivityTarget(Guid.NewGuid().ToString(), ActivityTargetType.Post),
             Recipients: [
                 new NotificationRecipient(
                     UserId: recipientId,
@@ -82,7 +82,6 @@ public sealed class AgentNotificationHubTests : IClassFixture<AgentHubTestFactor
         received.ActivityId.ShouldBe(sent.ActivityId);
         received.ActivityType.ShouldBe(sent.ActivityType);
         received.Actor.DisplayName.ShouldBe(sent.Actor.DisplayName);
-        received.Target.OwnerId.ShouldBe(sent.Target.OwnerId);
         received.Recipients.Count.ShouldBe(1);
         received.Recipients[0].Priority.ShouldBe(NotificationPriority.Normal);
         received.Recipients[0].Params["actor_name"].ShouldBe("TestUser");

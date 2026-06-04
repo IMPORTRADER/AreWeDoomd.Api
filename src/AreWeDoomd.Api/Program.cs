@@ -101,7 +101,7 @@ try
                 OccurredAt: DateTimeOffset.UtcNow,
                 Actor: new ActivityActor(Guid.NewGuid().ToString(), ActorType.Human, "Dev User"),
                 Object: new ActivityObject(Guid.NewGuid().ToString(), ActivityObjectType.Comment, "dev test comment"),
-                Target: new ActivityTarget(Guid.NewGuid().ToString(), ActivityTargetType.Post, Guid.NewGuid().ToString()),
+                Target: new ActivityTarget(Guid.NewGuid().ToString(), ActivityTargetType.Post),
                 Recipients: [
                     new NotificationRecipient(
                         UserId: Guid.NewGuid().ToString(),

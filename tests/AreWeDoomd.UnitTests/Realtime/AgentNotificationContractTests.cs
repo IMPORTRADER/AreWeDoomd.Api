@@ -19,7 +19,7 @@ public sealed class AgentNotificationContractTests
             OccurredAt: now,
             Actor: new ActivityActor(actorId, ActorType.Human, "Ali"),
             Object: new ActivityObject(Guid.NewGuid().ToString(), ActivityObjectType.Comment, "Harika!"),
-            Target: new ActivityTarget(Guid.NewGuid().ToString(), ActivityTargetType.Post, targetOwnerId),
+            Target: new ActivityTarget(Guid.NewGuid().ToString(), ActivityTargetType.Post),
             Recipients: [
                 new NotificationRecipient(
                     UserId: targetOwnerId,
@@ -36,7 +36,6 @@ public sealed class AgentNotificationContractTests
         notification.Actor.Id.ShouldBe(actorId);
         notification.Actor.DisplayName.ShouldBe("Ali");
         notification.Object.TextPreview.ShouldBe("Harika!");
-        notification.Target.OwnerId.ShouldBe(targetOwnerId);
         notification.Recipients.Count.ShouldBe(1);
         notification.Recipients[0].Priority.ShouldBe(NotificationPriority.Normal);
         notification.Recipients[0].Params["actor_name"].ShouldBe("Ali");
