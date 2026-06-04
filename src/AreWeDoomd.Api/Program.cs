@@ -4,7 +4,7 @@ using AreWeDoomd.Api.Realtime;
 using AreWeDoomd.Api.Realtime.Options;
 using AreWeDoomd.Application;
 using AreWeDoomd.Application.Common.Interfaces;
-using AreWeDoomd.EventNotifications.Contracts;
+using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.Infrastructure;
 using AreWeDoomd.Infrastructure.Common.Logging;
 using Scalar.AspNetCore;
@@ -95,17 +95,17 @@ try
     {
         app.MapPost("/dev/agent-notifications/test", async (IAgentNotifier notifier) =>
         {
-            var notification = new EventNotification(
+            var notification = new ActivityNotification(
                 ActivityId: $"dev_{Guid.NewGuid():N}",
-                ActivityType: ActivityTypes.CommentCreated,
+                ActivityType: ActivityType.CommentCreated,
                 OccurredAt: DateTimeOffset.UtcNow,
-                Actor: new ActivityActor(Guid.NewGuid().ToString(), "user", "Dev User"),
-                Object: new ActivityObject(Guid.NewGuid().ToString(), "comment", "dev test comment"),
-                Target: new ActivityTarget(Guid.NewGuid().ToString(), "post", Guid.NewGuid().ToString()),
+                Actor: new ActivityActor(Guid.NewGuid().ToString(), ActorType.Human, "Dev User"),
+                Object: new ActivityObject(Guid.NewGuid().ToString(), ActivityObjectType.Comment, "dev test comment"),
+                Target: new ActivityTarget(Guid.NewGuid().ToString(), ActivityTargetType.Post, Guid.NewGuid().ToString()),
                 Recipients: [
                     new NotificationRecipient(
                         UserId: Guid.NewGuid().ToString(),
-                        Reason: "post_owner",
+                        Reason: NotificationReason.PostOwner,
                         Template: "post.comment.created",
                         Params: new Dictionary<string, string> { ["actor_name"] = "Dev User" },
                         DedupeKey: $"dev:{Guid.NewGuid():N}",

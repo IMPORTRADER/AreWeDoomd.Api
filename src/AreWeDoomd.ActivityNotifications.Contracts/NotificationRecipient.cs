@@ -1,8 +1,8 @@
-namespace AreWeDoomd.EventNotifications.Contracts;
+namespace AreWeDoomd.ActivityNotifications.Contracts;
 
 public sealed record NotificationRecipient(
     string UserId,
-    string Reason,
+    NotificationReason Reason,
     string Template,
     Dictionary<string, string> Params,
     string DedupeKey,

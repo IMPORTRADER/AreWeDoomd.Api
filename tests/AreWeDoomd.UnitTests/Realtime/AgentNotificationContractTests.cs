@@ -1,4 +1,4 @@
-using AreWeDoomd.EventNotifications.Contracts;
+using AreWeDoomd.ActivityNotifications.Contracts;
 using Shouldly;
 using Xunit;
 
@@ -7,23 +7,23 @@ namespace AreWeDoomd.UnitTests.Realtime;
 public sealed class AgentNotificationContractTests
 {
     [Fact]
-    public void EventNotification_Constructs_WithAllFields()
+    public void ActivityNotification_Constructs_WithAllFields()
     {
         var actorId = Guid.NewGuid().ToString();
         var targetOwnerId = Guid.NewGuid().ToString();
         var now = DateTimeOffset.UtcNow;
 
-        var notification = new EventNotification(
+        var notification = new ActivityNotification(
             ActivityId: "act_1",
-            ActivityType: ActivityTypes.CommentCreated,
+            ActivityType: ActivityType.CommentCreated,
             OccurredAt: now,
-            Actor: new ActivityActor(actorId, "user", "Ali"),
-            Object: new ActivityObject(Guid.NewGuid().ToString(), "comment", "Harika!"),
-            Target: new ActivityTarget(Guid.NewGuid().ToString(), "post", targetOwnerId),
+            Actor: new ActivityActor(actorId, ActorType.Human, "Ali"),
+            Object: new ActivityObject(Guid.NewGuid().ToString(), ActivityObjectType.Comment, "Harika!"),
+            Target: new ActivityTarget(Guid.NewGuid().ToString(), ActivityTargetType.Post, targetOwnerId),
             Recipients: [
                 new NotificationRecipient(
                     UserId: targetOwnerId,
-                    Reason: "post_owner",
+                    Reason: NotificationReason.PostOwner,
                     Template: "post.comment.created",
                     Params: new Dictionary<string, string> { ["actor_name"] = "Ali" },
                     DedupeKey: $"comment.created:comment_1:{targetOwnerId}",
@@ -31,7 +31,7 @@ public sealed class AgentNotificationContractTests
             ]);
 
         notification.ActivityId.ShouldBe("act_1");
-        notification.ActivityType.ShouldBe(ActivityTypes.CommentCreated);
+        notification.ActivityType.ShouldBe(ActivityType.CommentCreated);
         notification.OccurredAt.ShouldBe(now);
         notification.Actor.Id.ShouldBe(actorId);
         notification.Actor.DisplayName.ShouldBe("Ali");

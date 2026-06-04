@@ -1,14 +1,16 @@
+using AreWeDoomd.ActivityNotifications.Contracts;
+
 namespace AreWeDoomd.Application.Notifications.Engine;
 
 public sealed record ActivityContext(
-    string ActivityType,
+    ActivityType ActivityType,
     string ActorId,
-    string ActorType,
+    ActorType ActorType,
     string ActorDisplayName,
     string ObjectId,
-    string ObjectType,
+    ActivityObjectType ObjectType,
     string? ObjectTextPreview,
     string TargetId,
-    string TargetType,
+    ActivityTargetType TargetType,
     string TargetOwnerId,
     DateTimeOffset OccurredAt);

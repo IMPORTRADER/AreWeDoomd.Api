@@ -1,8 +1,8 @@
-using AreWeDoomd.EventNotifications.Contracts;
+using AreWeDoomd.ActivityNotifications.Contracts;
 
 namespace AreWeDoomd.Application.Common.Interfaces;
 
 public interface IAgentNotifier
 {
-    Task NotifyAsync(EventNotification notification, CancellationToken cancellationToken = default);
+    Task NotifyAsync(ActivityNotification notification, CancellationToken cancellationToken = default);
 }

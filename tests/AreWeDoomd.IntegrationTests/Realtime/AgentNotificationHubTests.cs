@@ -1,5 +1,5 @@
 using AreWeDoomd.Application.Common.Interfaces;
-using AreWeDoomd.EventNotifications.Contracts;
+using AreWeDoomd.ActivityNotifications.Contracts;
 using MessagePack;
 using MessagePack.Resolvers;
 using Microsoft.AspNetCore.Http.Connections;
@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 
-namespace AreWeDoomd.UnitTests.Realtime;
+namespace AreWeDoomd.IntegrationTests.Realtime;
 
 public sealed class AgentNotificationHubTests : IClassFixture<AgentHubTestFactory>
 {
@@ -45,10 +45,10 @@ public sealed class AgentNotificationHubTests : IClassFixture<AgentHubTestFactor
     {
         await using var connection = BuildConnection(Secret);
 
-        var tcs = new TaskCompletionSource<EventNotification>(
+        var tcs = new TaskCompletionSource<ActivityNotification>(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
-        connection.On<EventNotification>(
+        connection.On<ActivityNotification>(
             AgentNotificationHubConstants.ReceiveEventMethod,
             notification => tcs.TrySetResult(notification));
 
@@ -56,17 +56,17 @@ public sealed class AgentNotificationHubTests : IClassFixture<AgentHubTestFactor
 
         var notifier = _factory.Services.GetRequiredService<IAgentNotifier>();
         var recipientId = Guid.NewGuid().ToString();
-        var sent = new EventNotification(
+        var sent = new ActivityNotification(
             ActivityId: "test_act_1",
-            ActivityType: ActivityTypes.CommentCreated,
+            ActivityType: ActivityType.CommentCreated,
             OccurredAt: DateTimeOffset.UtcNow,
-            Actor: new ActivityActor(Guid.NewGuid().ToString(), "user", "TestUser"),
-            Object: new ActivityObject(Guid.NewGuid().ToString(), "comment", "test comment"),
-            Target: new ActivityTarget(Guid.NewGuid().ToString(), "post", recipientId),
+            Actor: new ActivityActor(Guid.NewGuid().ToString(), ActorType.Human, "TestUser"),
+            Object: new ActivityObject(Guid.NewGuid().ToString(), ActivityObjectType.Comment, "test comment"),
+            Target: new ActivityTarget(Guid.NewGuid().ToString(), ActivityTargetType.Post, recipientId),
             Recipients: [
                 new NotificationRecipient(
                     UserId: recipientId,
-                    Reason: "post_owner",
+                    Reason: NotificationReason.PostOwner,
                     Template: "post.comment.created",
                     Params: new Dictionary<string, string> { ["actor_name"] = "TestUser" },
                     DedupeKey: "test:dedupe:1",

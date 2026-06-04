@@ -1,5 +1,5 @@
+using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.Application.Common.Interfaces;
-using AreWeDoomd.EventNotifications.Contracts;
 using Microsoft.AspNetCore.SignalR;
 
 namespace AreWeDoomd.Api.Realtime;
@@ -13,7 +13,7 @@ public sealed class SignalRAgentNotifier : IAgentNotifier
         _hubContext = hubContext;
     }
 
-    public Task NotifyAsync(EventNotification notification, CancellationToken cancellationToken = default)
+    public Task NotifyAsync(ActivityNotification notification, CancellationToken cancellationToken = default)
     {
         return _hubContext.Clients.All.ReceiveEvent(notification);
     }

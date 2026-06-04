@@ -1,8 +1,8 @@
-using AreWeDoomd.EventNotifications.Contracts;
+using AreWeDoomd.ActivityNotifications.Contracts;
 
 namespace AreWeDoomd.Api.Realtime;
 
 public interface IAgentNotificationClient
 {
-    Task ReceiveEvent(EventNotification notification);
+    Task ReceiveEvent(ActivityNotification notification);
 }

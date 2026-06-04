@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AreWeDoomd.Domain\AreWeDoomd.Domain.csproj" />
-    <ProjectReference Include="..\AreWeDoomd.EventNotifications.Contracts\AreWeDoomd.EventNotifications.Contracts.csproj" />
+    <ProjectReference Include="..\AreWeDoomd.ActivityNotifications.Contracts\AreWeDoomd.ActivityNotifications.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

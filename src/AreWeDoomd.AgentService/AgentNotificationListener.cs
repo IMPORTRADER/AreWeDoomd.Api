@@ -1,5 +1,5 @@
 using MessagePack;
-using AreWeDoomd.EventNotifications.Contracts;
+using AreWeDoomd.ActivityNotifications.Contracts;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -39,7 +39,7 @@ public sealed class AgentNotificationListener : BackgroundService
             .WithAutomaticReconnect()
             .Build();
 
-        _connection.On<EventNotification>(
+        _connection.On<ActivityNotification>(
             AgentNotificationHubConstants.ReceiveEventMethod,
             notification =>
             {

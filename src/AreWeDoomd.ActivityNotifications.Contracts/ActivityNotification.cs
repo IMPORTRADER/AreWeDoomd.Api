@@ -1,8 +1,8 @@
-namespace AreWeDoomd.EventNotifications.Contracts;
+namespace AreWeDoomd.ActivityNotifications.Contracts;
 
-public sealed record EventNotification(
+public sealed record ActivityNotification(
     string ActivityId,
-    string ActivityType,
+    ActivityType ActivityType,
     DateTimeOffset OccurredAt,
     ActivityActor Actor,
     ActivityObject Object,

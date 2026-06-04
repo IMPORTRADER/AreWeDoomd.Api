@@ -2,12 +2,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 
-namespace AreWeDoomd.UnitTests.Realtime;
+namespace AreWeDoomd.IntegrationTests.Realtime;
 
-/// <summary>
-/// Custom factory that overrides the Serilog SQL Server sink so that
-/// integration tests can start without a real SQL Server instance.
-/// </summary>
 public sealed class AgentHubTestFactory : WebApplicationFactory<Program>
 {
     public const string SharedSecret = "integration-test-secret";

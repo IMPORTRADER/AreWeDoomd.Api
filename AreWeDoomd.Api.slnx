@@ -7,10 +7,11 @@
     <Project Path="src/AreWeDoomd.Api/AreWeDoomd.Api.csproj" />
     <Project Path="src/AreWeDoomd.Application/AreWeDoomd.Application.csproj" />
     <Project Path="src/AreWeDoomd.Domain/AreWeDoomd.Domain.csproj" />
-    <Project Path="src/AreWeDoomd.EventNotifications.Contracts/AreWeDoomd.EventNotifications.Contracts.csproj" />
+    <Project Path="src/AreWeDoomd.ActivityNotifications.Contracts/AreWeDoomd.ActivityNotifications.Contracts.csproj" />
     <Project Path="src/AreWeDoomd.Infrastructure/AreWeDoomd.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AreWeDoomd.UnitTests/AreWeDoomd.UnitTests.csproj" Id="34772326-2f86-4d5d-9274-15342b459287" />
+    <Project Path="tests/AreWeDoomd.IntegrationTests/AreWeDoomd.IntegrationTests.csproj" />
   </Folder>
 </Solution>

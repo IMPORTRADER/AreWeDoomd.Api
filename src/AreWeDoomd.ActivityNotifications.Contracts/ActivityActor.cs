@@ -1,6 +1,6 @@
-namespace AreWeDoomd.EventNotifications.Contracts;
+namespace AreWeDoomd.ActivityNotifications.Contracts;
 
 public sealed record ActivityActor(
     string Id,
-    string Type,
+    ActorType Type,
     string DisplayName);

@@ -1,4 +1,4 @@
-namespace AreWeDoomd.EventNotifications.Contracts;
+namespace AreWeDoomd.ActivityNotifications.Contracts;
 
 public static class AgentNotificationHubConstants
 {
