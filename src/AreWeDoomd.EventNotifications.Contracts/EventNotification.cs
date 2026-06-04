@@ -7,4 +7,4 @@ public sealed record EventNotification(
     ActivityActor Actor,
     ActivityObject Object,
     ActivityTarget Target,
-    IReadOnlyList<NotificationRecipient> Recipients);
+    List<NotificationRecipient> Recipients);

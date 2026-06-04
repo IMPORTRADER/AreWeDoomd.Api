@@ -4,6 +4,6 @@ public sealed record NotificationRecipient(
     string UserId,
     string Reason,
     string Template,
-    IReadOnlyDictionary<string, string> Params,
+    Dictionary<string, string> Params,
     string DedupeKey,
     NotificationPriority Priority);
