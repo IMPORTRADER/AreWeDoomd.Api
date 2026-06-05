@@ -25,10 +25,10 @@ try
         .Enrich.FromLogContext()
         .AddInfrastructureSinks(ctx.Configuration));
 
-    builder.Services.AddScoped<ActivityEmissionFilter>();
+    builder.Services.AddScoped<ActivityPublishingFilter>();
     builder.Services.AddControllers(options =>
     {
-        options.Filters.AddService<ActivityEmissionFilter>();
+        options.Filters.AddService<ActivityPublishingFilter>();
     });
     builder.Services.AddProblemDetails();
     builder.Services.AddExceptionHandler<ApiExceptionHandler>();
@@ -45,7 +45,7 @@ try
             opts.SerializerOptions = MessagePackSerializerOptions.Standard
                 .WithResolver(MessagePack.Resolvers.ContractlessStandardResolver.Instance);
         });
-    builder.Services.AddSingleton<IAgentNotifier, SignalRAgentNotifier>();
+    builder.Services.AddSingleton<IAgentHubSender, AgentHubSender>();
 
     var app = builder.Build();
 
@@ -98,7 +98,7 @@ try
 
     if (app.Environment.IsDevelopment())
     {
-        app.MapPost("/dev/agent-notifications/test", async (IAgentNotifier notifier) =>
+        app.MapPost("/dev/agent-notifications/test", async (IAgentHubSender notifier) =>
         {
             var notification = new ActivityNotification(
                 ActivityId: $"dev_{Guid.NewGuid():N}",
@@ -117,7 +117,7 @@ try
                         Priority: NotificationPriority.Normal)
                 ]);
 
-            await notifier.NotifyAsync(notification);
+            await notifier.SendAsync(notification);
             return Results.Accepted();
         });
     }

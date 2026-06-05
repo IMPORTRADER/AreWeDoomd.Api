@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MessagePack;
 using AreWeDoomd.ActivityNotifications.Contracts;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -43,14 +44,26 @@ public sealed class AgentNotificationListener : BackgroundService
             AgentNotificationHubConstants.ReceiveEventMethod,
             notification =>
             {
-                _logger.LogInformation(
-                    "Received event {ActivityType} from actor {ActorId} with {RecipientCount} recipient(s)",
-                    notification.ActivityType,
-                    notification.Actor.Id,
-                    notification.Recipients.Count);
+                var json = JsonSerializer.Serialize(notification, new JsonSerializerOptions { WriteIndented = true });
+                _logger.LogInformation("ActivityNotification received:\n{Json}", json);
             });
 
+        _connection.Reconnecting += ex =>
+        {
+            _logger.LogWarning("Connection lost, reconnecting to agent notification hub...");
+            return Task.CompletedTask;
+        };
+
+        _connection.Reconnected += connectionId =>
+        {
+            _logger.LogInformation("Reconnected to agent notification hub.");
+            return Task.CompletedTask;
+        };
+
         await ConnectWithRetryAsync(stoppingToken);
+
+        if (!stoppingToken.IsCancellationRequested)
+            _logger.LogInformation("Listening for activity notifications.");
     }
 
     private async Task ConnectWithRetryAsync(CancellationToken stoppingToken)

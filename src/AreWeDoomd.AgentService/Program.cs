@@ -10,12 +10,8 @@ builder.Services.AddSerilog((services, loggerConfig) =>
     loggerConfig
         .ReadFrom.Configuration(builder.Configuration)
         .ReadFrom.Services(services)
-        .Enrich.FromLogContext();
-
-    if (builder.Environment.IsDevelopment())
-    {
-        loggerConfig.WriteTo.Console();
-    }
+        .Enrich.FromLogContext()
+        .WriteTo.Console();
 });
 
 builder.Services.Configure<AgentServiceOptions>(
