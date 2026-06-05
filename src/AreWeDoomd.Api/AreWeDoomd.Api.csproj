@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.2">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -19,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AreWeDoomd.Application\AreWeDoomd.Application.csproj" />
     <ProjectReference Include="..\AreWeDoomd.Infrastructure\AreWeDoomd.Infrastructure.csproj" />
+    <ProjectReference Include="..\AreWeDoomd.ActivityNotifications.Contracts\AreWeDoomd.ActivityNotifications.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
