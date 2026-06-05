@@ -1,5 +1,6 @@
 using MessagePack;
 using AreWeDoomd.Api.Common.Errors;
+using AreWeDoomd.Api.Filters;
 using AreWeDoomd.Api.Realtime;
 using AreWeDoomd.Api.Realtime.Options;
 using AreWeDoomd.Application;
@@ -24,7 +25,11 @@ try
         .Enrich.FromLogContext()
         .AddInfrastructureSinks(ctx.Configuration));
 
-    builder.Services.AddControllers();
+    builder.Services.AddScoped<ActivityEmissionFilter>();
+    builder.Services.AddControllers(options =>
+    {
+        options.Filters.AddService<ActivityEmissionFilter>();
+    });
     builder.Services.AddProblemDetails();
     builder.Services.AddExceptionHandler<ApiExceptionHandler>();
     builder.Services.AddOpenApi();

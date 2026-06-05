@@ -12,5 +12,4 @@ public sealed record ActivityContext(
     string? ObjectTextPreview,
     string TargetId,
     ActivityTargetType TargetType,
-    string TargetOwnerId,
     DateTimeOffset OccurredAt);

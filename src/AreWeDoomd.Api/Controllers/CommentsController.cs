@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.Api.Common.Results;
+using AreWeDoomd.Api.Filters;
 using AreWeDoomd.Api.Contracts.Comments;
 using AreWeDoomd.Api.Contracts.Common;
 using AreWeDoomd.Application.Features.Comments.Commands.CreateComment;
@@ -19,6 +21,11 @@ public sealed class CommentsController(IMediator mediator) : ControllerBase
 {
     [HttpPost("{postId:guid}/comments")]
     [Authorize]
+    [PublishActivity(
+        ActivityType.CommentCreated,
+        ActorType.Human,
+        ActivityObjectType.Comment, objectIdParam: null,
+        ActivityTargetType.Post,   targetIdParam: "postId")]
     [ProducesResponseType(typeof(CommentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

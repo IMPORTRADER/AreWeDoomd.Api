@@ -1,5 +1,7 @@
 using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Common.Options;
+using AreWeDoomd.Application.Notifications.Engine;
+using AreWeDoomd.Infrastructure.Notifications;
 using AreWeDoomd.Infrastructure.Common.Email;
 using AreWeDoomd.Infrastructure.Common.Options;
 using AreWeDoomd.Infrastructure.Common.Persistence;
@@ -74,6 +76,8 @@ public static class DependencyInjection
 
         services.Configure<PasswordResetOptions>(configuration.GetSection("PasswordReset"));
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+
+        services.AddScoped<INotificationEngine, PassthroughNotificationEngine>();
 
         return services;
     }

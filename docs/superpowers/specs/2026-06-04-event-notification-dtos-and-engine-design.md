@@ -1,5 +1,11 @@
 # EventNotification DTO'ları ve Tespit Motoru Tasarımı
 
+> **Not:** Bu doküman kısmen geçerliliğini yitirmiştir. Güncel kararlar için bkz:
+> - `docs/superpowers/specs/2026-06-04-publish-activity-filter-design.md`
+>
+> Değişenler: `EventNotification` → `ActivityNotification`, `ActivityTypes` static class → `ActivityType` enum,
+> `string Type` alanları → enum tipleri, `ActivityTarget.OwnerId` kaldırıldı, `ActivityContext.TargetOwnerId` kaldırıldı.
+
 > Tarih: 2026-06-04  
 > Durum: Onaylandı  
 > Kapsam: `EventNotifications.Contracts` DTO yeniden yapılandırması + Application katmanında engine/dispatcher arayüzleri
