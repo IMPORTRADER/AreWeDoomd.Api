@@ -54,7 +54,7 @@ public sealed class AgentNotificationHubTests : IClassFixture<AgentHubTestFactor
 
         await connection.StartAsync();
 
-        var notifier = _factory.Services.GetRequiredService<IAgentNotifier>();
+        var notifier = _factory.Services.GetRequiredService<IAgentHubSender>();
         var recipientId = Guid.NewGuid().ToString();
         var sent = new ActivityNotification(
             ActivityId: "test_act_1",
@@ -73,7 +73,7 @@ public sealed class AgentNotificationHubTests : IClassFixture<AgentHubTestFactor
                     Priority: NotificationPriority.Normal)
             ]);
 
-        await notifier.NotifyAsync(sent);
+        await notifier.SendAsync(sent);
 
         var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(5)));
         completed.ShouldBe(tcs.Task, "notification was not received within timeout");

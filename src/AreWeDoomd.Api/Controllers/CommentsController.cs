@@ -21,11 +21,7 @@ public sealed class CommentsController(IMediator mediator) : ControllerBase
 {
     [HttpPost("{postId:guid}/comments")]
     [Authorize]
-    [PublishActivity(
-        ActivityType.CommentCreated,
-        ActorType.Human,
-        ActivityObjectType.Comment, objectIdParam: null,
-        ActivityTargetType.Post,   targetIdParam: "postId")]
+    [PublishActivity(ActivityType.CommentCreated, ActivityTargetType.Post, targetIdParam: "postId")]
     [ProducesResponseType(typeof(CommentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
