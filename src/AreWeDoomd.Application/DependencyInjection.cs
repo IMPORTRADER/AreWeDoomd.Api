@@ -1,5 +1,6 @@
 using System.Reflection;
 using AreWeDoomd.Application.Common.Behaviors;
+using AreWeDoomd.Application.Notifications.Engine;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,9 @@ public static class DependencyInjection
             cfg.AddOpenBehavior(typeof(LoggingPipelineBehavior<,>));
             cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
         });
+
+        services.AddScoped<INotificationEngine, ActivityNotificationEngine>();
+        services.AddScoped<IActivityNotificationRule, CommentCreatedNotificationRule>();
 
         return services;
     }
