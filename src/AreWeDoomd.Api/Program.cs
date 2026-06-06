@@ -1,9 +1,11 @@
 using MessagePack;
 using AreWeDoomd.Api.Common.Errors;
+using AreWeDoomd.Api.Notifications;
 using AreWeDoomd.Api.Realtime;
 using AreWeDoomd.Api.Realtime.Options;
 using AreWeDoomd.Application;
 using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Notifications.Dispatching;
 using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.Infrastructure;
 using AreWeDoomd.Infrastructure.Common.Logging;
@@ -41,6 +43,8 @@ try
                 .WithResolver(MessagePack.Resolvers.ContractlessStandardResolver.Instance);
         });
     builder.Services.AddSingleton<IAgentHubSender, AgentHubSender>();
+    builder.Services.AddSingleton<IActivityNotificationQueue, ChannelActivityNotificationQueue>();
+    builder.Services.AddHostedService<ActivityNotificationPublisherService>();
 
     var app = builder.Build();
 

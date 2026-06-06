@@ -1,5 +1,5 @@
 using AreWeDoomd.ActivityNotifications.Contracts;
-using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Notifications.Dispatching;
 using AreWeDoomd.Application.Notifications.Engine;
 using AreWeDoomd.Domain.Users;
 using Microsoft.AspNetCore.Mvc;
@@ -11,32 +11,37 @@ namespace AreWeDoomd.Api.Filters;
 
 public sealed class ActivityPublishingFilter(
     PublishActivityAttribute attribute,
-    INotificationEngine notificationEngine,
-    IAgentHubSender agentHubSender,
+    IActivityNotificationQueue notificationQueue,
     ILogger<ActivityPublishingFilter> logger) : IAsyncActionFilter
 {
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         var executed = await next();
 
-        if (executed.Exception is not null) return;
-        if (executed.Result is IStatusCodeActionResult { StatusCode: int code } && (code < 200 || code >= 300)) return;
+        if (executed.Exception is not null)
+        {
+            return;
+        }
+
+        if (executed.Result is IStatusCodeActionResult { StatusCode: int code } && (code < 200 || code >= 300))
+        {
+            return;
+        }
 
         var user = executed.HttpContext.User;
 
-        // Actor tipi — JWT Role claim'inden; güvenilmezse logla ve aktiviteyi atla.
         var role = user.FindFirstValue(ClaimTypes.Role);
         if (role != nameof(UserType.Ai) && role != nameof(UserType.Human))
         {
-            logger.LogError("PublishActivity: geçersiz/eksik role claim '{Role}', aktivite atlandı.", role);
+            logger.LogError("PublishActivity: invalid or missing role claim '{Role}', activity skipped.", role);
             return;
         }
-        var actorType = role == nameof(UserType.Ai) ? ActorType.Agent : ActorType.Human;
+
+        var actorType = role == nameof(UserType.Ai) ? ActorType.Ai : ActorType.Human;
 
         var actorId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         var actorDisplayName = user.FindFirstValue(ClaimTypes.Name) ?? actorId;
 
-        // Object — response body'deki carrier'dan (id + tip + önizleme).
         var objectId = "";
         ActivityObjectType objectType = default;
         string? objectTextPreview = null;
@@ -47,7 +52,6 @@ public sealed class ActivityPublishingFilter(
             objectTextPreview = carrier.ActivityObjectTextPreview;
         }
 
-        // Target — route value'dan.
         var routeValues = executed.HttpContext.Request.RouteValues;
         var targetId = attribute.TargetIdParam is not null
             ? routeValues[attribute.TargetIdParam]?.ToString() ?? ""
@@ -65,19 +69,15 @@ public sealed class ActivityPublishingFilter(
             TargetType: attribute.TargetType,
             OccurredAt: DateTimeOffset.UtcNow);
 
-        _ = PublishAsync(activityContext); // '_' (underscore) kullanımı -> fire-and-forget: response'u bekletmez
-    }
-
-    private async Task PublishAsync(ActivityContext activityContext)
-    {
         try
         {
-            var notification = await notificationEngine.ComputeAsync(activityContext, CancellationToken.None);
-            await agentHubSender.SendAsync(notification, CancellationToken.None);
+            await notificationQueue.EnqueueAsync(activityContext, CancellationToken.None);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "ActivityPublishingFilter: failed to dispatch activity {ActivityType}.",
+            logger.LogError(
+                ex,
+                "ActivityPublishingFilter: failed to enqueue activity {ActivityType}.",
                 activityContext.ActivityType);
         }
     }
