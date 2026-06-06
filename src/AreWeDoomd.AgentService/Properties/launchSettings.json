@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "AreWeDoomd.AgentService": {
+      "commandName": "Project",
+      "commandLineArgs": "chat-smoke"
+    }
+  }
+}
