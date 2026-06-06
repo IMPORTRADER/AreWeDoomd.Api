@@ -33,10 +33,10 @@ public sealed class ActivityNotificationPublisherService(
         {
             using var scope = serviceScopeFactory.CreateScope();
             var notificationEngine = scope.ServiceProvider.GetRequiredService<INotificationEngine>();
-            var notificationDispatcher = scope.ServiceProvider.GetRequiredService<INotificationDispatcher>();
+            var notificationDeliveryService = scope.ServiceProvider.GetRequiredService<INotificationDeliveryService>();
 
             var notification = await notificationEngine.ComputeAsync(context, cancellationToken);
-            await notificationDispatcher.DispatchAsync(notification, cancellationToken);
+            await notificationDeliveryService.DeliverAsync(notification, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -45,7 +45,7 @@ public sealed class ActivityNotificationPublisherService(
         {
             logger.LogError(
                 ex,
-                "ActivityNotificationPublisherService: failed to dispatch activity {ActivityType}.",
+                "ActivityNotificationPublisherService: failed to deliver activity {ActivityType}.",
                 context.ActivityType);
         }
     }

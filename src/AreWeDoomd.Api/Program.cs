@@ -44,7 +44,7 @@ try
         });
     builder.Services.AddSingleton<IAgentHubSender, AgentHubSender>();
     builder.Services.AddSingleton<IActivityNotificationQueue, ChannelActivityNotificationQueue>();
-    builder.Services.AddScoped<INotificationDispatcher, SignalRNotificationDispatcher>();
+    builder.Services.AddScoped<INotificationDeliveryService, NotificationDeliveryService>();
     builder.Services.AddHostedService<ActivityNotificationPublisherService>();
 
     var app = builder.Build();

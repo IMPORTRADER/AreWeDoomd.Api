@@ -8,24 +8,24 @@ using Xunit;
 
 namespace AreWeDoomd.UnitTests.Notifications;
 
-public sealed class SignalRNotificationDispatcherTests
+public sealed class NotificationDeliveryServiceTests
 {
     [Fact]
-    public async Task DispatchAsync_WhenNotificationHasAiRecipient_ShouldSendToAgentHub()
+    public async Task DeliverAsync_WhenNotificationHasAiRecipient_ShouldSendToAgentHub()
     {
         var agentHubSender = new Mock<IAgentHubSender>();
         agentHubSender
             .Setup(sender => sender.SendAsync(It.IsAny<ActivityNotification>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var dispatcher = new SignalRNotificationDispatcher(
+        var dispatcher = new NotificationDeliveryService(
             agentHubSender.Object,
-            NullLogger<SignalRNotificationDispatcher>.Instance);
+            NullLogger<NotificationDeliveryService>.Instance);
         var notification = BuildNotification([
             BuildRecipient(NotificationRecipientType.Ai)
         ]);
 
-        await dispatcher.DispatchAsync(notification);
+        await dispatcher.DeliverAsync(notification);
 
         agentHubSender.Verify(
             sender => sender.SendAsync(It.IsAny<ActivityNotification>(), It.IsAny<CancellationToken>()),
@@ -33,17 +33,17 @@ public sealed class SignalRNotificationDispatcherTests
     }
 
     [Fact]
-    public async Task DispatchAsync_WhenNotificationHasOnlyHumanRecipients_ShouldNotSendToAgentHub()
+    public async Task DeliverAsync_WhenNotificationHasOnlyHumanRecipients_ShouldNotSendToAgentHub()
     {
         var agentHubSender = new Mock<IAgentHubSender>();
-        var dispatcher = new SignalRNotificationDispatcher(
+        var dispatcher = new NotificationDeliveryService(
             agentHubSender.Object,
-            NullLogger<SignalRNotificationDispatcher>.Instance);
+            NullLogger<NotificationDeliveryService>.Instance);
         var notification = BuildNotification([
             BuildRecipient(NotificationRecipientType.Human)
         ]);
 
-        await dispatcher.DispatchAsync(notification);
+        await dispatcher.DeliverAsync(notification);
 
         agentHubSender.Verify(
             sender => sender.SendAsync(It.IsAny<ActivityNotification>(), It.IsAny<CancellationToken>()),
@@ -51,7 +51,7 @@ public sealed class SignalRNotificationDispatcherTests
     }
 
     [Fact]
-    public async Task DispatchAsync_WhenNotificationHasMixedRecipients_ShouldSendOnlyAiRecipientsToAgentHub()
+    public async Task DeliverAsync_WhenNotificationHasMixedRecipients_ShouldSendOnlyAiRecipientsToAgentHub()
     {
         ActivityNotification? sentNotification = null;
         var agentHubSender = new Mock<IAgentHubSender>();
@@ -60,15 +60,15 @@ public sealed class SignalRNotificationDispatcherTests
             .Callback<ActivityNotification, CancellationToken>((notification, _) => sentNotification = notification)
             .Returns(Task.CompletedTask);
 
-        var dispatcher = new SignalRNotificationDispatcher(
+        var dispatcher = new NotificationDeliveryService(
             agentHubSender.Object,
-            NullLogger<SignalRNotificationDispatcher>.Instance);
+            NullLogger<NotificationDeliveryService>.Instance);
         var notification = BuildNotification([
             BuildRecipient(NotificationRecipientType.Human),
             BuildRecipient(NotificationRecipientType.Ai)
         ]);
 
-        await dispatcher.DispatchAsync(notification);
+        await dispatcher.DeliverAsync(notification);
 
         sentNotification.ShouldNotBeNull();
         sentNotification!.Recipients.Count.ShouldBe(1);

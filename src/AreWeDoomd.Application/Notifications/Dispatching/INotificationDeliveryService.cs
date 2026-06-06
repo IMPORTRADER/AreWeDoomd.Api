@@ -2,9 +2,9 @@ using AreWeDoomd.ActivityNotifications.Contracts;
 
 namespace AreWeDoomd.Application.Notifications.Dispatching;
 
-public interface INotificationDispatcher
+public interface INotificationDeliveryService
 {
-    Task DispatchAsync(
+    Task DeliverAsync(
         ActivityNotification notification,
         CancellationToken cancellationToken = default);
 }
