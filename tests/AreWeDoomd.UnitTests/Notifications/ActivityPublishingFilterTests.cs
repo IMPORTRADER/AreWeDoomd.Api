@@ -4,7 +4,7 @@ using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.Api.Contracts.Comments;
 using AreWeDoomd.Api.Contracts.Common;
 using AreWeDoomd.Api.Filters;
-using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Notifications.Dispatching;
 using AreWeDoomd.Application.Notifications.Engine;
 using AreWeDoomd.Domain.Users;
 using Microsoft.AspNetCore.Http;
@@ -23,102 +23,83 @@ namespace AreWeDoomd.UnitTests.Notifications;
 
 public sealed class ActivityPublishingFilterTests
 {
-    private static readonly ActivityNotification StubNotification = new(
-        ActivityId: "act_stub",
-        ActivityType: ActivityType.CommentCreated,
-        OccurredAt: DateTimeOffset.UtcNow,
-        Actor: new ActivityActor("u1", ActorType.Human, "Ali"),
-        Object: new ActivityObject("c1", ActivityObjectType.Comment, "merhaba"),
-        Target: new ActivityTarget("p1", ActivityTargetType.Post),
-        Recipients: []);
-
     [Fact]
-    public async Task NoAttribute_DoesNotDispatch()
+    public async Task OnActionExecutionAsync_WhenResponseSuccessful_ShouldEnqueueActivity()
     {
-        var (engine, notifier, filter) = BuildFilter();
-        var executing = BuildExecutingContext(withAttribute: false, role: nameof(UserType.Human));
+        var (queue, filter) = BuildFilter();
+        SetupEnqueue(queue);
+
+        var executing = BuildExecutingContext(role: nameof(UserType.Human));
         var executed = BuildExecutedContext(executing, statusCode: 200);
 
         await filter.OnActionExecutionAsync(executing, () => Task.FromResult(executed));
-        await Task.Delay(50);
 
-        engine.Verify(e => e.ComputeAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()), Times.Never);
+        queue.Verify(
+            q => q.EnqueueAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
-    public async Task WithAttribute_200OK_HumanRole_Dispatches()
+    public async Task OnActionExecutionAsync_WhenExceptionOccurred_ShouldNotEnqueueActivity()
     {
-        var (engine, notifier, filter) = BuildFilter();
-        SetupDispatch(engine, notifier);
-
-        var executing = BuildExecutingContext(withAttribute: true, role: nameof(UserType.Human));
-        var executed = BuildExecutedContext(executing, statusCode: 200);
-
-        await filter.OnActionExecutionAsync(executing, () => Task.FromResult(executed));
-        await Task.Delay(100);
-
-        engine.Verify(e => e.ComputeAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()), Times.Once);
-        notifier.Verify(n => n.SendAsync(It.IsAny<ActivityNotification>(), It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task ExceptionOccurred_DoesNotDispatch()
-    {
-        var (engine, notifier, filter) = BuildFilter();
-        var executing = BuildExecutingContext(withAttribute: true, role: nameof(UserType.Human));
-        var executed = BuildExecutedContext(executing, statusCode: 200,
+        var (queue, filter) = BuildFilter();
+        var executing = BuildExecutingContext(role: nameof(UserType.Human));
+        var executed = BuildExecutedContext(
+            executing,
+            statusCode: 200,
             exception: new InvalidOperationException("error"));
 
         await filter.OnActionExecutionAsync(executing, () => Task.FromResult(executed));
-        await Task.Delay(50);
 
-        engine.Verify(e => e.ComputeAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()), Times.Never);
+        queue.Verify(
+            q => q.EnqueueAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
-    public async Task NonSuccessStatus_DoesNotDispatch()
+    public async Task OnActionExecutionAsync_WhenStatusIsNotSuccess_ShouldNotEnqueueActivity()
     {
-        var (engine, notifier, filter) = BuildFilter();
-        var executing = BuildExecutingContext(withAttribute: true, role: nameof(UserType.Human));
+        var (queue, filter) = BuildFilter();
+        var executing = BuildExecutingContext(role: nameof(UserType.Human));
         var executed = BuildExecutedContext(executing, statusCode: 400);
 
         await filter.OnActionExecutionAsync(executing, () => Task.FromResult(executed));
-        await Task.Delay(50);
 
-        engine.Verify(e => e.ComputeAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()), Times.Never);
+        queue.Verify(
+            q => q.EnqueueAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
-    public async Task AiRole_ProducesAgentActorType()
+    public async Task OnActionExecutionAsync_WhenActorIsAi_ShouldUseAgentActorType()
     {
-        var (engine, notifier, filter) = BuildFilter();
-        var captured = SetupCapture(engine, notifier);
+        var (queue, filter) = BuildFilter();
+        var captured = SetupCapture(queue);
 
-        var executing = BuildExecutingContext(withAttribute: true, role: nameof(UserType.Ai));
+        var executing = BuildExecutingContext(role: nameof(UserType.Ai));
         var executed = BuildExecutedContext(executing, statusCode: 200, body: BuildCommentResponse());
 
         await filter.OnActionExecutionAsync(executing, () => Task.FromResult(executed));
-        await Task.Delay(100);
 
         captured.Value.ShouldNotBeNull();
-        captured.Value!.ActorType.ShouldBe(ActorType.Agent);
+        captured.Value!.ActorType.ShouldBe(ActorType.Ai);
     }
 
     [Fact]
-    public async Task InvalidRole_LogsErrorAndSkips()
+    public async Task OnActionExecutionAsync_WhenRoleIsInvalid_ShouldLogErrorAndSkipActivity()
     {
-        var engine = new Mock<INotificationEngine>();
-        var notifier = new Mock<IAgentHubSender>();
+        var queue = new Mock<IActivityNotificationQueue>();
         var logger = new Mock<ILogger<ActivityPublishingFilter>>();
-        var filter = new ActivityPublishingFilter(engine.Object, notifier.Object, logger.Object);
+        var filter = new ActivityPublishingFilter(BuildAttribute(), queue.Object, logger.Object);
 
-        var executing = BuildExecutingContext(withAttribute: true, role: nameof(UserType.Unknown));
+        var executing = BuildExecutingContext(role: nameof(UserType.Unknown));
         var executed = BuildExecutedContext(executing, statusCode: 200, body: BuildCommentResponse());
 
         await filter.OnActionExecutionAsync(executing, () => Task.FromResult(executed));
-        await Task.Delay(50);
 
-        engine.Verify(e => e.ComputeAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()), Times.Never);
+        queue.Verify(
+            q => q.EnqueueAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()),
+            Times.Never);
         logger.Verify(
             l => l.Log(
                 LogLevel.Error,
@@ -130,20 +111,20 @@ public sealed class ActivityPublishingFilterTests
     }
 
     [Fact]
-    public async Task MissingRoleClaim_LogsErrorAndSkips()
+    public async Task OnActionExecutionAsync_WhenRoleClaimIsMissing_ShouldLogErrorAndSkipActivity()
     {
-        var engine = new Mock<INotificationEngine>();
-        var notifier = new Mock<IAgentHubSender>();
+        var queue = new Mock<IActivityNotificationQueue>();
         var logger = new Mock<ILogger<ActivityPublishingFilter>>();
-        var filter = new ActivityPublishingFilter(engine.Object, notifier.Object, logger.Object);
+        var filter = new ActivityPublishingFilter(BuildAttribute(), queue.Object, logger.Object);
 
-        var executing = BuildExecutingContext(withAttribute: true, role: null);
+        var executing = BuildExecutingContext(role: null);
         var executed = BuildExecutedContext(executing, statusCode: 200, body: BuildCommentResponse());
 
         await filter.OnActionExecutionAsync(executing, () => Task.FromResult(executed));
-        await Task.Delay(50);
 
-        engine.Verify(e => e.ComputeAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()), Times.Never);
+        queue.Verify(
+            q => q.EnqueueAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()),
+            Times.Never);
         logger.Verify(
             l => l.Log(
                 LogLevel.Error,
@@ -155,18 +136,19 @@ public sealed class ActivityPublishingFilterTests
     }
 
     [Fact]
-    public async Task BuildsContextFromCarrierBodyAndClaims()
+    public async Task OnActionExecutionAsync_WhenResponseHasActivityCarrier_ShouldBuildContextFromCarrierAndClaims()
     {
-        var (engine, notifier, filter) = BuildFilter();
-        var captured = SetupCapture(engine, notifier);
+        var (queue, filter) = BuildFilter();
+        var captured = SetupCapture(queue);
 
         var commentId = Guid.NewGuid();
-        var executing = BuildExecutingContext(withAttribute: true, role: nameof(UserType.Human));
-        var executed = BuildExecutedContext(executing, statusCode: 200,
+        var executing = BuildExecutingContext(role: nameof(UserType.Human));
+        var executed = BuildExecutedContext(
+            executing,
+            statusCode: 200,
             body: BuildCommentResponse(commentId, "selam"));
 
         await filter.OnActionExecutionAsync(executing, () => Task.FromResult(executed));
-        await Task.Delay(100);
 
         captured.Value.ShouldNotBeNull();
         var ctx = captured.Value!;
@@ -181,27 +163,25 @@ public sealed class ActivityPublishingFilterTests
         ctx.ObjectTextPreview.ShouldBe("selam");
     }
 
-    private static void SetupDispatch(Mock<INotificationEngine> engine, Mock<IAgentHubSender> notifier)
+    private static void SetupEnqueue(Mock<IActivityNotificationQueue> queue)
     {
-        engine.Setup(e => e.ComputeAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()))
-              .ReturnsAsync(StubNotification);
-        notifier.Setup(n => n.SendAsync(It.IsAny<ActivityNotification>(), It.IsAny<CancellationToken>()))
-                .Returns(Task.CompletedTask);
+        queue.Setup(q => q.EnqueueAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
     }
 
-    private static StrongBox<ActivityContext?> SetupCapture(Mock<INotificationEngine> engine, Mock<IAgentHubSender> notifier)
+    private static StrongBox<ActivityContext?> SetupCapture(Mock<IActivityNotificationQueue> queue)
     {
         var box = new StrongBox<ActivityContext?>(null);
-        engine.Setup(e => e.ComputeAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()))
-              .Callback<ActivityContext, CancellationToken>((ctx, _) => box.Value = ctx)
-              .ReturnsAsync(StubNotification);
-        notifier.Setup(n => n.SendAsync(It.IsAny<ActivityNotification>(), It.IsAny<CancellationToken>()))
-                .Returns(Task.CompletedTask);
+        queue.Setup(q => q.EnqueueAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()))
+            .Callback<ActivityContext, CancellationToken>((ctx, _) => box.Value = ctx)
+            .Returns(ValueTask.CompletedTask);
+
         return box;
     }
 
     private static CommentResponse BuildCommentResponse(Guid? id = null, string content = "merhaba")
-        => new(
+    {
+        return new CommentResponse(
             Id: id ?? Guid.NewGuid(),
             PostId: Guid.NewGuid(),
             Author: new PostAuthor(Guid.NewGuid(), "ali", "Human", null),
@@ -209,19 +189,28 @@ public sealed class ActivityPublishingFilterTests
             LikeCount: 0,
             CreatedAt: DateTimeOffset.UtcNow,
             UpdatedAt: null);
-
-    private static (Mock<INotificationEngine> engine, Mock<IAgentHubSender> notifier, ActivityPublishingFilter filter) BuildFilter()
-    {
-        var engine = new Mock<INotificationEngine>();
-        var notifier = new Mock<IAgentHubSender>();
-        var filter = new ActivityPublishingFilter(
-            engine.Object,
-            notifier.Object,
-            NullLogger<ActivityPublishingFilter>.Instance);
-        return (engine, notifier, filter);
     }
 
-    private static ActionExecutingContext BuildExecutingContext(bool withAttribute, string? role)
+    private static PublishActivityAttribute BuildAttribute()
+    {
+        return new PublishActivityAttribute(
+            ActivityType.CommentCreated,
+            ActivityTargetType.Post,
+            targetIdParam: "postId");
+    }
+
+    private static (Mock<IActivityNotificationQueue> queue, ActivityPublishingFilter filter) BuildFilter()
+    {
+        var queue = new Mock<IActivityNotificationQueue>();
+        var filter = new ActivityPublishingFilter(
+            BuildAttribute(),
+            queue.Object,
+            NullLogger<ActivityPublishingFilter>.Instance);
+
+        return (queue, filter);
+    }
+
+    private static ActionExecutingContext BuildExecutingContext(string? role)
     {
         var httpContext = new DefaultHttpContext();
         httpContext.Request.RouteValues["postId"] = "post_abc";
@@ -231,26 +220,15 @@ public sealed class ActivityPublishingFilterTests
             new(ClaimTypes.NameIdentifier, "user_test"),
             new(ClaimTypes.Name, "Test User")
         };
+
         if (role is not null)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
+
         httpContext.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test"));
 
-        var actionDescriptor = new ControllerActionDescriptor
-        {
-            EndpointMetadata = withAttribute
-                ? (IList<object>)
-                [
-                    new PublishActivityAttribute(
-                        ActivityType.CommentCreated,
-                        ActivityTargetType.Post,
-                        targetIdParam: "postId")
-                ]
-                : new List<object>()
-        };
-
-        var actionContext = new ActionContext(httpContext, new RouteData(), actionDescriptor);
+        var actionContext = new ActionContext(httpContext, new RouteData(), new ControllerActionDescriptor());
         return new ActionExecutingContext(
             actionContext,
             new List<IFilterMetadata>(),

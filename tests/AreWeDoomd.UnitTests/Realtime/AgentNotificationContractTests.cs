@@ -23,6 +23,7 @@ public sealed class AgentNotificationContractTests
             Recipients: [
                 new NotificationRecipient(
                     UserId: targetOwnerId,
+                    RecipientType: NotificationRecipientType.Ai,
                     Reason: NotificationReason.PostOwner,
                     Template: "post.comment.created",
                     Params: new Dictionary<string, string> { ["actor_name"] = "Ali" },
@@ -37,6 +38,7 @@ public sealed class AgentNotificationContractTests
         notification.Actor.DisplayName.ShouldBe("Ali");
         notification.Object.TextPreview.ShouldBe("Harika!");
         notification.Recipients.Count.ShouldBe(1);
+        notification.Recipients[0].RecipientType.ShouldBe(NotificationRecipientType.Ai);
         notification.Recipients[0].Priority.ShouldBe(NotificationPriority.Normal);
         notification.Recipients[0].Params["actor_name"].ShouldBe("Ali");
     }

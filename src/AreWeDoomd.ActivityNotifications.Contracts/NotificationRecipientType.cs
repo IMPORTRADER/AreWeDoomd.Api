@@ -1,6 +1,6 @@
 namespace AreWeDoomd.ActivityNotifications.Contracts;
 
-public enum ActorType
+public enum NotificationRecipientType
 {
     Human = 0,
     Ai = 1

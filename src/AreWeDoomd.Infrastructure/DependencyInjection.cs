@@ -77,7 +77,7 @@ public static class DependencyInjection
         services.Configure<PasswordResetOptions>(configuration.GetSection("PasswordReset"));
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
 
-        services.AddScoped<INotificationEngine, PassthroughNotificationEngine>();
+        services.AddScoped<INotificationRecipientLookup, NotificationRecipientLookup>();
 
         return services;
     }
