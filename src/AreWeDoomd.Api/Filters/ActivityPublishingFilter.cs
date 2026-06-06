@@ -10,6 +10,7 @@ using System.Security.Claims;
 namespace AreWeDoomd.Api.Filters;
 
 public sealed class ActivityPublishingFilter(
+    PublishActivityAttribute attribute,
     INotificationEngine notificationEngine,
     IAgentHubSender agentHubSender,
     ILogger<ActivityPublishingFilter> logger) : IAsyncActionFilter
@@ -18,12 +19,6 @@ public sealed class ActivityPublishingFilter(
     {
         var executed = await next();
 
-        var attribute = executed.ActionDescriptor
-            .EndpointMetadata
-            .OfType<PublishActivityAttribute>()
-            .FirstOrDefault();
-
-        if (attribute is null) return;
         if (executed.Exception is not null) return;
         if (executed.Result is IStatusCodeActionResult { StatusCode: int code } && (code < 200 || code >= 300)) return;
 

@@ -33,25 +33,12 @@ public sealed class ActivityPublishingFilterTests
         Recipients: []);
 
     [Fact]
-    public async Task NoAttribute_DoesNotDispatch()
-    {
-        var (engine, notifier, filter) = BuildFilter();
-        var executing = BuildExecutingContext(withAttribute: false, role: nameof(UserType.Human));
-        var executed = BuildExecutedContext(executing, statusCode: 200);
-
-        await filter.OnActionExecutionAsync(executing, () => Task.FromResult(executed));
-        await Task.Delay(50);
-
-        engine.Verify(e => e.ComputeAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task WithAttribute_200OK_HumanRole_Dispatches()
+    public async Task Success_200OK_HumanRole_Dispatches()
     {
         var (engine, notifier, filter) = BuildFilter();
         SetupDispatch(engine, notifier);
 
-        var executing = BuildExecutingContext(withAttribute: true, role: nameof(UserType.Human));
+        var executing = BuildExecutingContext(role: nameof(UserType.Human));
         var executed = BuildExecutedContext(executing, statusCode: 200);
 
         await filter.OnActionExecutionAsync(executing, () => Task.FromResult(executed));
@@ -65,7 +52,7 @@ public sealed class ActivityPublishingFilterTests
     public async Task ExceptionOccurred_DoesNotDispatch()
     {
         var (engine, notifier, filter) = BuildFilter();
-        var executing = BuildExecutingContext(withAttribute: true, role: nameof(UserType.Human));
+        var executing = BuildExecutingContext(role: nameof(UserType.Human));
         var executed = BuildExecutedContext(executing, statusCode: 200,
             exception: new InvalidOperationException("error"));
 
@@ -79,7 +66,7 @@ public sealed class ActivityPublishingFilterTests
     public async Task NonSuccessStatus_DoesNotDispatch()
     {
         var (engine, notifier, filter) = BuildFilter();
-        var executing = BuildExecutingContext(withAttribute: true, role: nameof(UserType.Human));
+        var executing = BuildExecutingContext(role: nameof(UserType.Human));
         var executed = BuildExecutedContext(executing, statusCode: 400);
 
         await filter.OnActionExecutionAsync(executing, () => Task.FromResult(executed));
@@ -94,7 +81,7 @@ public sealed class ActivityPublishingFilterTests
         var (engine, notifier, filter) = BuildFilter();
         var captured = SetupCapture(engine, notifier);
 
-        var executing = BuildExecutingContext(withAttribute: true, role: nameof(UserType.Ai));
+        var executing = BuildExecutingContext(role: nameof(UserType.Ai));
         var executed = BuildExecutedContext(executing, statusCode: 200, body: BuildCommentResponse());
 
         await filter.OnActionExecutionAsync(executing, () => Task.FromResult(executed));
@@ -110,9 +97,9 @@ public sealed class ActivityPublishingFilterTests
         var engine = new Mock<INotificationEngine>();
         var notifier = new Mock<IAgentHubSender>();
         var logger = new Mock<ILogger<ActivityPublishingFilter>>();
-        var filter = new ActivityPublishingFilter(engine.Object, notifier.Object, logger.Object);
+        var filter = new ActivityPublishingFilter(BuildAttribute(), engine.Object, notifier.Object, logger.Object);
 
-        var executing = BuildExecutingContext(withAttribute: true, role: nameof(UserType.Unknown));
+        var executing = BuildExecutingContext(role: nameof(UserType.Unknown));
         var executed = BuildExecutedContext(executing, statusCode: 200, body: BuildCommentResponse());
 
         await filter.OnActionExecutionAsync(executing, () => Task.FromResult(executed));
@@ -135,9 +122,9 @@ public sealed class ActivityPublishingFilterTests
         var engine = new Mock<INotificationEngine>();
         var notifier = new Mock<IAgentHubSender>();
         var logger = new Mock<ILogger<ActivityPublishingFilter>>();
-        var filter = new ActivityPublishingFilter(engine.Object, notifier.Object, logger.Object);
+        var filter = new ActivityPublishingFilter(BuildAttribute(), engine.Object, notifier.Object, logger.Object);
 
-        var executing = BuildExecutingContext(withAttribute: true, role: null);
+        var executing = BuildExecutingContext(role: null);
         var executed = BuildExecutedContext(executing, statusCode: 200, body: BuildCommentResponse());
 
         await filter.OnActionExecutionAsync(executing, () => Task.FromResult(executed));
@@ -161,7 +148,7 @@ public sealed class ActivityPublishingFilterTests
         var captured = SetupCapture(engine, notifier);
 
         var commentId = Guid.NewGuid();
-        var executing = BuildExecutingContext(withAttribute: true, role: nameof(UserType.Human));
+        var executing = BuildExecutingContext(role: nameof(UserType.Human));
         var executed = BuildExecutedContext(executing, statusCode: 200,
             body: BuildCommentResponse(commentId, "selam"));
 
@@ -210,18 +197,22 @@ public sealed class ActivityPublishingFilterTests
             CreatedAt: DateTimeOffset.UtcNow,
             UpdatedAt: null);
 
+    private static PublishActivityAttribute BuildAttribute()
+        => new(ActivityType.CommentCreated, ActivityTargetType.Post, targetIdParam: "postId");
+
     private static (Mock<INotificationEngine> engine, Mock<IAgentHubSender> notifier, ActivityPublishingFilter filter) BuildFilter()
     {
         var engine = new Mock<INotificationEngine>();
         var notifier = new Mock<IAgentHubSender>();
         var filter = new ActivityPublishingFilter(
+            BuildAttribute(),
             engine.Object,
             notifier.Object,
             NullLogger<ActivityPublishingFilter>.Instance);
         return (engine, notifier, filter);
     }
 
-    private static ActionExecutingContext BuildExecutingContext(bool withAttribute, string? role)
+    private static ActionExecutingContext BuildExecutingContext(string? role)
     {
         var httpContext = new DefaultHttpContext();
         httpContext.Request.RouteValues["postId"] = "post_abc";
@@ -237,20 +228,7 @@ public sealed class ActivityPublishingFilterTests
         }
         httpContext.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test"));
 
-        var actionDescriptor = new ControllerActionDescriptor
-        {
-            EndpointMetadata = withAttribute
-                ? (IList<object>)
-                [
-                    new PublishActivityAttribute(
-                        ActivityType.CommentCreated,
-                        ActivityTargetType.Post,
-                        targetIdParam: "postId")
-                ]
-                : new List<object>()
-        };
-
-        var actionContext = new ActionContext(httpContext, new RouteData(), actionDescriptor);
+        var actionContext = new ActionContext(httpContext, new RouteData(), new ControllerActionDescriptor());
         return new ActionExecutingContext(
             actionContext,
             new List<IFilterMetadata>(),
