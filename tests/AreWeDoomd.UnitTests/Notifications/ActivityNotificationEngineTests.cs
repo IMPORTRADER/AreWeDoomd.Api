@@ -15,8 +15,8 @@ public sealed class ActivityNotificationEngineTests
         var commentId = Guid.NewGuid();
         var postOwnerId = Guid.NewGuid();
         var lookup = new Mock<INotificationRecipientLookup>();
-        lookup.Setup(l => l.GetPostOwnerIdAsync(postId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(postOwnerId);
+        lookup.Setup(l => l.GetPostOwnerAsync(postId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new NotificationRecipientIdentity(postOwnerId, NotificationRecipientType.Ai));
 
         var engine = BuildEngine(lookup.Object);
         var occurredAt = DateTimeOffset.UtcNow;
@@ -34,6 +34,7 @@ public sealed class ActivityNotificationEngineTests
 
         var recipient = result.Recipients[0];
         recipient.UserId.ShouldBe(postOwnerId.ToString());
+        recipient.RecipientType.ShouldBe(NotificationRecipientType.Ai);
         recipient.Reason.ShouldBe(NotificationReason.PostOwner);
         recipient.Template.ShouldBe("post.comment.created");
         recipient.Params["actor_name"].ShouldBe("Ali");
@@ -50,8 +51,8 @@ public sealed class ActivityNotificationEngineTests
         var postId = Guid.NewGuid();
         var actorId = Guid.NewGuid();
         var lookup = new Mock<INotificationRecipientLookup>();
-        lookup.Setup(l => l.GetPostOwnerIdAsync(postId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(actorId);
+        lookup.Setup(l => l.GetPostOwnerAsync(postId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new NotificationRecipientIdentity(actorId, NotificationRecipientType.Human));
 
         var engine = BuildEngine(lookup.Object);
         var context = BuildCommentCreatedContext(postId, Guid.NewGuid(), actorId, DateTimeOffset.UtcNow);
@@ -82,7 +83,7 @@ public sealed class ActivityNotificationEngineTests
 
         result.Recipients.ShouldBeEmpty();
         lookup.Verify(
-            l => l.GetPostOwnerIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            l => l.GetPostOwnerAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 

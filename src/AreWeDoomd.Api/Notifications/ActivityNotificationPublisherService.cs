@@ -1,4 +1,3 @@
-using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Notifications.Dispatching;
 using AreWeDoomd.Application.Notifications.Engine;
 
@@ -34,10 +33,10 @@ public sealed class ActivityNotificationPublisherService(
         {
             using var scope = serviceScopeFactory.CreateScope();
             var notificationEngine = scope.ServiceProvider.GetRequiredService<INotificationEngine>();
-            var agentHubSender = scope.ServiceProvider.GetRequiredService<IAgentHubSender>();
+            var notificationDispatcher = scope.ServiceProvider.GetRequiredService<INotificationDispatcher>();
 
             var notification = await notificationEngine.ComputeAsync(context, cancellationToken);
-            await agentHubSender.SendAsync(notification, cancellationToken);
+            await notificationDispatcher.DispatchAsync(notification, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

@@ -19,19 +19,20 @@ public sealed class CommentCreatedNotificationRule(INotificationRecipientLookup 
             return [];
         }
 
-        var postOwnerId = await recipientLookup.GetPostOwnerIdAsync(postId, cancellationToken);
+        var postOwner = await recipientLookup.GetPostOwnerAsync(postId, cancellationToken);
 
-        if (postOwnerId is null)
+        if (postOwner is null)
         {
             return [];
         }
 
-        var recipientUserId = postOwnerId.Value.ToString();
+        var recipientUserId = postOwner.UserId.ToString();
 
         return
         [
             new NotificationRecipient(
                 UserId: recipientUserId,
+                RecipientType: postOwner.RecipientType,
                 Reason: NotificationReason.PostOwner,
                 Template: "post.comment.created",
                 Params: new Dictionary<string, string>

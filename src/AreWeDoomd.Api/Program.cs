@@ -44,6 +44,7 @@ try
         });
     builder.Services.AddSingleton<IAgentHubSender, AgentHubSender>();
     builder.Services.AddSingleton<IActivityNotificationQueue, ChannelActivityNotificationQueue>();
+    builder.Services.AddScoped<INotificationDispatcher, SignalRNotificationDispatcher>();
     builder.Services.AddHostedService<ActivityNotificationPublisherService>();
 
     var app = builder.Build();
@@ -109,6 +110,7 @@ try
                 Recipients: [
                     new NotificationRecipient(
                         UserId: Guid.NewGuid().ToString(),
+                        RecipientType: NotificationRecipientType.Ai,
                         Reason: NotificationReason.PostOwner,
                         Template: "post.comment.created",
                         Params: new Dictionary<string, string> { ["actor_name"] = "Dev User" },

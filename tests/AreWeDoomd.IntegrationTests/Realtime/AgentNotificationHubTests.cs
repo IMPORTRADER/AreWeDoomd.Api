@@ -66,6 +66,7 @@ public sealed class AgentNotificationHubTests : IClassFixture<AgentHubTestFactor
             Recipients: [
                 new NotificationRecipient(
                     UserId: recipientId,
+                    RecipientType: NotificationRecipientType.Ai,
                     Reason: NotificationReason.PostOwner,
                     Template: "post.comment.created",
                     Params: new Dictionary<string, string> { ["actor_name"] = "TestUser" },
