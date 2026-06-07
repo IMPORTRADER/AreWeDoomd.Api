@@ -1,4 +1,3 @@
-using System.Text.Json;
 using MessagePack;
 using AreWeDoomd.ActivityNotifications.Contracts;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -44,8 +43,13 @@ public sealed class AgentNotificationListener : BackgroundService
             AgentNotificationHubConstants.ReceiveEventMethod,
             notification =>
             {
-                var json = JsonSerializer.Serialize(notification, new JsonSerializerOptions { WriteIndented = true });
-                _logger.LogInformation("ActivityNotification received:\n{Json}", json);
+                var agentEvent = AgentEvent.From(notification);
+                _logger.LogInformation(
+                    "AgentEvent received: {ActivityId} | {ActivityType} | Actor={ActorName} | Content={ContentPreview}",
+                    agentEvent.ActivityId,
+                    agentEvent.ActivityType,
+                    agentEvent.Actor.DisplayName,
+                    agentEvent.Content.TextPreview);
             });
 
         _connection.Reconnecting += ex =>
