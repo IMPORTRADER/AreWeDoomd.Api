@@ -1,4 +1,3 @@
-using AreWeDoomd.AgentService.Ai.Providers.Anthropic;
 using AreWeDoomd.AgentService.Ai.Providers.Gemini;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,25 +19,10 @@ public static class ChatProviderServiceCollectionExtensions
         // Adding a provider later = one new adapter file (clone
         // AnthropicProvider) + one registration line below. Nothing else in
         // this method or the consuming code needs to change.
-        AddAnthropicProvider(services, configuration);
         AddGeminiProvider(services, configuration);
         // ================================================================
 
         return services;
-    }
-
-    private static void AddAnthropicProvider(IServiceCollection services, IConfiguration configuration)
-    {
-        services
-            .AddOptions<AnthropicProviderOptions>()
-            .Bind(configuration.GetSection(AnthropicProviderOptions.SectionName));
-
-        // Named HttpClient via IHttpClientFactory so a resilience handler can be
-        // wrapped around it later (.AddStandardResilienceHandler / Polly) without
-        // touching the adapter.
-        services.AddHttpClient(AnthropicProvider.HttpClientName);
-
-        services.AddKeyedSingleton<IChatProvider, AnthropicProvider>(AnthropicProvider.ProviderName);
     }
 
     private static void AddGeminiProvider(IServiceCollection services, IConfiguration configuration)
