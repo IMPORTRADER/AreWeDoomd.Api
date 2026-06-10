@@ -14,8 +14,13 @@ public sealed class StubHttpMessageHandler : HttpMessageHandler
         _responder = responder;
     }
 
+    /// <summary>Always returns the same single <paramref name="response"/> instance (single-call scenarios only).</summary>
     public static StubHttpMessageHandler RespondWith(HttpResponseMessage response) =>
         new((_, _) => Task.FromResult(response));
+
+    /// <summary>Calls <paramref name="factory"/> on every request so each call gets a fresh response.</summary>
+    public static StubHttpMessageHandler AlwaysRespondWith(Func<HttpResponseMessage> factory) =>
+        new((_, _) => Task.FromResult(factory()));
 
     public static StubHttpMessageHandler Throw(Exception exception) =>
         new((_, _) => throw exception);

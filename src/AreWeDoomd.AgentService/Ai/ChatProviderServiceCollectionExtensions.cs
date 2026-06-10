@@ -29,7 +29,9 @@ public static class ChatProviderServiceCollectionExtensions
     {
         services
             .AddOptions<GeminiProviderOptions>()
-            .Bind(configuration.GetSection(GeminiProviderOptions.SectionName));
+            .Bind(configuration.GetSection(GeminiProviderOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         // Named HttpClient via IHttpClientFactory so a resilience handler can be
         // wrapped around it later (.AddStandardResilienceHandler / Polly) without

@@ -1,8 +1,15 @@
 using AreWeDoomd.AgentService;
+using AreWeDoomd.AgentService.Actions;
 using AreWeDoomd.AgentService.Ai;
+using AreWeDoomd.AgentService.Context;
+using AreWeDoomd.AgentService.Decisions;
+using AreWeDoomd.AgentService.Processing;
+using AreWeDoomd.AgentService.Prompting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -31,7 +38,34 @@ builder.Services.AddSerilog((services, loggerConfig) =>
 builder.Services.Configure<AgentServiceOptions>(
     builder.Configuration.GetSection(AgentServiceOptions.SectionName));
 builder.Services.AddChatProviders(builder.Configuration);
+builder.Services.AddSingleton<IAiSessionLogger, AiSessionLogger>();
+
+builder.Services.AddHttpClient(ContextFetcher.HttpClientName);
+builder.Services.AddSingleton<AgentEventQueue>();
+builder.Services.AddSingleton<PromptFileSet>();
+builder.Services.AddSingleton<AgentProfileStore>();
+builder.Services.AddSingleton<IPromptComposer, PromptComposer>();
+builder.Services.AddSingleton<DecisionParser>();
+builder.Services.AddSingleton<PriorityDecayPolicy>();
+builder.Services.AddSingleton<IContextFetcher, ContextFetcher>();
+builder.Services.AddSingleton<IActionExecutor, ActionExecutor>();
+
 builder.Services.AddHostedService<AgentNotificationListener>();
+builder.Services.AddHostedService(serviceProvider =>
+{
+    var agentOptions = serviceProvider.GetRequiredService<IOptions<AgentServiceOptions>>();
+    return new AgentEventProcessor(
+        serviceProvider.GetRequiredService<AgentEventQueue>(),
+        serviceProvider.GetRequiredService<IContextFetcher>(),
+        serviceProvider.GetRequiredService<PriorityDecayPolicy>(),
+        serviceProvider.GetRequiredService<IPromptComposer>(),
+        serviceProvider.GetRequiredKeyedService<IChatProvider>(agentOptions.Value.ChatProvider),
+        serviceProvider.GetRequiredService<DecisionParser>(),
+        serviceProvider.GetRequiredService<IActionExecutor>(),
+        serviceProvider.GetRequiredService<IAiSessionLogger>(),
+        agentOptions,
+        serviceProvider.GetRequiredService<ILogger<AgentEventProcessor>>());
+});
 
 var host = builder.Build();
 host.Run();
