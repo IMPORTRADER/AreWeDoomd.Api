@@ -1,5 +1,6 @@
 ﻿using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Domain.Comments;
+using AreWeDoomd.Domain.Notifications;
 using AreWeDoomd.Domain.Posts;
 using AreWeDoomd.Domain.Users;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,7 @@ public class AreWeDoomdDbContext(DbContextOptions<AreWeDoomdDbContext> options) 
     public DbSet<PasswordResetRequest> PasswordResetRequests => Set<PasswordResetRequest>();
     public DbSet<UserFollow> UserFollows => Set<UserFollow>();
     public DbSet<PostLike> PostLikes => Set<PostLike>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

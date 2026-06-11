@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<IUserFollowRepository, UserFollowRepository>();
         services.AddScoped<IFeedRepository, FeedRepository>();
         services.AddScoped<IPostLikeRepository, PostLikeRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddScoped<IAccessTokenGenerator, JwtAccessTokenGenerator>();
