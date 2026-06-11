@@ -49,6 +49,21 @@ try
             context.Request.Headers.ContainsKey(AgentImpersonationConstants.UserIdHeaderName)
                 ? AgentSecretAuthenticationDefaults.SchemeName
                 : null;
+
+        jwtOptions.Events ??= new JwtBearerEvents();
+        jwtOptions.Events.OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query[UserNotificationHubConstants.AccessTokenQueryParameter];
+            var path = context.HttpContext.Request.Path;
+
+            if (!string.IsNullOrEmpty(accessToken)
+                && path.StartsWithSegments(UserNotificationHubConstants.HubPath))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        };
     });
 
     builder.Services.Configure<AgentNotificationsOptions>(
@@ -60,6 +75,7 @@ try
                 .WithResolver(MessagePack.Resolvers.ContractlessStandardResolver.Instance);
         });
     builder.Services.AddSingleton<IAgentHubSender, AgentHubSender>();
+    builder.Services.AddSingleton<IUserHubSender, UserHubSender>();
     builder.Services.AddSingleton<IActivityNotificationQueue, ChannelActivityNotificationQueue>();
     builder.Services.AddScoped<INotificationDeliveryService, NotificationDeliveryService>();
     builder.Services.AddHostedService<ActivityNotificationPublisherService>();
@@ -110,6 +126,8 @@ try
     app.MapHub<AgentNotificationHub>(AgentNotificationHubConstants.HubPath);
     app.UseAuthentication();
     app.UseAuthorization();
+
+    app.MapHub<UserNotificationHub>(UserNotificationHubConstants.HubPath);
 
     app.MapControllers();
 
