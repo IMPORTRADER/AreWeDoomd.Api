@@ -1,5 +1,6 @@
 using MessagePack;
 using AreWeDoomd.ActivityNotifications.Contracts;
+using AreWeDoomd.AgentService.Processing;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -11,14 +12,17 @@ namespace AreWeDoomd.AgentService;
 public sealed class AgentNotificationListener : BackgroundService
 {
     private readonly AgentServiceOptions _options;
+    private readonly AgentEventQueue _queue;
     private readonly ILogger<AgentNotificationListener> _logger;
     private HubConnection? _connection;
 
     public AgentNotificationListener(
         IOptions<AgentServiceOptions> options,
+        AgentEventQueue queue,
         ILogger<AgentNotificationListener> logger)
     {
         _options = options.Value;
+        _queue = queue;
         _logger = logger;
     }
 
@@ -44,12 +48,20 @@ public sealed class AgentNotificationListener : BackgroundService
             notification =>
             {
                 var agentEvent = AgentEvent.From(notification);
-                _logger.LogInformation(
-                    "AgentEvent received: {ActivityId} | {ActivityType} | Actor={ActorName} | Content={ContentPreview}",
-                    agentEvent.ActivityId,
-                    agentEvent.ActivityType,
-                    agentEvent.Actor.DisplayName,
-                    agentEvent.Content.TextPreview);
+                if (_queue.TryEnqueue(agentEvent))
+                {
+                    _logger.LogInformation(
+                        "AgentEvent enqueued: {ActivityId} | {ActivityType} | Actor={ActorName}",
+                        agentEvent.ActivityId,
+                        agentEvent.ActivityType,
+                        agentEvent.Actor.DisplayName);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Agent event queue rejected event {ActivityId}; it was dropped.",
+                        agentEvent.ActivityId);
+                }
             });
 
         _connection.Reconnecting += ex =>

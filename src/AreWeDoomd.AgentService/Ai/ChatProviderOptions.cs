@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace AreWeDoomd.AgentService.Ai;
 
 /// <summary>
@@ -6,6 +8,7 @@ namespace AreWeDoomd.AgentService.Ai;
 /// </summary>
 public abstract class ChatProviderOptions
 {
+    [Required(AllowEmptyStrings = false)]
     public string ApiKey { get; set; } = string.Empty;
 
     public string BaseUrl { get; set; } = string.Empty;

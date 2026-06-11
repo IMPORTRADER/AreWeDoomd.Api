@@ -38,42 +38,64 @@ public sealed class GeminiProvider : IChatProvider
         _logger = logger;
     }
 
+    private static readonly HashSet<int> RetryableStatusCodes = [429, 502, 503, 504];
+
     public string Name => ProviderName;
 
     public async Task<ChatResult> CompleteAsync(ChatRequest request, CancellationToken ct)
     {
-        int statusCode;
-        string responseBody;
-        try
+        int maxAttempts = _options.MaxRetries + 1;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            using var httpRequest = BuildHttpRequest(request);
-            HttpClient client = _httpClientFactory.CreateClient(HttpClientName);
+            bool shouldRetry = false;
+            int statusCode = 0;
 
-            using HttpResponseMessage response = await client.SendAsync(httpRequest, ct);
-            statusCode = (int)response.StatusCode;
-            responseBody = await response.Content.ReadAsStringAsync(ct);
-
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                return ChatResult.Fail(NormalizeError(responseBody, statusCode));
+                using var httpRequest = BuildHttpRequest(request);
+                HttpClient client = _httpClientFactory.CreateClient(HttpClientName);
+
+                using HttpResponseMessage response = await client.SendAsync(httpRequest, ct);
+                statusCode = (int)response.StatusCode;
+                string responseBody = await response.Content.ReadAsStringAsync(ct);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    if (RetryableStatusCodes.Contains(statusCode) && attempt < maxAttempts)
+                        shouldRetry = true;
+                    else
+                        return ChatResult.Fail(NormalizeError(responseBody, statusCode));
+                }
+                else
+                {
+                    return BuildResult(responseBody, statusCode);
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException)
+            {
+                _logger.LogWarning(ex, "Transport failure calling the Gemini generateContent API");
+                return ChatResult.Fail(new ChatError(ex.Message, StatusCode: null, ProviderName));
+            }
+
+            if (shouldRetry)
+            {
+                int delayMs = _options.RetryBaseDelayMs * (int)Math.Pow(2, attempt - 1);
+                _logger.LogWarning(
+                    "Gemini returned {StatusCode} (transient) on attempt {Attempt}/{Max}; retrying in {DelayMs}ms",
+                    statusCode, attempt, maxAttempts, delayMs);
+                await Task.Delay(delayMs, ct);
             }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            // Cooperative cancellation requested by the caller is not an expected
-            // failure — let it propagate so the caller can observe its own cancel.
-            throw;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException)
-        {
-            // Network error or request timeout (a timeout surfaces here as an
-            // OperationCanceledException while our own token is NOT signalled).
-            // Rule #1: expected failures return Fail, never throw.
-            _logger.LogWarning(ex, "Transport failure calling the Gemini generateContent API");
-            return ChatResult.Fail(new ChatError(ex.Message, StatusCode: null, ProviderName));
-        }
 
-        return BuildResult(responseBody, statusCode);
+        return ChatResult.Fail(new ChatError(
+            $"Gemini request failed after {_options.MaxRetries} retries.",
+            null,
+            ProviderName));
     }
 
     private HttpRequestMessage BuildHttpRequest(ChatRequest request)
@@ -86,6 +108,15 @@ public sealed class GeminiProvider : IChatProvider
         // default when the caller did not specify one for consistent behavior.
         // This fallback lives here, not in the domain ChatRequest.
         int maxTokens = request.MaxTokens ?? _options.DefaultMaxTokens;
+
+        JsonElement? responseSchema = null;
+        string? responseMimeType = null;
+        if (!string.IsNullOrWhiteSpace(request.JsonResponseSchema))
+        {
+            using JsonDocument schemaDocument = JsonDocument.Parse(request.JsonResponseSchema);
+            responseSchema = schemaDocument.RootElement.Clone();
+            responseMimeType = "application/json";
+        }
 
         var payload = new GeminiGenerateContentRequest
         {
@@ -100,7 +131,9 @@ public sealed class GeminiProvider : IChatProvider
             GenerationConfig = new GeminiGenerationConfig
             {
                 MaxOutputTokens = maxTokens,
-                Temperature = request.Temperature
+                Temperature = request.Temperature,
+                ResponseMimeType = responseMimeType,
+                ResponseSchema = responseSchema
             }
         };
 

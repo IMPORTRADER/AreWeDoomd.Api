@@ -1,4 +1,5 @@
 using MessagePack;
+using AreWeDoomd.Api.Auth;
 using AreWeDoomd.Api.Common.Errors;
 using AreWeDoomd.Api.Notifications;
 using AreWeDoomd.Api.Realtime;
@@ -9,6 +10,8 @@ using AreWeDoomd.Application.Notifications.Dispatching;
 using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.Infrastructure;
 using AreWeDoomd.Infrastructure.Common.Logging;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -33,6 +36,20 @@ try
 
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
+
+    builder.Services.AddAuthentication()
+        .AddScheme<AuthenticationSchemeOptions, AgentSecretAuthenticationHandler>(
+            AgentSecretAuthenticationDefaults.SchemeName,
+            _ => { });
+    builder.Services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, jwtOptions =>
+    {
+        // Requests carrying the agent user-id header authenticate via the agent
+        // scheme; everything else stays on JWT. [Authorize] endpoints unchanged.
+        jwtOptions.ForwardDefaultSelector = context =>
+            context.Request.Headers.ContainsKey(AgentImpersonationConstants.UserIdHeaderName)
+                ? AgentSecretAuthenticationDefaults.SchemeName
+                : null;
+    });
 
     builder.Services.Configure<AgentNotificationsOptions>(
         builder.Configuration.GetSection(AgentNotificationsOptions.SectionName));

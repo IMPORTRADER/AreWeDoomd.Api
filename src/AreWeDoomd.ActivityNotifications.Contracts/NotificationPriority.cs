@@ -2,7 +2,7 @@ namespace AreWeDoomd.ActivityNotifications.Contracts;
 
 public enum NotificationPriority
 {
-    Normal = 0,
-    High = 1,
-    Critical = 2
+    Low = 0,
+    Normal = 1,
+    High = 2
 }

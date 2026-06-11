@@ -5,4 +5,5 @@ public sealed record ChatRequest(
     IReadOnlyList<ChatMessage> Messages,
     string? System = null,
     int? MaxTokens = null,
-    double? Temperature = null);
+    double? Temperature = null,
+    string? JsonResponseSchema = null);
