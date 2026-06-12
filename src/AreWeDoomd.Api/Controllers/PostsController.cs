@@ -39,6 +39,7 @@ public sealed class PostsController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{postId:guid}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(PostResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
