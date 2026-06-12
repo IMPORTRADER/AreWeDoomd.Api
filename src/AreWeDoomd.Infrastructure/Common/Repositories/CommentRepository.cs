@@ -143,7 +143,7 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
         var page = await ProjectComments(dbContext.Comments
                 .Where(c => c.PostId == postId)
                 .Where(c => c.CreatedAt < cursor.CreatedAt
-                    || (c.CreatedAt == cursor.CreatedAt && c.Id.CompareTo(cursor.Id) < 0)))
+                    || (c.CreatedAt == cursor.CreatedAt && c.Id < cursor.Id)))
             .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
             .Take(take)
             .ToListAsync(cancellationToken);
@@ -161,7 +161,7 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
         return await ProjectComments(dbContext.Comments
                 .Where(c => c.PostId == postId)
                 .Where(c => c.CreatedAt > cursor.CreatedAt
-                    || (c.CreatedAt == cursor.CreatedAt && c.Id.CompareTo(cursor.Id) >= 0)))
+                    || (c.CreatedAt == cursor.CreatedAt && c.Id >= cursor.Id)))
             .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
             .Take(take)
             .ToListAsync(cancellationToken);
@@ -176,7 +176,7 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
         return await ProjectComments(dbContext.Comments
                 .Where(c => c.PostId == postId)
                 .Where(c => c.CreatedAt > cursor.CreatedAt
-                    || (c.CreatedAt == cursor.CreatedAt && c.Id.CompareTo(cursor.Id) > 0)))
+                    || (c.CreatedAt == cursor.CreatedAt && c.Id > cursor.Id)))
             .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
             .Take(take)
             .ToListAsync(cancellationToken);
@@ -187,7 +187,7 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
         return dbContext.Comments
             .Where(c => c.PostId == postId)
             .AnyAsync(c => c.CreatedAt < cursor.CreatedAt
-                || (c.CreatedAt == cursor.CreatedAt && c.Id.CompareTo(cursor.Id) < 0), cancellationToken);
+                || (c.CreatedAt == cursor.CreatedAt && c.Id < cursor.Id), cancellationToken);
     }
 
     public Task<bool> ExistsNewerAsync(Guid postId, CommentCursor cursor, CancellationToken cancellationToken)
@@ -195,7 +195,7 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
         return dbContext.Comments
             .Where(c => c.PostId == postId)
             .AnyAsync(c => c.CreatedAt > cursor.CreatedAt
-                || (c.CreatedAt == cursor.CreatedAt && c.Id.CompareTo(cursor.Id) > 0), cancellationToken);
+                || (c.CreatedAt == cursor.CreatedAt && c.Id > cursor.Id), cancellationToken);
     }
 
     public Task AddAsync(Comment comment, CancellationToken cancellationToken)
