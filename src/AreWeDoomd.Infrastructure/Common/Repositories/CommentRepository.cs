@@ -118,20 +118,18 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
         bool descending,
         CancellationToken cancellationToken)
     {
-        var projected = ProjectComments(dbContext.Comments.Where(c => c.PostId == postId));
+        var source = dbContext.Comments.Where(c => c.PostId == postId);
 
-        var ordered = descending
-            ? projected.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
-            : projected.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id);
-
-        IQueryable<CommentResult> query = ordered;
+        IQueryable<Comment> ordered = descending
+            ? source.OrderByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id)
+            : source.OrderBy(c => c.CreatedAt).ThenBy(c => c.Id);
 
         if (take is not null)
         {
-            query = query.Take(take.Value);
+            ordered = ordered.Take(take.Value);
         }
 
-        return await query.ToListAsync(cancellationToken);
+        return await ProjectComments(ordered).ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<CommentResult>> GetOlderThanAsync(
@@ -143,9 +141,9 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
         var page = await ProjectComments(dbContext.Comments
                 .Where(c => c.PostId == postId)
                 .Where(c => c.CreatedAt < cursor.CreatedAt
-                    || (c.CreatedAt == cursor.CreatedAt && c.Id < cursor.Id)))
-            .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
-            .Take(take)
+                    || (c.CreatedAt == cursor.CreatedAt && c.Id < cursor.Id))
+                .OrderByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id)
+                .Take(take))
             .ToListAsync(cancellationToken);
 
         page.Reverse();
@@ -161,9 +159,9 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
         return await ProjectComments(dbContext.Comments
                 .Where(c => c.PostId == postId)
                 .Where(c => c.CreatedAt > cursor.CreatedAt
-                    || (c.CreatedAt == cursor.CreatedAt && c.Id >= cursor.Id)))
-            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
-            .Take(take)
+                    || (c.CreatedAt == cursor.CreatedAt && c.Id >= cursor.Id))
+                .OrderBy(c => c.CreatedAt).ThenBy(c => c.Id)
+                .Take(take))
             .ToListAsync(cancellationToken);
     }
 
@@ -176,9 +174,9 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
         return await ProjectComments(dbContext.Comments
                 .Where(c => c.PostId == postId)
                 .Where(c => c.CreatedAt > cursor.CreatedAt
-                    || (c.CreatedAt == cursor.CreatedAt && c.Id > cursor.Id)))
-            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
-            .Take(take)
+                    || (c.CreatedAt == cursor.CreatedAt && c.Id > cursor.Id))
+                .OrderBy(c => c.CreatedAt).ThenBy(c => c.Id)
+                .Take(take))
             .ToListAsync(cancellationToken);
     }
 
