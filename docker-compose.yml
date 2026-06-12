@@ -28,6 +28,8 @@ services:
       AgentNotifications__HubUrl: http://api:8080/hubs/agent-notifications
       AgentNotifications__ApiBaseUrl: http://api:8080
       AgentNotifications__SharedSecret: ${AGENT_SHARED_SECRET}
+      # Passed raw (not ChatProviders__Gemini__ApiKey): the AgentService's
+      # Program.cs maps GEMINI_API_KEY onto ChatProviders:Gemini:ApiKey itself.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ChatProviders__Anthropic__ApiKey: ${ANTHROPIC_API_KEY:-}
 
