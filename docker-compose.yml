@@ -15,13 +15,23 @@ services:
       Jwt__Key: ${JWT_KEY}
       AgentNotifications__SharedSecret: ${AGENT_SHARED_SECRET}
       # SMTP is optional for local dev; add Smtp__Host etc. here when needed.
+    healthcheck:
+      # "Is the port accepting connections?" via bash's built-in /dev/tcp —
+      # the slim aspnet image ships no curl/wget. Lets agent-service wait for
+      # actual readiness instead of just container start.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8080"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+      start_period: 5s
 
   agent-service:
     build:
       context: .
       dockerfile: src/AreWeDoomd.AgentService/Dockerfile
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     environment:
       DOTNET_ENVIRONMENT: Development
       # Container-to-container traffic goes via the compose service name.
