@@ -164,6 +164,32 @@ public sealed class GetPostCommentsQueryHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WithAfterCursor_ShouldFetchNewerPage()
+    {
+        SetupPostExists();
+        SetupCount(40);
+        var afterId = Guid.NewGuid();
+        var cursor = new CommentCursor(DateTimeOffset.UtcNow, afterId);
+
+        _commentRepositoryMock
+            .Setup(r => r.GetCursorAsync(PostId, afterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(cursor);
+        _commentRepositoryMock
+            .Setup(r => r.GetNewerThanAsync(PostId, cursor, 30, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateComments(30));
+        SetupExists(older: true, newer: false);
+
+        var result = await _handler.Handle(
+            new GetPostCommentsQuery(PostId, true, After: afterId),
+            CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        _commentRepositoryMock.Verify(
+            r => r.GetNewerThanAsync(PostId, cursor, 30, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task Handle_WhenNoComments_ShouldReturnEmptyWithNoMoreFlags()
     {
         SetupPostExists();
