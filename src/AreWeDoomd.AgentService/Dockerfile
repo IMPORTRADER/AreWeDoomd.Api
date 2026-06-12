@@ -9,6 +9,8 @@ COPY src/AreWeDoomd.ActivityNotifications.Contracts/AreWeDoomd.ActivityNotificat
 RUN dotnet restore src/AreWeDoomd.AgentService/AreWeDoomd.AgentService.csproj
 
 COPY src/ src/
+# Prompts/**/*.md and appsettings.json reach the publish output via the
+# csproj's CopyToOutputDirectory items — keep them out of .dockerignore.
 RUN dotnet publish src/AreWeDoomd.AgentService/AreWeDoomd.AgentService.csproj -c Release -o /app/publish --no-restore
 
 # Plain worker host, not a web app -> runtime image, no EXPOSE
