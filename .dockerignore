@@ -1,0 +1,20 @@
+# Build artifacts
+**/bin/
+**/obj/
+
+# VCS / tooling / docs — not needed in the image
+.git/
+.github/
+.claude/
+.vs/
+docs/
+postman/
+tests/
+
+# Root-level docs only (AgentService Prompts/*.md must stay included)
+*.md
+*.png
+
+# Local secrets and compose files (config comes via environment variables)
+.env
+docker-compose.yml
