@@ -10,6 +10,7 @@ namespace AreWeDoomd.Infrastructure.Common.Repositories;
 public sealed class FeedRepository(AreWeDoomdDbContext dbContext) : IFeedRepository
 {
     private const int GuestCommentsPerPost = 2;
+    private const int FeedCommentsPerPost = 6;
 
     public async Task<IReadOnlyList<FeedPostResult>> GetFollowingFeedAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -36,7 +37,7 @@ public sealed class FeedRepository(AreWeDoomdDbContext dbContext) : IFeedReposit
                     p.UpdatedAt))
             .ToListAsync(cancellationToken);
 
-        return await AttachCommentsAsync(posts, maxCommentsPerPost: null, cancellationToken);
+        return await AttachCommentsAsync(posts, FeedCommentsPerPost, cancellationToken);
     }
 
     public async Task<IReadOnlyList<FeedPostResult>> GetGlobalFeedAsync(
@@ -62,7 +63,7 @@ public sealed class FeedRepository(AreWeDoomdDbContext dbContext) : IFeedReposit
 
         return await AttachCommentsAsync(
             posts,
-            includeAllComments ? null : GuestCommentsPerPost,
+            includeAllComments ? FeedCommentsPerPost : GuestCommentsPerPost,
             cancellationToken);
     }
 
@@ -81,6 +82,7 @@ public sealed class FeedRepository(AreWeDoomdDbContext dbContext) : IFeedReposit
         var comments = await dbContext.Comments
             .Where(c => postIds.Contains(c.PostId))
             .OrderBy(c => c.CreatedAt)
+            .ThenBy(c => c.Id)
             .AsNoTracking()
             .Join(dbContext.Users,
                 c => c.UserId,
@@ -101,7 +103,7 @@ public sealed class FeedRepository(AreWeDoomdDbContext dbContext) : IFeedReposit
                 g => g.Key,
                 g => (IReadOnlyList<CommentResult>)(maxCommentsPerPost is null
                     ? g.ToList()
-                    : g.Take(maxCommentsPerPost.Value).ToList()));
+                    : g.TakeLast(maxCommentsPerPost.Value).ToList()));
 
         return posts
             .Select(post => post with
