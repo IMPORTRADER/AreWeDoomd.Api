@@ -82,6 +82,122 @@ public sealed class CommentRepository(AreWeDoomdDbContext dbContext) : ICommentR
             .ToListAsync(cancellationToken);
     }
 
+    private IQueryable<CommentResult> ProjectComments(IQueryable<Comment> comments)
+    {
+        return comments
+            .AsNoTracking()
+            .Join(dbContext.Users,
+                c => c.UserId,
+                u => u.Id,
+                (c, u) => new CommentResult(
+                    c.Id,
+                    c.PostId,
+                    new PostAuthorResult(u.Id, u.Username, u.UserType.ToString(), u.Profile.ProfileImageUrl),
+                    c.Content,
+                    c.LikeCount,
+                    c.CreatedAt,
+                    c.UpdatedAt));
+    }
+
+    public Task<int> CountByPostIdAsync(Guid postId, CancellationToken cancellationToken)
+    {
+        return dbContext.Comments.CountAsync(c => c.PostId == postId, cancellationToken);
+    }
+
+    public Task<CommentCursor?> GetCursorAsync(Guid postId, Guid commentId, CancellationToken cancellationToken)
+    {
+        return dbContext.Comments
+            .Where(c => c.PostId == postId && c.Id == commentId)
+            .Select(c => new CommentCursor(c.CreatedAt, c.Id))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CommentResult>> GetPageByPostIdAsync(
+        Guid postId,
+        int? take,
+        bool descending,
+        CancellationToken cancellationToken)
+    {
+        var projected = ProjectComments(dbContext.Comments.Where(c => c.PostId == postId));
+
+        var ordered = descending
+            ? projected.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+            : projected.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id);
+
+        IQueryable<CommentResult> query = ordered;
+
+        if (take is not null)
+        {
+            query = query.Take(take.Value);
+        }
+
+        return await query.ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CommentResult>> GetOlderThanAsync(
+        Guid postId,
+        CommentCursor cursor,
+        int take,
+        CancellationToken cancellationToken)
+    {
+        var page = await ProjectComments(dbContext.Comments
+                .Where(c => c.PostId == postId)
+                .Where(c => c.CreatedAt < cursor.CreatedAt
+                    || (c.CreatedAt == cursor.CreatedAt && c.Id.CompareTo(cursor.Id) < 0)))
+            .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        page.Reverse();
+        return page;
+    }
+
+    public async Task<IReadOnlyList<CommentResult>> GetFromAnchorAsync(
+        Guid postId,
+        CommentCursor cursor,
+        int take,
+        CancellationToken cancellationToken)
+    {
+        return await ProjectComments(dbContext.Comments
+                .Where(c => c.PostId == postId)
+                .Where(c => c.CreatedAt > cursor.CreatedAt
+                    || (c.CreatedAt == cursor.CreatedAt && c.Id.CompareTo(cursor.Id) >= 0)))
+            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CommentResult>> GetNewerThanAsync(
+        Guid postId,
+        CommentCursor cursor,
+        int take,
+        CancellationToken cancellationToken)
+    {
+        return await ProjectComments(dbContext.Comments
+                .Where(c => c.PostId == postId)
+                .Where(c => c.CreatedAt > cursor.CreatedAt
+                    || (c.CreatedAt == cursor.CreatedAt && c.Id.CompareTo(cursor.Id) > 0)))
+            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<bool> ExistsOlderAsync(Guid postId, CommentCursor cursor, CancellationToken cancellationToken)
+    {
+        return dbContext.Comments
+            .Where(c => c.PostId == postId)
+            .AnyAsync(c => c.CreatedAt < cursor.CreatedAt
+                || (c.CreatedAt == cursor.CreatedAt && c.Id.CompareTo(cursor.Id) < 0), cancellationToken);
+    }
+
+    public Task<bool> ExistsNewerAsync(Guid postId, CommentCursor cursor, CancellationToken cancellationToken)
+    {
+        return dbContext.Comments
+            .Where(c => c.PostId == postId)
+            .AnyAsync(c => c.CreatedAt > cursor.CreatedAt
+                || (c.CreatedAt == cursor.CreatedAt && c.Id.CompareTo(cursor.Id) > 0), cancellationToken);
+    }
+
     public Task AddAsync(Comment comment, CancellationToken cancellationToken)
     {
         return dbContext.Comments.AddAsync(comment, cancellationToken).AsTask();
