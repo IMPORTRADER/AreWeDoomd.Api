@@ -40,8 +40,9 @@ public sealed class ContextFetcher : IContextFetcher
                 return null;
             }
 
-            var comments = await GetAsync<List<ApiCommentResponse>>(
-                client, $"{baseUrl}/api/posts/{postId}/comments", agentUserId, ct) ?? [];
+            var commentList = await GetAsync<ApiCommentListResponse>(
+                client, $"{baseUrl}/api/posts/{postId}/comments", agentUserId, ct);
+            var comments = commentList?.Comments ?? [];
 
             return new PostThreadContext(
                 new PostInfo(post.Id, post.Author.Username, post.Author.UserType, post.Content),
