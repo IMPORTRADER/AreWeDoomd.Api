@@ -7,6 +7,8 @@ services:
     build:
       context: .
       dockerfile: src/AreWeDoomd.Api/Dockerfile
+    depends_on:
+      - redis
     ports:
       - "5188:8080"
     environment:
@@ -14,6 +16,10 @@ services:
       ConnectionStrings__AreWeDoomdSql: ${AREWEDOOMD_SQL_CONNECTION}
       Jwt__Key: ${JWT_KEY}
       AgentNotifications__SharedSecret: ${AGENT_SHARED_SECRET}
+      # Enables the SignalR Redis backplane for horizontal scaling. Fixed
+      # internal address of the compose `redis` service below; no .env value
+      # needed. Leave unset (locally / single-instance) to run in-memory.
+      ConnectionStrings__Redis: redis:6379
       # SMTP is optional for local dev; add Smtp__Host etc. here when needed.
     healthcheck:
       # "Is the port accepting connections?" via bash's built-in /dev/tcp —
