@@ -24,9 +24,10 @@ public static class SignalRRegistrationExtensions
         {
             signalRBuilder.AddStackExchangeRedis(redisConnectionString, options =>
             {
-                // Isolates this app's pub/sub channels so a Redis instance shared
-                // with other workloads does not cross-talk.
-                options.Configuration.ChannelPrefix = RedisChannel.Literal("awd");
+                // Isolates this app's SignalR pub/sub channels so a Redis instance
+                // shared with other workloads (or other AWD services) does not
+                // cross-talk.
+                options.Configuration.ChannelPrefix = RedisChannel.Literal("awd:signalr");
             });
         }
 
