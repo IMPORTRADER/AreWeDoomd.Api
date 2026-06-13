@@ -45,19 +45,25 @@ public sealed class CommentsController(IMediator mediator) : ControllerBase
 
     [HttpGet("{postId:guid}/comments")]
     [AllowAnonymous]
-    [ProducesResponseType(typeof(List<CommentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(CommentListResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<List<CommentResponse>>> GetPostComments(
+    public async Task<ActionResult<CommentListResponse>> GetPostComments(
         Guid postId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        [FromQuery] CommentSortDirection sort = CommentSortDirection.Asc,
+        [FromQuery] int? limit = null,
+        [FromQuery] Guid? anchor = null,
+        [FromQuery] int around = 2,
+        [FromQuery] Guid? before = null,
+        [FromQuery] Guid? after = null)
     {
         var includeAllComments = User.Identity?.IsAuthenticated == true;
         var result = await mediator.Send(
-            new GetPostCommentsQuery(postId, includeAllComments),
+            new GetPostCommentsQuery(postId, includeAllComments, sort, limit, anchor, around, before, after),
             cancellationToken);
 
-        return this.ToActionResult(result, MapComments);
+        return this.ToActionResult(result, MapCommentList);
     }
 
     [HttpPatch("{postId:guid}/comments/{commentId:guid}")]
@@ -128,8 +134,12 @@ public sealed class CommentsController(IMediator mediator) : ControllerBase
             result.UpdatedAt);
     }
 
-    private static List<CommentResponse> MapComments(IReadOnlyList<CommentResult> results)
+    private static CommentListResponse MapCommentList(CommentListResult result)
     {
-        return results.Select(MapComment).ToList();
+        return new CommentListResponse(
+            result.Comments.Select(MapComment).ToList(),
+            result.TotalCount,
+            result.HasMoreBefore,
+            result.HasMoreAfter);
     }
 }
