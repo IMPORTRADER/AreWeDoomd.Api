@@ -26,7 +26,7 @@ public sealed class LoggingPipelineBehaviorTests
         var behavior = new LoggingPipelineBehavior<TestRequest, string>(logger.Object);
         var request = new TestRequest("hello");
 
-        var result = await behavior.Handle(request, () => Task.FromResult("world"), CancellationToken.None);
+        var result = await behavior.Handle(request, _ => Task.FromResult("world"), CancellationToken.None);
 
         result.ShouldBe("world");
     }
@@ -37,7 +37,7 @@ public sealed class LoggingPipelineBehaviorTests
         var logger = BuildLogger<TestRequest>();
         var behavior = new LoggingPipelineBehavior<TestRequest, string>(logger.Object);
 
-        await behavior.Handle(new TestRequest("x"), () => Task.FromResult("ok"), CancellationToken.None);
+        await behavior.Handle(new TestRequest("x"), _ => Task.FromResult("ok"), CancellationToken.None);
 
         VerifyLogContains(logger, LogLevel.Information, "Executing", Times.Once());
         VerifyLogContains(logger, LogLevel.Information, "Executed", Times.Once());
@@ -49,7 +49,7 @@ public sealed class LoggingPipelineBehaviorTests
         var logger = BuildLogger<SensitiveRequest>();
         var behavior = new LoggingPipelineBehavior<SensitiveRequest, string>(logger.Object);
 
-        await behavior.Handle(new SensitiveRequest("secret123"), () => Task.FromResult("ok"), CancellationToken.None);
+        await behavior.Handle(new SensitiveRequest("secret123"), _ => Task.FromResult("ok"), CancellationToken.None);
 
         VerifyLogContains(logger, LogLevel.Information, "[REDACTED]", Times.Once());
     }
@@ -63,7 +63,7 @@ public sealed class LoggingPipelineBehaviorTests
 
         var act = async () => await behavior.Handle(
             new TestRequest("x"),
-            () => throw exception,
+            _ => throw exception,
             CancellationToken.None);
 
         await act.ShouldThrowAsync<InvalidOperationException>();

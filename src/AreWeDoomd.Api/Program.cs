@@ -1,4 +1,3 @@
-using MessagePack;
 using AreWeDoomd.Api.Auth;
 using AreWeDoomd.Api.Common.Errors;
 using AreWeDoomd.Api.Notifications;
@@ -68,12 +67,17 @@ try
 
     builder.Services.Configure<AgentNotificationsOptions>(
         builder.Configuration.GetSection(AgentNotificationsOptions.SectionName));
-    builder.Services.AddSignalR()
-        .AddMessagePackProtocol(opts =>
-        {
-            opts.SerializerOptions = MessagePackSerializerOptions.Standard
-                .WithResolver(MessagePack.Resolvers.ContractlessStandardResolver.Instance);
-        });
+    var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
+    builder.Services.AddRealtimeSignalR(redisConnectionString);
+
+    if (!string.IsNullOrWhiteSpace(redisConnectionString))
+    {
+        Log.Information("SignalR Redis backplane enabled.");
+    }
+    else
+    {
+        Log.Information("SignalR running in-memory (no Redis backplane configured).");
+    }
     builder.Services.AddSingleton<IAgentHubSender, AgentHubSender>();
     builder.Services.AddSingleton<IUserHubSender, UserHubSender>();
     builder.Services.AddSingleton<IActivityNotificationQueue, ChannelActivityNotificationQueue>();
