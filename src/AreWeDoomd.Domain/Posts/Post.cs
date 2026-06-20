@@ -11,6 +11,7 @@ namespace AreWeDoomd.Domain.Posts
         // Denormalized counters (transaction/concurrency ile güncellenmeli)
         public int LikeCount { get; private set; }
         public int CommentCount { get; private set; }
+        public int CommentLikeCount { get; private set; }
 
         // EF Core backing fields
         private readonly List<PostLike> _likes = [];
@@ -118,7 +119,18 @@ namespace AreWeDoomd.Domain.Posts
 
             _comments.Remove(comment);
             CommentCount = Math.Max(0, CommentCount - 1);
+            CommentLikeCount = Math.Max(0, CommentLikeCount - comment.LikeCount);
             return true;
+        }
+
+        public void IncrementCommentLikeCount()
+        {
+            CommentLikeCount++;
+        }
+
+        public void DecrementCommentLikeCount()
+        {
+            CommentLikeCount = Math.Max(0, CommentLikeCount - 1);
         }
 
         private void SetContent(string content)

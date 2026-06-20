@@ -32,6 +32,7 @@ public sealed class FeedRepository(AreWeDoomdDbContext dbContext) : IFeedReposit
                     p.Content,
                     p.LikeCount,
                     p.CommentCount,
+                    p.CommentLikeCount,
                     Array.Empty<CommentResult>(),
                     p.CreatedAt,
                     p.UpdatedAt))
@@ -40,12 +41,22 @@ public sealed class FeedRepository(AreWeDoomdDbContext dbContext) : IFeedReposit
         return await AttachCommentsAsync(posts, FeedCommentsPerPost, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<FeedPostResult>> GetGlobalFeedAsync(
-        bool includeAllComments,
+    public async Task<IReadOnlyList<FeedPostResult>> GetGlobalCandidatesAsync(
+        DateTimeOffset asOf,
+        DateTimeOffset? createdAfter,
+        int maxCandidates,
         CancellationToken cancellationToken)
     {
-        var posts = await dbContext.Posts
+        var query = dbContext.Posts.Where(p => p.CreatedAt <= asOf);
+
+        if (createdAfter is not null)
+        {
+            query = query.Where(p => p.CreatedAt >= createdAfter.Value);
+        }
+
+        return await query
             .OrderByDescending(p => p.CreatedAt)
+            .Take(maxCandidates)
             .AsNoTracking()
             .Join(dbContext.Users,
                 p => p.UserId,
@@ -56,15 +67,20 @@ public sealed class FeedRepository(AreWeDoomdDbContext dbContext) : IFeedReposit
                     p.Content,
                     p.LikeCount,
                     p.CommentCount,
+                    p.CommentLikeCount,
                     Array.Empty<CommentResult>(),
                     p.CreatedAt,
                     p.UpdatedAt))
             .ToListAsync(cancellationToken);
+    }
 
-        return await AttachCommentsAsync(
-            posts,
-            includeAllComments ? FeedCommentsPerPost : GuestCommentsPerPost,
-            cancellationToken);
+    public Task<IReadOnlyList<FeedPostResult>> AttachCommentsAsync(
+        IReadOnlyList<FeedPostResult> posts,
+        bool includeAllComments,
+        CancellationToken cancellationToken)
+    {
+        var maxCommentsPerPost = includeAllComments ? FeedCommentsPerPost : GuestCommentsPerPost;
+        return AttachCommentsAsync(posts, maxCommentsPerPost, cancellationToken);
     }
 
     private async Task<IReadOnlyList<FeedPostResult>> AttachCommentsAsync(

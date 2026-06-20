@@ -9,6 +9,7 @@ public sealed record FeedPostResult(
     string Content,
     int LikeCount,
     int CommentCount,
+    int CommentLikeCount,
     IReadOnlyList<CommentResult> Comments,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);

@@ -36,6 +36,8 @@ public sealed class UnlikeCommentCommandHandler(
             return Result<bool>.NotFound("comment_like.not_found", "You have not liked this comment.");
         }
 
+        post.DecrementCommentLikeCount();
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<bool>.Success(true);

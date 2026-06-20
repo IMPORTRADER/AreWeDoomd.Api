@@ -36,14 +36,18 @@ public sealed class FeedController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("global")]
-    [ProducesResponseType(typeof(IReadOnlyList<FeedPostResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<FeedPostResponse>>> GetGlobalFeed(
-        CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(GlobalFeedResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<GlobalFeedResponse>> GetGlobalFeed(
+        [FromQuery] DateTimeOffset? asOf,
+        [FromQuery] int offset = 0,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
         var includeAllComments = User.Identity?.IsAuthenticated == true;
-        var result = await mediator.Send(new GetGlobalFeedQuery(includeAllComments), cancellationToken);
+        var result = await mediator.Send(
+            new GetGlobalFeedQuery(includeAllComments, asOf, offset, pageSize), cancellationToken);
 
-        return this.ToActionResult(result, MapPosts);
+        return this.ToActionResult(result, MapGlobalFeed);
     }
 
     private bool TryGetCurrentUserId(out Guid userId)
@@ -51,6 +55,11 @@ public sealed class FeedController(IMediator mediator) : ControllerBase
         userId = Guid.Empty;
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
         return !string.IsNullOrWhiteSpace(claim) && Guid.TryParse(claim, out userId);
+    }
+
+    private static GlobalFeedResponse MapGlobalFeed(GlobalFeedResult result)
+    {
+        return new GlobalFeedResponse(MapPosts(result.Posts), result.AsOf, result.HasMore);
     }
 
     private static IReadOnlyList<FeedPostResponse> MapPosts(IReadOnlyList<FeedPostResult> results)
