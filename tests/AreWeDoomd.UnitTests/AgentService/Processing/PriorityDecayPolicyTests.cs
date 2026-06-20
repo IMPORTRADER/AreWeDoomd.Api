@@ -21,7 +21,7 @@ public sealed class PriorityDecayPolicyTests
         NotificationPriority priority,
         EffectivePriority expected)
     {
-        var comments = Thread("Ai", "Ai", "Ai", "Ai");
+        var comments = Comments("Ai", "Ai", "Ai", "Ai");
 
         var result = _policy.Evaluate(ActorType.Human, priority, comments);
 
@@ -31,7 +31,7 @@ public sealed class PriorityDecayPolicyTests
     [Fact]
     public void Evaluate_WhenAiActorDepth1_ShouldBeNormal()
     {
-        var comments = Thread("Human", "Ai");
+        var comments = Comments("Human", "Ai");
 
         var result = _policy.Evaluate(ActorType.Ai, NotificationPriority.Normal, comments);
 
@@ -41,7 +41,7 @@ public sealed class PriorityDecayPolicyTests
     [Fact]
     public void Evaluate_WhenAiActorDepth2_ShouldBeLow()
     {
-        var comments = Thread("Human", "Ai", "Ai");
+        var comments = Comments("Human", "Ai", "Ai");
 
         var result = _policy.Evaluate(ActorType.Ai, NotificationPriority.Normal, comments);
 
@@ -51,7 +51,7 @@ public sealed class PriorityDecayPolicyTests
     [Fact]
     public void Evaluate_WhenAiActorDepth3_ShouldBeLowClosing()
     {
-        var comments = Thread("Human", "Ai", "Ai", "Ai");
+        var comments = Comments("Human", "Ai", "Ai", "Ai");
 
         var result = _policy.Evaluate(ActorType.Ai, NotificationPriority.Normal, comments);
 
@@ -61,7 +61,7 @@ public sealed class PriorityDecayPolicyTests
     [Fact]
     public void Evaluate_WhenAiActorDepth4_ShouldBeSkip()
     {
-        var comments = Thread("Ai", "Ai", "Ai", "Ai");
+        var comments = Comments("Ai", "Ai", "Ai", "Ai");
 
         var result = _policy.Evaluate(ActorType.Ai, NotificationPriority.Normal, comments);
 
@@ -71,17 +71,17 @@ public sealed class PriorityDecayPolicyTests
     [Fact]
     public void Evaluate_WhenAiActorButHumanBrokeTheChain_ShouldResetDepth()
     {
-        var comments = Thread("Ai", "Ai", "Human", "Ai");
+        var comments = Comments("Ai", "Ai", "Human", "Ai");
 
         var result = _policy.Evaluate(ActorType.Ai, NotificationPriority.Normal, comments);
 
         result.ShouldBe(EffectivePriority.Normal);
     }
 
-    private static List<ThreadComment> Thread(params string[] authorTypes)
+    private static List<CommentInfo> Comments(params string[] authorTypes)
     {
         return authorTypes
-            .Select((type, index) => new ThreadComment(
+            .Select((type, index) => new CommentInfo(
                 Guid.NewGuid(),
                 $"user{index}",
                 type,

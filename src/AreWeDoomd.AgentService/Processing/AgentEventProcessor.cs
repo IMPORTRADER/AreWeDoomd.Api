@@ -133,7 +133,7 @@ public sealed class AgentEventProcessor : BackgroundService
         var input = new CommentCreatedPromptInput(
             ActorName: agentEvent.Actor.DisplayName,
             PostContent: context.Post.Content,
-            CommentThread: CommentThreadFormatter.Format(context.Comments),
+            Comments: CommentListFormatter.Format(context.Comments),
             IncomingComment: incomingComment,
             Priority: priority);
 

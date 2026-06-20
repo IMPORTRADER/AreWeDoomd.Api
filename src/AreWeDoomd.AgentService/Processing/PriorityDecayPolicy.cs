@@ -16,7 +16,7 @@ public sealed class PriorityDecayPolicy
     public EffectivePriority Evaluate(
         ActorType actorType,
         NotificationPriority notificationPriority,
-        IReadOnlyList<ThreadComment> comments)
+        IReadOnlyList<CommentInfo> comments)
     {
         if (actorType != ActorType.Ai)
         {

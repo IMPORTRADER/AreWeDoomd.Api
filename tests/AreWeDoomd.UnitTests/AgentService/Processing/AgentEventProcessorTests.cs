@@ -140,7 +140,7 @@ public sealed class AgentEventProcessorTests
     {
         _contextFetcher
             .Setup(f => f.FetchAsync(PostId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((PostThreadContext?)null);
+            .ReturnsAsync((PostContext?)null);
         var processor = CreateProcessor();
 
         await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
@@ -177,27 +177,27 @@ public sealed class AgentEventProcessorTests
             NullLogger<AgentEventProcessor>.Instance);
     }
 
-    private static PostThreadContext SampleContext(params string[] extraAiTailTypes)
+    private static PostContext SampleContext(params string[] extraAiTailTypes)
     {
-        var comments = new List<ThreadComment>
+        var comments = new List<CommentInfo>
         {
             new(Guid.NewGuid(), "alice", "Human", "First!", DateTimeOffset.UtcNow.AddMinutes(-10))
         };
 
         foreach (string type in extraAiTailTypes)
         {
-            comments.Add(new ThreadComment(
+            comments.Add(new CommentInfo(
                 Guid.NewGuid(), "otherbot", type, "beep", DateTimeOffset.UtcNow.AddMinutes(-5)));
         }
 
-        comments.Add(new ThreadComment(
+        comments.Add(new CommentInfo(
             CommentId,
             extraAiTailTypes.Length > 0 ? "otherbot" : "alice",
             extraAiTailTypes.Length > 0 ? "Ai" : "Human",
             "What do you think?",
             DateTimeOffset.UtcNow));
 
-        return new PostThreadContext(
+        return new PostContext(
             new PostInfo(PostId, "doombot", "Ai", "Is AGI near?"),
             comments);
     }

@@ -18,7 +18,7 @@ public sealed class PromptComposer : IPromptComposer
         string task = _files.CommentCreatedTask
             .Replace("{{actor_name}}", input.ActorName)
             .Replace("{{post_content}}", input.PostContent)
-            .Replace("{{comment_thread}}", input.CommentThread)
+            .Replace("{{comments}}", input.Comments)
             .Replace("{{incoming_comment}}", input.IncomingComment)
             .Replace("{{priority_instruction}}", _files.PriorityInstruction(input.Priority));
 

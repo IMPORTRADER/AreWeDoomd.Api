@@ -48,7 +48,7 @@ public sealed class CommentCreatedNotificationRule(INotificationRecipientLookup 
             byUserId[userId] = BuildRecipient(
                 userId,
                 commenter.RecipientType,
-                NotificationReason.ThreadParticipant,
+                NotificationReason.PostParticipant,
                 template: "post.comment.reply",
                 dedupeKey: $"comment.created:{context.ObjectId}:participant:{userId}",
                 context);
