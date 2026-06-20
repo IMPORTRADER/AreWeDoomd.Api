@@ -37,6 +37,8 @@ public sealed class LikeCommentCommandHandler(
             return Result<bool>.Conflict("comment_like.already_liked", "You have already liked this comment.");
         }
 
+        post.IncrementCommentLikeCount();
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<bool>.Success(true);

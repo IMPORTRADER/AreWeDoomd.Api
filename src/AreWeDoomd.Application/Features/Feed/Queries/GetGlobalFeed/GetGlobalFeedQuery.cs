@@ -4,4 +4,8 @@ using MediatR;
 
 namespace AreWeDoomd.Application.Features.Feed.Queries.GetGlobalFeed;
 
-public sealed record GetGlobalFeedQuery(bool IncludeAllComments) : IRequest<Result<IReadOnlyList<FeedPostResult>>>;
+public sealed record GetGlobalFeedQuery(
+    bool IncludeAllComments,
+    DateTimeOffset? AsOf,
+    int Offset,
+    int PageSize) : IRequest<Result<GlobalFeedResult>>;
