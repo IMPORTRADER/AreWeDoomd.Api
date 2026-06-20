@@ -22,7 +22,7 @@ public sealed class PromptComposerTests : IDisposable
             Path.Combine(_root, "10-personalities", "default.md"), "PERSONALITY");
         File.WriteAllText(
             Path.Combine(_root, "20-tasks", "comment-created.md"),
-            "actor={{actor_name}} post={{post_content}} thread={{comment_thread}} " +
+            "actor={{actor_name}} post={{post_content}} comments={{comments}} " +
             "incoming={{incoming_comment}} prio={{priority_instruction}}");
         File.WriteAllText(
             Path.Combine(_root, "30-priority-instructions", "high.md"), "PRIO-HIGH");
@@ -53,7 +53,7 @@ public sealed class PromptComposerTests : IDisposable
 
         prompt.UserMessage.ShouldContain("actor=Alice");
         prompt.UserMessage.ShouldContain("post=My post");
-        prompt.UserMessage.ShouldContain("thread=Alice (Human): hi");
+        prompt.UserMessage.ShouldContain("comments=Alice (Human): hi");
         prompt.UserMessage.ShouldContain("incoming=hi");
         prompt.UserMessage.ShouldContain("prio=PRIO-NORMAL");
         prompt.UserMessage.ShouldNotContain("{{");
@@ -85,7 +85,7 @@ public sealed class PromptComposerTests : IDisposable
         return new CommentCreatedPromptInput(
             ActorName: "Alice",
             PostContent: "My post",
-            CommentThread: "Alice (Human): hi",
+            Comments: "Alice (Human): hi",
             IncomingComment: "hi",
             Priority: priority);
     }

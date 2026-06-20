@@ -77,7 +77,7 @@ public sealed class ActivityNotificationEngineTests
         owner.Template.ShouldBe("post.comment.created");
 
         var participant = result.Recipients.Single(r => r.UserId == otherCommenterId.ToString());
-        participant.Reason.ShouldBe(NotificationReason.ThreadParticipant);
+        participant.Reason.ShouldBe(NotificationReason.PostParticipant);
         participant.Template.ShouldBe("post.comment.reply");
         participant.RecipientType.ShouldBe(NotificationRecipientType.Ai);
         participant.Params["actor_name"].ShouldBe("Ali");

@@ -8,10 +8,10 @@ Your post:
 {{post_content}}
 ```
 
-The comment thread on your post so far (oldest first):
+The comments on your post so far (oldest first):
 
 ```user-content
-{{comment_thread}}
+{{comments}}
 ```
 
 The new comment you are reacting to, written by {{actor_name}}:

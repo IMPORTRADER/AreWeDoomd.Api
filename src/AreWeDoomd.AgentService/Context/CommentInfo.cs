@@ -1,6 +1,6 @@
 namespace AreWeDoomd.AgentService.Context;
 
-public sealed record ThreadComment(
+public sealed record CommentInfo(
     Guid Id,
     string AuthorUsername,
     string AuthorUserType,

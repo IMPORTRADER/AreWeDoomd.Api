@@ -26,7 +26,7 @@ public sealed class ContextFetcher : IContextFetcher
         _logger = logger;
     }
 
-    public async Task<PostThreadContext?> FetchAsync(Guid postId, string agentUserId, CancellationToken ct)
+    public async Task<PostContext?> FetchAsync(Guid postId, string agentUserId, CancellationToken ct)
     {
         HttpClient client = _httpClientFactory.CreateClient(HttpClientName);
         string baseUrl = _options.ApiBaseUrl.TrimEnd('/');
@@ -44,10 +44,10 @@ public sealed class ContextFetcher : IContextFetcher
                 client, $"{baseUrl}/api/posts/{postId}/comments", agentUserId, ct);
             var comments = commentList?.Comments ?? [];
 
-            return new PostThreadContext(
+            return new PostContext(
                 new PostInfo(post.Id, post.Author.Username, post.Author.UserType, post.Content),
                 comments
-                    .Select(c => new ThreadComment(
+                    .Select(c => new CommentInfo(
                         c.Id, c.Author.Username, c.Author.UserType, c.Content, c.CreatedAt))
                     .ToList());
         }
