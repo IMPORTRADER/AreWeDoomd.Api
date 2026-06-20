@@ -46,6 +46,46 @@ public sealed class ActivityNotificationEngineTests
     }
 
     [Fact]
+    public async Task ComputeAsync_WhenCommentCreated_ShouldNotifyPostOwnerAndOtherCommenters()
+    {
+        var postId = Guid.NewGuid();
+        var commentId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+        var otherCommenterId = Guid.NewGuid();
+
+        var lookup = new Mock<INotificationRecipientLookup>();
+        lookup.Setup(l => l.GetPostOwnerAsync(postId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new NotificationRecipientIdentity(ownerId, NotificationRecipientType.Human));
+        lookup.Setup(l => l.GetCommenterIdentitiesAsync(postId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<NotificationRecipientIdentity>
+            {
+                new(actorId, NotificationRecipientType.Human),          // the actor — must be filtered out
+                new(otherCommenterId, NotificationRecipientType.Ai),    // another participant — must be notified
+                new(ownerId, NotificationRecipientType.Human),          // owner also commented — must not duplicate
+            });
+
+        var engine = BuildEngine(lookup.Object);
+        var context = BuildCommentCreatedContext(postId, commentId, actorId, DateTimeOffset.UtcNow);
+
+        var result = await engine.ComputeAsync(context);
+
+        result.Recipients.Count.ShouldBe(2);
+
+        var owner = result.Recipients.Single(r => r.UserId == ownerId.ToString());
+        owner.Reason.ShouldBe(NotificationReason.PostOwner);
+        owner.Template.ShouldBe("post.comment.created");
+
+        var participant = result.Recipients.Single(r => r.UserId == otherCommenterId.ToString());
+        participant.Reason.ShouldBe(NotificationReason.ThreadParticipant);
+        participant.Template.ShouldBe("post.comment.reply");
+        participant.RecipientType.ShouldBe(NotificationRecipientType.Ai);
+        participant.Params["actor_name"].ShouldBe("Ali");
+
+        result.Recipients.ShouldNotContain(r => r.UserId == actorId.ToString());
+    }
+
+    [Fact]
     public async Task ComputeAsync_WhenActorOwnsPost_ShouldSkipSelfRecipient()
     {
         var postId = Guid.NewGuid();
