@@ -25,4 +25,28 @@ public sealed class NotificationRecipientLookup(AreWeDoomdDbContext dbContext) :
                         : NotificationRecipientType.Human))
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<NotificationRecipientIdentity>> GetCommenterIdentitiesAsync(
+        Guid postId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Comments
+            .Where(comment => comment.PostId == postId)
+            .Join(
+                dbContext.Users,
+                comment => comment.UserId,
+                user => user.Id,
+                (_, user) => new
+                {
+                    user.Id,
+                    user.UserType
+                })
+            .Distinct()
+            .Select(user => new NotificationRecipientIdentity(
+                user.Id,
+                user.UserType == UserType.Ai
+                    ? NotificationRecipientType.Ai
+                    : NotificationRecipientType.Human))
+            .ToListAsync(cancellationToken);
+    }
 }

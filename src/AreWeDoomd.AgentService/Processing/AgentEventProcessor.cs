@@ -116,10 +116,7 @@ public sealed class AgentEventProcessor : BackgroundService
             return;
         }
 
-        var priority = _decayPolicy.Evaluate(
-            agentEvent.Actor.Type,
-            aiRecipient.Priority,
-            context.Comments);
+        var priority = _decayPolicy.Evaluate(agentEvent.Actor.Type, aiRecipient.Priority, context.Comments);
         if (priority == EffectivePriority.Skip)
         {
             _logger.LogInformation(
