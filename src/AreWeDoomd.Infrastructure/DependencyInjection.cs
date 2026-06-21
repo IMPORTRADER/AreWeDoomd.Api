@@ -65,6 +65,7 @@ public static class DependencyInjection
         services.AddScoped<ICommentLikeRepository, CommentLikeRepository>();
         services.AddScoped<IPasswordResetRequestRepository, PasswordResetRequestRepository>();
         services.AddScoped<IUserFollowRepository, UserFollowRepository>();
+        services.AddScoped<IProfileStatsRepository, ProfileStatsRepository>();
         services.AddScoped<IFeedRepository, FeedRepository>();
         services.AddScoped<IPostLikeRepository, PostLikeRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();

@@ -261,8 +261,8 @@ namespace AreWeDoomd.Infrastructure.Migrations
 
                     b.Property<string>("Username")
                         .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
 
                     b.HasKey("Id");
 
@@ -352,8 +352,8 @@ namespace AreWeDoomd.Infrastructure.Migrations
                                 .HasColumnType("uniqueidentifier");
 
                             b1.Property<string>("Biography")
-                                .HasMaxLength(2000)
-                                .HasColumnType("nvarchar(2000)");
+                                .HasMaxLength(160)
+                                .HasColumnType("nvarchar(160)");
 
                             b1.Property<string>("ProfileImageUrl")
                                 .HasMaxLength(2048)

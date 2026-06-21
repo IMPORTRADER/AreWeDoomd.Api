@@ -1,7 +1,12 @@
-﻿namespace AreWeDoomd.Domain.Users
+﻿using System.Text.RegularExpressions;
+
+namespace AreWeDoomd.Domain.Users
 {
     public sealed class User
     {
+        private static readonly Regex UsernamePattern =
+            new("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
+
         public Guid Id { get; private set; }
         public string Username { get; private set; } = null!;
         public string Email { get; private set; } = null!;
@@ -61,9 +66,6 @@
         }
 
         private void Touch(DateTimeOffset now) => UpdatedAt = now;
-
-        private static readonly System.Text.RegularExpressions.Regex UsernamePattern =
-            new("^[a-zA-Z0-9_]+$", System.Text.RegularExpressions.RegexOptions.Compiled);
 
         private void SetUsername(string username)
         {

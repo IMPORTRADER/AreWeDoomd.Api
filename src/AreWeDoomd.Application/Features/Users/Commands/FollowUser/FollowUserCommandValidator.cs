@@ -9,7 +9,7 @@ public sealed class FollowUserCommandValidator : AbstractValidator<FollowUserCom
         RuleFor(x => x.FollowerId)
             .NotEmpty();
 
-        RuleFor(x => x.FollowingId)
+        RuleFor(x => x.TargetUsername)
             .NotEmpty();
     }
 }

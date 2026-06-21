@@ -1,5 +1,6 @@
 using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Common.Results;
+using AreWeDoomd.Application.Features.Users.Common;
 using AreWeDoomd.Domain.Users;
 using MediatR;
 
@@ -10,36 +11,32 @@ public sealed class FollowUserCommandHandler(
     IUserFollowRepository userFollowRepository,
     IDateTimeProvider dateTimeProvider,
     IUnitOfWork unitOfWork)
-    : IRequestHandler<FollowUserCommand, Result<bool>>
+    : IRequestHandler<FollowUserCommand, Result<FollowStateResult>>
 {
-    public async Task<Result<bool>> Handle(FollowUserCommand request, CancellationToken cancellationToken)
+    public async Task<Result<FollowStateResult>> Handle(FollowUserCommand request, CancellationToken cancellationToken)
     {
-        if (request.FollowerId == request.FollowingId)
+        var target = await userRepository.GetByUsernameAsync(request.TargetUsername, cancellationToken);
+        if (target is null)
         {
-            return Result<bool>.Failure("follow.self", "You cannot follow yourself.");
+            return Result<FollowStateResult>.NotFound("user.not_found", "User not found.");
         }
 
-        var targetUser = await userRepository.GetByIdAsync(request.FollowingId, cancellationToken);
-
-        if (targetUser is null)
+        if (target.Id == request.FollowerId)
         {
-            return Result<bool>.NotFound("user.not_found", "User not found.");
+            return Result<FollowStateResult>.NotFound("follow.self", "You cannot follow yourself.");
         }
 
         var alreadyFollowing = await userFollowRepository.ExistsAsync(
-            request.FollowerId, request.FollowingId, cancellationToken);
+            request.FollowerId, target.Id, cancellationToken);
 
-        if (alreadyFollowing)
+        if (!alreadyFollowing)
         {
-            return Result<bool>.Conflict("follow.already_following", "You are already following this user.");
+            var follow = UserFollow.Create(request.FollowerId, target.Id, dateTimeProvider.UtcNow);
+            await userFollowRepository.AddAsync(follow, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
-        var now = dateTimeProvider.UtcNow;
-        var follow = UserFollow.Create(request.FollowerId, request.FollowingId, now);
-
-        await userFollowRepository.AddAsync(follow, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Result<bool>.Success(true);
+        var followerCount = await userFollowRepository.CountFollowersAsync(target.Id, cancellationToken);
+        return Result<FollowStateResult>.Success(new FollowStateResult(true, followerCount));
     }
 }

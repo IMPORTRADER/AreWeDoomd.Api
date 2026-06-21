@@ -1,8 +1,9 @@
 using AreWeDoomd.Application.Common.Results;
+using AreWeDoomd.Application.Features.Users.Common;
 using MediatR;
 
 namespace AreWeDoomd.Application.Features.Users.Commands.FollowUser;
 
 public sealed record FollowUserCommand(
     Guid FollowerId,
-    Guid FollowingId) : IRequest<Result<bool>>;
+    string TargetUsername) : IRequest<Result<FollowStateResult>>;

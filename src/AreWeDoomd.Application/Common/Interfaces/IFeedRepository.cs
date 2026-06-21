@@ -16,4 +16,18 @@ public interface IFeedRepository
         IReadOnlyList<FeedPostResult> posts,
         bool includeAllComments,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<FeedPostResult>> GetUserPostsAsync(
+        Guid userId,
+        DateTimeOffset asOf,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<FeedPostResult>> GetUserLikedPostsAsync(
+        Guid userId,
+        DateTimeOffset asOf,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken);
 }

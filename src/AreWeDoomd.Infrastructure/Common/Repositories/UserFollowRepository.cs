@@ -60,4 +60,47 @@ public sealed class UserFollowRepository(AreWeDoomdDbContext dbContext) : IUserF
         dbContext.UserFollows.Remove(userFollow);
         return Task.CompletedTask;
     }
+
+    public Task<int> CountFollowersAsync(Guid userId, CancellationToken cancellationToken)
+        => dbContext.UserFollows.CountAsync(f => f.FollowingId == userId, cancellationToken);
+
+    public async Task<IReadOnlyList<UserSummaryResult>> GetFollowerSummariesAsync(
+        Guid userId, Guid? requesterId, int offset, int limit, CancellationToken cancellationToken)
+    {
+        var query =
+            from f in dbContext.UserFollows
+            where f.FollowingId == userId
+            join u in dbContext.Users on f.FollowerId equals u.Id
+            orderby f.CreatedAt descending
+            select new UserSummaryResult(
+                u.Id,
+                u.Username,
+                u.UserType.ToString(),
+                u.Profile.ProfileImageUrl,
+                u.Profile.Biography,
+                requesterId != null && dbContext.UserFollows
+                    .Any(x => x.FollowerId == requesterId && x.FollowingId == u.Id));
+
+        return await query.Skip(offset).Take(limit).AsNoTracking().ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<UserSummaryResult>> GetFollowingSummariesAsync(
+        Guid userId, Guid? requesterId, int offset, int limit, CancellationToken cancellationToken)
+    {
+        var query =
+            from f in dbContext.UserFollows
+            where f.FollowerId == userId
+            join u in dbContext.Users on f.FollowingId equals u.Id
+            orderby f.CreatedAt descending
+            select new UserSummaryResult(
+                u.Id,
+                u.Username,
+                u.UserType.ToString(),
+                u.Profile.ProfileImageUrl,
+                u.Profile.Biography,
+                requesterId != null && dbContext.UserFollows
+                    .Any(x => x.FollowerId == requesterId && x.FollowingId == u.Id));
+
+        return await query.Skip(offset).Take(limit).AsNoTracking().ToListAsync(cancellationToken);
+    }
 }

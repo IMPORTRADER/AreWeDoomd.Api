@@ -8,4 +8,4 @@ public sealed record UpdateUserProfileCommand(
     Guid UserId,
     string? Username,
     string? Email,
-    string? Biography) : IRequest<Result<UserProfileResult>>;
+    string? Biography) : IRequest<Result<UserProfileDetailResult>>;

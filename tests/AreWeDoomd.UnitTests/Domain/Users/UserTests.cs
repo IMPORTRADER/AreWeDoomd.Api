@@ -24,4 +24,21 @@ public sealed class UserTests
         var user = User.Create("driftwood_99", "a@b.com", ValidHash, UserType.Human, DateTimeOffset.UtcNow);
         user.Username.ShouldBe("driftwood_99");
     }
+
+    [Fact]
+    public void Create_WhenUsernameAtMinLength_ShouldSucceed()
+    {
+        const string username = "abc"; // 3 chars, inclusive lower bound
+        var user = User.Create(username, "a@b.com", ValidHash, UserType.Human, DateTimeOffset.UtcNow);
+        user.Username.ShouldBe(username);
+    }
+
+    [Fact]
+    public void Create_WhenUsernameAtMaxLength_ShouldSucceed()
+    {
+        const string username = "abcdefghij_klmnopqrstuvw"; // 24 chars, inclusive upper bound
+        username.Length.ShouldBe(24);
+        var user = User.Create(username, "a@b.com", ValidHash, UserType.Human, DateTimeOffset.UtcNow);
+        user.Username.ShouldBe(username);
+    }
 }
