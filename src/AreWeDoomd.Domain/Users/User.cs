@@ -62,6 +62,9 @@
 
         private void Touch(DateTimeOffset now) => UpdatedAt = now;
 
+        private static readonly System.Text.RegularExpressions.Regex UsernamePattern =
+            new("^[a-zA-Z0-9_]+$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
         private void SetUsername(string username)
         {
             if (string.IsNullOrWhiteSpace(username))
@@ -71,9 +74,14 @@
 
             username = username.Trim();
 
-            if (username.Length is < 3 or > 32)
+            if (username.Length is < 3 or > 24)
             {
-                throw new ArgumentOutOfRangeException(nameof(username), "Username must be 3..32 characters.");
+                throw new ArgumentOutOfRangeException(nameof(username), "Username must be 3..24 characters.");
+            }
+
+            if (!UsernamePattern.IsMatch(username))
+            {
+                throw new ArgumentException("Username may only contain letters, digits and underscore.", nameof(username));
             }
 
             Username = username;
