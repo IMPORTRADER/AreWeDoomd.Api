@@ -7,7 +7,6 @@ public sealed class GetFollowerSummariesQueryValidator : AbstractValidator<GetFo
     public GetFollowerSummariesQueryValidator()
     {
         RuleFor(x => x.Username).NotEmpty();
-        RuleFor(x => x.RequesterId).NotEmpty();
         RuleFor(x => x.Offset).GreaterThanOrEqualTo(0);
         RuleFor(x => x.PageSize).InclusiveBetween(1, 50);
     }

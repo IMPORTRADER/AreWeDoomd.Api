@@ -19,4 +19,7 @@ public interface IUserFollowRepository
 
     Task<IReadOnlyList<UserSummaryResult>> GetFollowingSummariesAsync(
         Guid userId, Guid? requesterId, int offset, int limit, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<UserSummaryResult>> GetSuggestionsAsync(
+        Guid? viewerId, int offset, int limit, CancellationToken cancellationToken);
 }

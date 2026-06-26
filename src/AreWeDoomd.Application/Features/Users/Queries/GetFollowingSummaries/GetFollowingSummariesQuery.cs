@@ -6,6 +6,6 @@ namespace AreWeDoomd.Application.Features.Users.Queries.GetFollowingSummaries;
 
 public sealed record GetFollowingSummariesQuery(
     string Username,
-    Guid RequesterId,
+    Guid? RequesterId,
     int Offset,
     int PageSize) : IRequest<Result<UserSummaryPageResult>>;

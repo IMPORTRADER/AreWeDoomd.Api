@@ -80,19 +80,16 @@ public sealed class FollowsController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{username}/followers")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(UserSummaryPageResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<UserSummaryPageResponse>> GetFollowerSummaries(
         string username,
         [FromQuery] int offset = 0,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        if (!TryGetCurrentUserId(out var requesterId))
-        {
-            return Unauthorized();
-        }
+        Guid? requesterId = TryGetCurrentUserId(out var id) ? id : null;
 
         var result = await mediator.Send(
             new GetFollowerSummariesQuery(username, requesterId, offset, pageSize), cancellationToken);
@@ -100,19 +97,16 @@ public sealed class FollowsController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{username}/following")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(UserSummaryPageResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<UserSummaryPageResponse>> GetFollowingSummaries(
         string username,
         [FromQuery] int offset = 0,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        if (!TryGetCurrentUserId(out var requesterId))
-        {
-            return Unauthorized();
-        }
+        Guid? requesterId = TryGetCurrentUserId(out var id) ? id : null;
 
         var result = await mediator.Send(
             new GetFollowingSummariesQuery(username, requesterId, offset, pageSize), cancellationToken);

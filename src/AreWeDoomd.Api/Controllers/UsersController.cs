@@ -15,6 +15,7 @@ using AreWeDoomd.Application.Features.Users.Queries.GetUserLikedPostsFeed;
 using AreWeDoomd.Application.Features.Users.Queries.GetUserPosts;
 using AreWeDoomd.Application.Features.Users.Queries.GetUserPostsFeed;
 using AreWeDoomd.Application.Features.Users.Queries.GetUserProfile;
+using AreWeDoomd.Application.Features.Users.Queries.GetUserSuggestions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -57,6 +58,21 @@ public sealed class UsersController(IMediator mediator) : ControllerBase
         Guid? requesterId = TryGetCurrentUserId(out var id) ? id : null;
         var result = await mediator.Send(new GetUserProfileQuery(username, requesterId), cancellationToken);
         return this.ToActionResult(result, MapProfileDetail);
+    }
+
+    [HttpGet("discover")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(UserSummaryPageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<UserSummaryPageResponse>> Discover(
+        [FromQuery] int offset = 0,
+        [FromQuery] int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        Guid? viewerId = TryGetCurrentUserId(out var id) ? id : null;
+        var result = await mediator.Send(
+            new GetUserSuggestionsQuery(viewerId, offset, pageSize), cancellationToken);
+        return this.ToActionResult(result, MapSummaryPage);
     }
 
     [HttpPatch("me")]
@@ -192,6 +208,11 @@ public sealed class UsersController(IMediator mediator) : ControllerBase
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
         return !string.IsNullOrWhiteSpace(claim) && Guid.TryParse(claim, out userId);
     }
+
+    private static UserSummaryPageResponse MapSummaryPage(UserSummaryPageResult page)
+        => new(page.Items.Select(i => new UserSummaryResponse(
+            i.UserId, i.Username, i.UserType, i.ProfileImageUrl, i.Bio, i.IsFollowedByMe)).ToList(),
+            page.HasMore);
 
     private static GlobalFeedResponse MapGlobalFeed(GlobalFeedResult result)
         => new(MapFeedPosts(result.Posts), result.AsOf, result.HasMore);

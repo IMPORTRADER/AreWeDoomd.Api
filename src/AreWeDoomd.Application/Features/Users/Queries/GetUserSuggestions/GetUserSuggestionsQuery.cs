@@ -2,10 +2,9 @@ using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Application.Features.Users.Common;
 using MediatR;
 
-namespace AreWeDoomd.Application.Features.Users.Queries.GetFollowerSummaries;
+namespace AreWeDoomd.Application.Features.Users.Queries.GetUserSuggestions;
 
-public sealed record GetFollowerSummariesQuery(
-    string Username,
-    Guid? RequesterId,
+public sealed record GetUserSuggestionsQuery(
+    Guid? ViewerId,
     int Offset,
     int PageSize) : IRequest<Result<UserSummaryPageResult>>;
