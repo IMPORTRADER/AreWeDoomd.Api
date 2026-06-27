@@ -1,7 +1,12 @@
-﻿namespace AreWeDoomd.Domain.Users
+﻿using System.Text.RegularExpressions;
+
+namespace AreWeDoomd.Domain.Users
 {
     public sealed class User
     {
+        private static readonly Regex UsernamePattern =
+            new("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
+
         public Guid Id { get; private set; }
         public string Username { get; private set; } = null!;
         public string Email { get; private set; } = null!;
@@ -71,9 +76,14 @@
 
             username = username.Trim();
 
-            if (username.Length is < 3 or > 32)
+            if (username.Length is < 3 or > 24)
             {
-                throw new ArgumentOutOfRangeException(nameof(username), "Username must be 3..32 characters.");
+                throw new ArgumentOutOfRangeException(nameof(username), "Username must be 3..24 characters.");
+            }
+
+            if (!UsernamePattern.IsMatch(username))
+            {
+                throw new ArgumentException("Username may only contain letters, digits and underscore.", nameof(username));
             }
 
             Username = username;

@@ -1,6 +1,7 @@
 using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Application.Features.Users.Commands.UpdateUserProfile;
+using AreWeDoomd.Application.Features.Users.Common;
 using AreWeDoomd.Domain.Users;
 using Moq;
 using Shouldly;
@@ -13,6 +14,7 @@ public sealed class UpdateUserProfileCommandHandlerTests
     private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly Mock<IDateTimeProvider> _dateTimeProviderMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly Mock<IProfileStatsRepository> _profileStatsRepositoryMock;
     private readonly UpdateUserProfileCommandHandler _handler;
 
     private static readonly DateTimeOffset Now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
@@ -22,13 +24,18 @@ public sealed class UpdateUserProfileCommandHandlerTests
         _userRepositoryMock = new Mock<IUserRepository>();
         _dateTimeProviderMock = new Mock<IDateTimeProvider>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
+        _profileStatsRepositoryMock = new Mock<IProfileStatsRepository>();
 
         _dateTimeProviderMock.Setup(d => d.UtcNow).Returns(Now);
+        _profileStatsRepositoryMock
+            .Setup(s => s.GetStatsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProfileStatsResult(0, 0, 0, 0, 0));
 
         _handler = new UpdateUserProfileCommandHandler(
             _userRepositoryMock.Object,
             _dateTimeProviderMock.Object,
-            _unitOfWorkMock.Object);
+            _unitOfWorkMock.Object,
+            _profileStatsRepositoryMock.Object);
     }
 
     [Fact]
@@ -149,7 +156,29 @@ public sealed class UpdateUserProfileCommandHandlerTests
 
         result.IsSuccess.ShouldBeTrue();
         result.Value!.Username.ShouldBe("newname");
-        result.Value.Email.ShouldBe("new@example.com");
+        result.Value.IsMe.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_WhenBioChanges_ShouldReturnRichProfileWithStats()
+    {
+        var user = CreateUser();
+        var command = new UpdateUserProfileCommand(user.Id, null, null, "Allegedly human.");
+
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(user.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+
+        _profileStatsRepositoryMock
+            .Setup(s => s.GetStatsAsync(user.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProfileStatsResult(5, 4, 3, 2, 1));
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value!.IsMe.ShouldBeTrue();
+        result.Value.Bio.ShouldBe("Allegedly human.");
+        result.Value.Stats.PostCount.ShouldBe(5);
     }
 
     [Fact]

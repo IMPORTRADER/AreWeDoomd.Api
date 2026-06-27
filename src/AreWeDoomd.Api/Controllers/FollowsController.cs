@@ -6,6 +6,8 @@ using AreWeDoomd.Application.Features.Users.Commands.UnfollowUser;
 using AreWeDoomd.Application.Features.Users.Common;
 using AreWeDoomd.Application.Features.Users.Queries.GetFollowers;
 using AreWeDoomd.Application.Features.Users.Queries.GetFollowing;
+using AreWeDoomd.Application.Features.Users.Queries.GetFollowerSummaries;
+using AreWeDoomd.Application.Features.Users.Queries.GetFollowingSummaries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,40 +19,34 @@ namespace AreWeDoomd.Api.Controllers;
 [Authorize]
 public sealed class FollowsController(IMediator mediator) : ControllerBase
 {
-    [HttpPost("{userId:guid}/follow")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [HttpPost("{username}/follow")]
+    [ProducesResponseType(typeof(FollowStateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult> Follow(Guid userId, CancellationToken cancellationToken)
+    public async Task<ActionResult<FollowStateResponse>> Follow(string username, CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var currentUserId))
         {
             return Unauthorized();
         }
 
-        var result = await mediator.Send(
-            new FollowUserCommand(currentUserId, userId), cancellationToken);
-
-        return this.ToNoContentResult(result);
+        var result = await mediator.Send(new FollowUserCommand(currentUserId, username), cancellationToken);
+        return this.ToActionResult(result, s => new FollowStateResponse(s.IsFollowedByMe, s.FollowerCount));
     }
 
-    [HttpDelete("{userId:guid}/follow")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [HttpDelete("{username}/follow")]
+    [ProducesResponseType(typeof(FollowStateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult> Unfollow(Guid userId, CancellationToken cancellationToken)
+    public async Task<ActionResult<FollowStateResponse>> Unfollow(string username, CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var currentUserId))
         {
             return Unauthorized();
         }
 
-        var result = await mediator.Send(
-            new UnfollowUserCommand(currentUserId, userId), cancellationToken);
-
-        return this.ToNoContentResult(result);
+        var result = await mediator.Send(new UnfollowUserCommand(currentUserId, username), cancellationToken);
+        return this.ToActionResult(result, s => new FollowStateResponse(s.IsFollowedByMe, s.FollowerCount));
     }
 
     [HttpGet("me/followers")]
@@ -83,43 +79,44 @@ public sealed class FollowsController(IMediator mediator) : ControllerBase
         return this.ToActionResult(result, MapFollowUsers);
     }
 
-    [HttpGet("{userId:guid}/followers")]
-    [ProducesResponseType(typeof(List<FollowUserResponse>), StatusCodes.Status200OK)]
+    [HttpGet("{username}/followers")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(UserSummaryPageResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<List<FollowUserResponse>>> GetFollowers(
-        Guid userId, CancellationToken cancellationToken)
+    public async Task<ActionResult<UserSummaryPageResponse>> GetFollowerSummaries(
+        string username,
+        [FromQuery] int offset = 0,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        if (!TryGetCurrentUserId(out var currentUserId))
-        {
-            return Unauthorized();
-        }
+        Guid? requesterId = TryGetCurrentUserId(out var id) ? id : null;
 
         var result = await mediator.Send(
-            new GetFollowersQuery(userId, currentUserId), cancellationToken);
-
-        return this.ToActionResult(result, MapFollowUsers);
+            new GetFollowerSummariesQuery(username, requesterId, offset, pageSize), cancellationToken);
+        return this.ToActionResult(result, MapSummaryPage);
     }
 
-    [HttpGet("{userId:guid}/following")]
-    [ProducesResponseType(typeof(List<FollowUserResponse>), StatusCodes.Status200OK)]
+    [HttpGet("{username}/following")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(UserSummaryPageResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<List<FollowUserResponse>>> GetFollowing(
-        Guid userId, CancellationToken cancellationToken)
+    public async Task<ActionResult<UserSummaryPageResponse>> GetFollowingSummaries(
+        string username,
+        [FromQuery] int offset = 0,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        if (!TryGetCurrentUserId(out var currentUserId))
-        {
-            return Unauthorized();
-        }
+        Guid? requesterId = TryGetCurrentUserId(out var id) ? id : null;
 
         var result = await mediator.Send(
-            new GetFollowingQuery(userId, currentUserId), cancellationToken);
-
-        return this.ToActionResult(result, MapFollowUsers);
+            new GetFollowingSummariesQuery(username, requesterId, offset, pageSize), cancellationToken);
+        return this.ToActionResult(result, MapSummaryPage);
     }
+
+    private static UserSummaryPageResponse MapSummaryPage(UserSummaryPageResult page)
+        => new(page.Items.Select(i => new UserSummaryResponse(
+            i.UserId, i.Username, i.UserType, i.ProfileImageUrl, i.Bio, i.IsFollowedByMe)).ToList(),
+            page.HasMore);
 
     private bool TryGetCurrentUserId(out Guid userId)
     {

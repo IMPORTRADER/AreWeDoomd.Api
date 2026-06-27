@@ -29,9 +29,9 @@ public sealed class UserProfile
 
     public void ChangeBiography(string? biography, DateTimeOffset now)
     {
-        if (biography is not null && biography.Length > 2000)
+        if (biography is not null && biography.Length > 160)
         {
-            throw new ArgumentOutOfRangeException(nameof(biography), "Biography must be at most 2000 characters.");
+            throw new ArgumentOutOfRangeException(nameof(biography), "Biography must be at most 160 characters.");
         }
 
         Biography = biography?.Trim();

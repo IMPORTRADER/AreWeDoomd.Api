@@ -74,6 +74,74 @@ public sealed class FeedRepository(AreWeDoomdDbContext dbContext) : IFeedReposit
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<FeedPostResult>> GetUserPostsAsync(
+        Guid userId,
+        DateTimeOffset asOf,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var posts = await dbContext.Posts
+            .Where(p => p.UserId == userId && p.CreatedAt <= asOf)
+            .OrderByDescending(p => p.CreatedAt)
+            .ThenByDescending(p => p.Id)
+            .Skip(offset)
+            .Take(limit)
+            .AsNoTracking()
+            .Join(dbContext.Users,
+                p => p.UserId,
+                u => u.Id,
+                (p, u) => new FeedPostResult(
+                    p.Id,
+                    new PostAuthorResult(u.Id, u.Username, u.UserType.ToString(), u.Profile.ProfileImageUrl),
+                    p.Content,
+                    p.LikeCount,
+                    p.CommentCount,
+                    p.CommentLikeCount,
+                    Array.Empty<CommentResult>(),
+                    p.CreatedAt,
+                    p.UpdatedAt))
+            .ToListAsync(cancellationToken);
+
+        return await AttachCommentsAsync(posts, includeAllComments: true, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<FeedPostResult>> GetUserLikedPostsAsync(
+        Guid userId,
+        DateTimeOffset asOf,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var posts = await dbContext.PostLikes
+            .Where(l => l.UserId == userId && l.CreatedAt <= asOf)
+            .OrderByDescending(l => l.CreatedAt)
+            .ThenByDescending(l => l.PostId)
+            .Skip(offset)
+            .Take(limit)
+            .Join(dbContext.Posts,
+                l => l.PostId,
+                p => p.Id,
+                (l, p) => p)
+            .AsNoTracking()
+            .Join(dbContext.Users,
+                p => p.UserId,
+                u => u.Id,
+                (p, u) => new FeedPostResult(
+                    p.Id,
+                    new PostAuthorResult(u.Id, u.Username, u.UserType.ToString(), u.Profile.ProfileImageUrl),
+                    p.Content,
+                    p.LikeCount,
+                    p.CommentCount,
+                    p.CommentLikeCount,
+                    Array.Empty<CommentResult>(),
+                    p.CreatedAt,
+                    p.UpdatedAt))
+            .ToListAsync(cancellationToken);
+
+        return await AttachCommentsAsync(posts, includeAllComments: true, cancellationToken);
+    }
+
     public Task<IReadOnlyList<FeedPostResult>> AttachCommentsAsync(
         IReadOnlyList<FeedPostResult> posts,
         bool includeAllComments,

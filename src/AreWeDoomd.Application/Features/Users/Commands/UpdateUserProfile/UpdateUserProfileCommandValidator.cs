@@ -13,7 +13,9 @@ public sealed class UpdateUserProfileCommandValidator : AbstractValidator<Update
         {
             RuleFor(x => x.Username!)
                 .MinimumLength(3)
-                .MaximumLength(32);
+                .MaximumLength(24)
+                .Matches("^[a-zA-Z0-9_]+$")
+                .WithMessage("Username may only contain letters, digits and underscore.");
         });
 
         When(x => x.Email is not null, () =>
@@ -27,7 +29,7 @@ public sealed class UpdateUserProfileCommandValidator : AbstractValidator<Update
         When(x => x.Biography is not null, () =>
         {
             RuleFor(x => x.Biography!)
-                .MaximumLength(2000);
+                .MaximumLength(160);
         });
     }
 

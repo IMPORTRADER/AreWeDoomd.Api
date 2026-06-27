@@ -11,4 +11,15 @@ public interface IUserFollowRepository
     Task<IReadOnlyList<FollowUserResult>> GetFollowingAsync(Guid userId, CancellationToken cancellationToken);
     Task AddAsync(UserFollow userFollow, CancellationToken cancellationToken);
     Task DeleteAsync(UserFollow userFollow, CancellationToken cancellationToken);
+
+    Task<int> CountFollowersAsync(Guid userId, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<UserSummaryResult>> GetFollowerSummariesAsync(
+        Guid userId, Guid? requesterId, int offset, int limit, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<UserSummaryResult>> GetFollowingSummariesAsync(
+        Guid userId, Guid? requesterId, int offset, int limit, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<UserSummaryResult>> GetSuggestionsAsync(
+        Guid? viewerId, int offset, int limit, CancellationToken cancellationToken);
 }
