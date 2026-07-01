@@ -26,6 +26,17 @@ if (!string.IsNullOrWhiteSpace(geminiApiKey))
     });
 }
 
+// Map the conventional OPENROUTER_API_KEY environment variable onto the
+// provider's config key, same pattern as GEMINI_API_KEY above.
+string? openRouterApiKey = Environment.GetEnvironmentVariable("OPENROUTER_API_KEY");
+if (!string.IsNullOrWhiteSpace(openRouterApiKey))
+{
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["ChatProviders:OpenRouter:ApiKey"] = openRouterApiKey
+    });
+}
+
 builder.Services.AddSerilog((services, loggerConfig) =>
 {
     loggerConfig

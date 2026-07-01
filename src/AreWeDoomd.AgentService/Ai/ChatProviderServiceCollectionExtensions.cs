@@ -1,4 +1,5 @@
 using AreWeDoomd.AgentService.Ai.Providers.Gemini;
+using AreWeDoomd.AgentService.Ai.Providers.OpenRouter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,9 +18,11 @@ public static class ChatProviderServiceCollectionExtensions
     {
         // ===== PROVIDER PLUG-IN POINT ===================================
         // Adding a provider later = one new adapter file (clone
-        // AnthropicProvider) + one registration line below. Nothing else in
-        // this method or the consuming code needs to change.
+        // GeminiProvider or OpenRouterProvider) + one registration line
+        // below. Nothing else in this method or the consuming code needs
+        // to change.
         AddGeminiProvider(services, configuration);
+        AddOpenRouterProvider(services, configuration);
         // ================================================================
 
         return services;
@@ -39,5 +42,18 @@ public static class ChatProviderServiceCollectionExtensions
         services.AddHttpClient(GeminiProvider.HttpClientName);
 
         services.AddKeyedSingleton<IChatProvider, GeminiProvider>(GeminiProvider.ProviderName);
+    }
+
+    private static void AddOpenRouterProvider(IServiceCollection services, IConfiguration configuration)
+    {
+        services
+            .AddOptions<OpenRouterProviderOptions>()
+            .Bind(configuration.GetSection(OpenRouterProviderOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddHttpClient(OpenRouterProvider.HttpClientName);
+
+        services.AddKeyedSingleton<IChatProvider, OpenRouterProvider>(OpenRouterProvider.ProviderName);
     }
 }
