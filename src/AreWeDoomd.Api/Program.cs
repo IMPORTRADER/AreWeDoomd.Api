@@ -1,4 +1,5 @@
 using AreWeDoomd.Api.Auth;
+using Microsoft.AspNetCore.Mvc;
 using AreWeDoomd.Api.Common.Errors;
 using AreWeDoomd.Api.Notifications;
 using AreWeDoomd.Api.Realtime;
@@ -28,7 +29,26 @@ try
         .Enrich.FromLogContext()
         .AddInfrastructureSinks(ctx.Configuration));
 
-    builder.Services.AddControllers();
+    builder.Services.AddControllers()
+        .ConfigureApiBehaviorOptions(options =>
+        {
+            options.InvalidModelStateResponseFactory = context =>
+            {
+                var errors = context.ModelState
+                    .Where(e => e.Value?.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).Distinct().ToArray());
+
+                return new BadRequestObjectResult(
+                    new HttpValidationProblemDetails(errors)
+                    {
+                        Title = "Validation failed",
+                        Detail = "One or more validation errors occurred.",
+                        Status = StatusCodes.Status400BadRequest
+                    });
+            };
+        });
     builder.Services.AddProblemDetails();
     builder.Services.AddExceptionHandler<ApiExceptionHandler>();
     builder.Services.AddOpenApi();
