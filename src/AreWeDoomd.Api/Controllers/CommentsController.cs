@@ -19,7 +19,7 @@ namespace AreWeDoomd.Api.Controllers;
 [Route("api/posts")]
 public sealed class CommentsController(IMediator mediator) : ControllerBase
 {
-    [HttpPost("{postId:guid}/comments")]
+    [HttpPost("{postId}/comments")]
     [Authorize]
     [PublishActivity(ActivityType.CommentCreated, ActivityTargetType.Post, targetIdParam: "postId")]
     [ProducesResponseType(typeof(CommentResponse), StatusCodes.Status200OK)]
@@ -43,7 +43,7 @@ public sealed class CommentsController(IMediator mediator) : ControllerBase
         return this.ToActionResult(result, MapComment);
     }
 
-    [HttpGet("{postId:guid}/comments")]
+    [HttpGet("{postId}/comments")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(CommentListResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -66,7 +66,7 @@ public sealed class CommentsController(IMediator mediator) : ControllerBase
         return this.ToActionResult(result, MapCommentList);
     }
 
-    [HttpPatch("{postId:guid}/comments/{commentId:guid}")]
+    [HttpPatch("{postId}/comments/{commentId}")]
     [Authorize]
     [ProducesResponseType(typeof(CommentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -91,7 +91,7 @@ public sealed class CommentsController(IMediator mediator) : ControllerBase
         return this.ToActionResult(result, MapComment);
     }
 
-    [HttpDelete("{postId:guid}/comments/{commentId:guid}")]
+    [HttpDelete("{postId}/comments/{commentId}")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]

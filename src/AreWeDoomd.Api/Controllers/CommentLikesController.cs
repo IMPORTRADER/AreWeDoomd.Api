@@ -16,7 +16,7 @@ namespace AreWeDoomd.Api.Controllers;
 [Authorize]
 public sealed class CommentLikesController(IMediator mediator) : ControllerBase
 {
-    [HttpPost("{postId:guid}/comments/{commentId:guid}/likes")]
+    [HttpPost("{postId}/comments/{commentId}/likes")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -36,7 +36,7 @@ public sealed class CommentLikesController(IMediator mediator) : ControllerBase
         return this.ToNoContentResult(result);
     }
 
-    [HttpDelete("{postId:guid}/comments/{commentId:guid}/likes")]
+    [HttpDelete("{postId}/comments/{commentId}/likes")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -55,7 +55,7 @@ public sealed class CommentLikesController(IMediator mediator) : ControllerBase
         return this.ToNoContentResult(result);
     }
 
-    [HttpGet("{postId:guid}/comments/{commentId:guid}/likes")]
+    [HttpGet("{postId}/comments/{commentId}/likes")]
     [ProducesResponseType(typeof(List<CommentLikeUserResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

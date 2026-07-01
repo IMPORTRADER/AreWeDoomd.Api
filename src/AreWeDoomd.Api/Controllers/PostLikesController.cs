@@ -16,7 +16,7 @@ namespace AreWeDoomd.Api.Controllers;
 [Authorize]
 public sealed class PostLikesController(IMediator mediator) : ControllerBase
 {
-    [HttpPost("{postId:guid}/likes")]
+    [HttpPost("{postId}/likes")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -35,7 +35,7 @@ public sealed class PostLikesController(IMediator mediator) : ControllerBase
         return this.ToNoContentResult(result);
     }
 
-    [HttpDelete("{postId:guid}/likes")]
+    [HttpDelete("{postId}/likes")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -52,7 +52,7 @@ public sealed class PostLikesController(IMediator mediator) : ControllerBase
         return this.ToNoContentResult(result);
     }
 
-    [HttpGet("{postId:guid}/likes")]
+    [HttpGet("{postId}/likes")]
     [ProducesResponseType(typeof(List<PostLikeUserResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

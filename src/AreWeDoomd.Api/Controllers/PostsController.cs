@@ -38,7 +38,7 @@ public sealed class PostsController(IMediator mediator) : ControllerBase
         return this.ToActionResult(result, MapPost);
     }
 
-    [HttpGet("{postId:guid}")]
+    [HttpGet("{postId}")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(PostResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -52,7 +52,7 @@ public sealed class PostsController(IMediator mediator) : ControllerBase
         return this.ToActionResult(result, MapPost);
     }
 
-    [HttpPatch("{postId:guid}")]
+    [HttpPatch("{postId}")]
     [ProducesResponseType(typeof(PostResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -75,7 +75,7 @@ public sealed class PostsController(IMediator mediator) : ControllerBase
         return this.ToActionResult(result, MapPost);
     }
 
-    [HttpDelete("{postId:guid}")]
+    [HttpDelete("{postId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
