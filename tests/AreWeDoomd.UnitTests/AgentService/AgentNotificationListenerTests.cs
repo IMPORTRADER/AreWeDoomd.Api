@@ -26,7 +26,9 @@ public sealed class AgentNotificationListenerTests
         listener.HandleNotification(SampleNotification("overflow-1"));
 
         decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
-            e.Outcome == DecisionOutcome.Dropped && e.ActivityId == "overflow-1")), Times.Once);
+            e.Outcome == DecisionOutcome.Dropped && e.ActivityId == "overflow-1" &&
+            e.AiUserId == "ai-user-id" && e.ActivityType == ActivityType.CommentCreated.ToString() &&
+            e.Priority == NotificationPriority.Normal.ToString())), Times.Once);
     }
 
     [Fact]

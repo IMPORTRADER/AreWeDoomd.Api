@@ -31,7 +31,8 @@ public sealed class DecisionLogWriter : BackgroundService, IDecisionLogWriter
         _appender = new DecisionLogFileAppender(_options.RootPath);
         _channel = Channel.CreateBounded<DecisionLogEntry>(new BoundedChannelOptions(_options.QueueCapacity)
         {
-            FullMode = BoundedChannelFullMode.DropWrite,
+            // Wait mode: TryWrite returns false when full (Drop* modes return true and discard silently). TryLog stays non-blocking — WriteAsync is never used.
+            FullMode = BoundedChannelFullMode.Wait,
             SingleReader = true
         });
     }

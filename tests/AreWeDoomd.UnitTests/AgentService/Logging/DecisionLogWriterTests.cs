@@ -68,6 +68,21 @@ public sealed class DecisionLogWriterTests : IDisposable
         accepted.ShouldBeFalse();
     }
 
+    [Fact]
+    public async Task TryLog_WhenChannelFull_ShouldReturnFalse()
+    {
+        var options = Options.Create(new DecisionLogOptions { RootPath = _dir, QueueCapacity = 1 });
+        using var writer = new DecisionLogWriter(options, NullLogger<DecisionLogWriter>.Instance);
+        // NOT started: no pump consuming, so the second write must find the channel full.
+
+        writer.TryLog(new DecisionLogEntry(
+            DateTimeOffset.UtcNow, "ai-1", "a1", "CommentCreated", DecisionOutcome.Executed)).ShouldBeTrue();
+        bool second = writer.TryLog(new DecisionLogEntry(
+            DateTimeOffset.UtcNow, "ai-1", "a2", "CommentCreated", DecisionOutcome.Executed));
+
+        second.ShouldBeFalse();
+    }
+
     private static async Task WaitForFileLineAsync(string file)
     {
         for (int i = 0; i < 100; i++)
