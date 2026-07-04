@@ -17,7 +17,6 @@ namespace AreWeDoomd.Domain.Users
         public bool IsAdmin { get; private set; }
         public DateTimeOffset CreatedAt { get; private set; }
         public DateTimeOffset? UpdatedAt { get; private set; }
-        public Guid? CreatedByBulkJobId { get; private set; }
 
         // EF Core için parameterless ctor (private/protected olabilir)
         private User() { }
@@ -66,21 +65,6 @@ namespace AreWeDoomd.Domain.Users
         {
             SetPasswordHash(newPasswordHash);
             Touch(now);
-        }
-
-        public void TagBulkJob(Guid jobId)
-        {
-            if (UserType != UserType.Ai)
-            {
-                throw new InvalidOperationException("Only AI users can be tagged with a bulk job.");
-            }
-
-            if (CreatedByBulkJobId.HasValue)
-            {
-                throw new InvalidOperationException("User is already tagged with a bulk job.");
-            }
-
-            CreatedByBulkJobId = jobId;
         }
 
         public void GrantAdmin(DateTimeOffset now)

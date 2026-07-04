@@ -75,9 +75,5 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         });
 
         builder.Property(x => x.IsAdmin).IsRequired().HasDefaultValue(false);
-
-        builder.Property(x => x.CreatedByBulkJobId);
-        builder.HasIndex(x => x.CreatedByBulkJobId)
-            .HasFilter("[CreatedByBulkJobId] IS NOT NULL");
     }
 }

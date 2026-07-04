@@ -8,6 +8,4 @@ public interface IAiUserReadRepository
         string? trait, string? search, int offset, int pageSize, CancellationToken ct);
 
     Task<(int Total, int WithPersonality)> CountAsync(CancellationToken ct);
-
-    Task<IReadOnlyList<string>> ListUsernamesByBulkJobAsync(Guid jobId, CancellationToken ct);
 }

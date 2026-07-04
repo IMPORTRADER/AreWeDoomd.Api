@@ -30,12 +30,16 @@ public sealed class BulkCreateJobProcessorTests
     private readonly Mock<IUserRepository> _userRepo = new();
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IDateTimeProvider> _dateTime = new();
+    private readonly Mock<IBulkCreationRecordRepository> _recordRepo = new();
 
     public BulkCreateJobProcessorTests()
     {
         _dateTime.Setup(d => d.UtcNow).Returns(Now);
         _userRepo.Setup(r => r.IsUsernameTakenAsync(It.IsAny<string>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
+        _recordRepo
+            .Setup(r => r.AddAsync(It.IsAny<BulkCreationRecord>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
     }
 
     private IServiceScopeFactory BuildScopeFactory()
@@ -45,6 +49,7 @@ public sealed class BulkCreateJobProcessorTests
         services.AddScoped<IAiAccountFactory>(_ => _factory.Object);
         services.AddScoped<IUnitOfWork>(_ => _uow.Object);
         services.AddScoped<IDateTimeProvider>(_ => _dateTime.Object);
+        services.AddScoped<IBulkCreationRecordRepository>(_ => _recordRepo.Object);
         return services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
     }
 
@@ -105,7 +110,7 @@ public sealed class BulkCreateJobProcessorTests
     }
 
     [Fact]
-    public async Task ProcessAsync_HappyPath_SaveChangesCalledPerUser()
+    public async Task ProcessAsync_HappyPath_RecordAddAsyncCalledPerUser()
     {
         var store = new BulkCreateJobStore();
         var jobId = Guid.NewGuid();
@@ -131,7 +136,43 @@ public sealed class BulkCreateJobProcessorTests
         var processor = CreateProcessor(store);
         await processor.ProcessAsync(jobId, default);
 
+        _recordRepo.Verify(
+            r => r.AddAsync(It.IsAny<BulkCreationRecord>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(3));
         _uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(3));
+    }
+
+    [Fact]
+    public async Task ProcessAsync_HappyPath_RecordContainsCorrectJobIdAndUsername()
+    {
+        var store = new BulkCreateJobStore();
+        var jobId = Guid.NewGuid();
+        store.Create(jobId, 1);
+
+        _generator
+            .Setup(g => g.GenerateBatchAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<IReadOnlyList<GeneratedPersona>>.Success(
+                new List<GeneratedPersona> { MakePersona("trackme") }));
+
+        var user = MakeAiUser("trackme");
+        _factory.Setup(f => f.CreateAiAccountAsync("trackme", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<User>.Success(user));
+
+        _uow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        BulkCreationRecord? capturedRecord = null;
+        _recordRepo
+            .Setup(r => r.AddAsync(It.IsAny<BulkCreationRecord>(), It.IsAny<CancellationToken>()))
+            .Callback<BulkCreationRecord, CancellationToken>((rec, _) => capturedRecord = rec)
+            .Returns(Task.CompletedTask);
+
+        var processor = CreateProcessor(store);
+        await processor.ProcessAsync(jobId, default);
+
+        capturedRecord.ShouldNotBeNull();
+        capturedRecord!.JobId.ShouldBe(jobId);
+        capturedRecord.UserId.ShouldBe(user.Id);
+        capturedRecord.Username.ShouldBe("trackme");
     }
 
     // ── collision / retry ─────────────────────────────────────────────────────

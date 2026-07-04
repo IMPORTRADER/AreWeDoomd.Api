@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Common.Models;
+using AreWeDoomd.Domain.Users;
 using AreWeDoomd.Infrastructure.Common.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -137,6 +138,7 @@ public sealed class BulkCreateJobProcessor(
         var factory = sp.GetRequiredService<IAiAccountFactory>();
         var uow = sp.GetRequiredService<IUnitOfWork>();
         var dateTime = sp.GetRequiredService<IDateTimeProvider>();
+        var recordRepo = sp.GetRequiredService<IBulkCreationRecordRepository>();
         var now = dateTime.UtcNow;
 
         if (await userRepo.IsUsernameTakenAsync(username, null, ct))
@@ -166,8 +168,8 @@ public sealed class BulkCreateJobProcessor(
         }
 
         var user = factoryResult.Value!;
-        user.TagBulkJob(jobId);
         user.SetAiPersonality(persona.Traits, persona.TypingStyle, persona.Summary, now);
+        await recordRepo.AddAsync(BulkCreationRecord.Create(jobId, user.Id, user.Username, now), ct);
 
         try
         {

@@ -18,6 +18,7 @@ public class AreWeDoomdDbContext(DbContextOptions<AreWeDoomdDbContext> options) 
     public DbSet<UserFollow> UserFollows => Set<UserFollow>();
     public DbSet<PostLike> PostLikes => Set<PostLike>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<BulkCreationRecord> BulkCreationRecords => Set<BulkCreationRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

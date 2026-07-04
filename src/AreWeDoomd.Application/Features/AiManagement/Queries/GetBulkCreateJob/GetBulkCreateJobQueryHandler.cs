@@ -7,7 +7,7 @@ namespace AreWeDoomd.Application.Features.AiManagement.Queries.GetBulkCreateJob;
 
 public sealed class GetBulkCreateJobQueryHandler(
     IBulkCreateJobStore store,
-    IAiUserReadRepository repository)
+    IBulkCreationRecordRepository recordRepository)
     : IRequestHandler<GetBulkCreateJobQuery, Result<BulkCreateJobSnapshot>>
 {
     public async Task<Result<BulkCreateJobSnapshot>> Handle(
@@ -21,22 +21,24 @@ public sealed class GetBulkCreateJobQueryHandler(
         }
 
         // DB rebuild — store lost it (e.g. server restart)
-        var createdUsers = await repository.ListUsernamesByBulkJobAsync(request.JobId, cancellationToken);
-        if (createdUsers.Count == 0)
+        var records = await recordRepository.ListByJobAsync(request.JobId, cancellationToken);
+        if (records.Count == 0)
         {
             return Result<BulkCreateJobSnapshot>.NotFound(
                 "bulk_job.not_found",
                 $"Bulk job '{request.JobId}' was not found.");
         }
 
+        var createdUsernames = records.Select(r => r.Username).ToList();
+
         var rebuilt = new BulkCreateJobSnapshot(
             JobId: request.JobId,
             Status: "completed",
-            Requested: createdUsers.Count,
-            Generated: createdUsers.Count,
-            Created: createdUsers.Count,
+            Requested: createdUsernames.Count,
+            Generated: createdUsernames.Count,
+            Created: createdUsernames.Count,
             Failed: [],
-            CreatedUsers: createdUsers,
+            CreatedUsers: createdUsernames,
             StartedAt: null,
             FinishedAt: null,
             Rebuilt: true);
