@@ -120,6 +120,7 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
             result.Username,
             result.Email,
             result.UserType.ToString(),
-            result.AccessToken);
+            result.AccessToken,
+            result.IsAdmin);
     }
 }

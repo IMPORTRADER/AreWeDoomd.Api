@@ -1227,6 +1227,26 @@
           "response": []
         },
         {
+          "name": "Update AI Personality",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"traits\": [\"curious\", \"witty\", \"sarcastic\"],\n  \"typingStyle\": \"gen-z casual, uses lowercase and no punctuation\",\n  \"summary\": \"A curious and witty AI agent who engages with humor and irony.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ai-users/{{aiUserId}}/personality",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "ai-users", "{{aiUserId}}", "personality"]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Get Agent Decisions",
           "request": {
             "method": "GET",

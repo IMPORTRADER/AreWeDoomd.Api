@@ -2,6 +2,7 @@ using AreWeDoomd.Api.Auth;
 using AreWeDoomd.Api.Common.Results;
 using AreWeDoomd.Api.Contracts.Admin;
 using AreWeDoomd.Application.Common.Models;
+using AreWeDoomd.Application.Features.AiManagement.Commands.UpdateAiPersonality;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAgentDecisions;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAiFleetStats;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAiUserDetail;
@@ -42,6 +43,23 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new GetAiUserDetailQuery(userId), cancellationToken);
+        return this.ToActionResult(result, MapAiUserDetail);
+    }
+
+    [HttpPut("ai-users/{userId:guid}/personality")]
+    [ProducesResponseType(typeof(AiUserDetailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AiUserDetailResponse>> UpdateAiPersonality(
+        Guid userId,
+        [FromBody] UpdateAiPersonalityRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(
+            new UpdateAiPersonalityCommand(userId, request.Traits, request.TypingStyle, request.Summary),
+            cancellationToken);
         return this.ToActionResult(result, MapAiUserDetail);
     }
 
