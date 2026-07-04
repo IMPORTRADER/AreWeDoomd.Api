@@ -1289,6 +1289,22 @@
           "response": []
         },
         {
+          "name": "Get Session Log",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/session-logs?ref=2026-07-04/act-1_attempt1_123105.txt",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "session-logs"],
+              "query": [
+                { "key": "ref", "value": "2026-07-04/act-1_attempt1_123105.txt", "description": "Session log ref from a decision record's sessionLogRef field (yyyy-MM-dd/filename.txt)" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Get AI Fleet Stats",
           "request": {
             "method": "GET",

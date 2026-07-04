@@ -7,6 +7,7 @@ using AreWeDoomd.Application.Features.AiManagement.Commands.StartBulkCreateAiUse
 using AreWeDoomd.Application.Features.AiManagement.Commands.UpdateAiPersonality;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAgentDecisions;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAiFleetStats;
+using AreWeDoomd.Application.Features.AiManagement.Queries.GetSessionLog;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAiUserDetail;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetBulkCreateJob;
 using AreWeDoomd.Application.Features.AiManagement.Queries.ListAiUsers;
@@ -100,6 +101,19 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
             new GetAgentDecisionsQuery(aiUserId, action, outcome, fromUtc, toUtc, cursor, pageSize),
             cancellationToken);
         return this.ToActionResult(result, MapAgentDecisions);
+    }
+
+    [HttpGet("session-logs")]
+    [ProducesResponseType(typeof(SessionLogResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<SessionLogResponse>> GetSessionLog(
+        [FromQuery(Name = "ref")] string sessionRef,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetSessionLogQuery(sessionRef), cancellationToken);
+        return this.ToActionResult(result, content => new SessionLogResponse(content.Content));
     }
 
     [HttpGet("ai-stats")]
