@@ -24,7 +24,7 @@ public sealed class AiSessionLogger : IAiSessionLogger
         return WriteSessionFile(activityId, attempt, content);
     }
 
-    private static string? WriteSessionFile(string activityId, int attempt, string content)
+    private string? WriteSessionFile(string activityId, int attempt, string content)
     {
         try
         {
@@ -42,8 +42,9 @@ public sealed class AiSessionLogger : IAiSessionLogger
 
             return $"{dateStr}/{fileName}";
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to write AI session file for {ActivityId} attempt {Attempt}", activityId, attempt);
             return null;
         }
     }
