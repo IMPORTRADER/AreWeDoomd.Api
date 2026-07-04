@@ -56,6 +56,12 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
+    builder.Services.AddAuthorization(options =>
+    {
+        options.AddPolicy(AuthorizationPolicies.Admin,
+            policy => policy.RequireClaim(AuthorizationPolicies.IsAdminClaim, "true"));
+    });
+
     builder.Services.AddAuthentication()
         .AddScheme<AuthenticationSchemeOptions, AgentSecretAuthenticationHandler>(
             AgentSecretAuthenticationDefaults.SchemeName,
@@ -114,6 +120,14 @@ try
     {
         throw new InvalidOperationException(
             "AgentNotifications:SharedSecret is not configured. The agent notification hub cannot start.");
+    }
+
+    const string defaultDevSecret = "dev-agent-shared-secret-change-me";
+    if (!builder.Environment.IsDevelopment() &&
+        string.Equals(agentSecret, defaultDevSecret, StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException(
+            "AgentNotifications:SharedSecret still has the shipped development default; refusing to start outside Development.");
     }
 
     if (app.Environment.IsDevelopment())

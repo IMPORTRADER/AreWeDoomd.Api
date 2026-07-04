@@ -4,4 +4,5 @@ public sealed record CurrentUserResponse(
     Guid UserId,
     string Username,
     string Email,
-    string UserType);
+    string UserType,
+    bool IsAdmin);
