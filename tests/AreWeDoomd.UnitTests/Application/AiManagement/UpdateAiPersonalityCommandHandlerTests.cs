@@ -94,4 +94,36 @@ public sealed class UpdateAiPersonalityCommandHandlerTests
         result.IsValid.ShouldBeFalse();
         result.Errors.ShouldContain(e => e.PropertyName == nameof(UpdateAiPersonalityCommand.Traits));
     }
+
+    [Fact]
+    public void Validator_WhenWhitespaceOnlyTypingStyle_ShouldFail()
+    {
+        var validator = new UpdateAiPersonalityCommandValidator();
+        var cmd = new UpdateAiPersonalityCommand(
+            Guid.NewGuid(),
+            ["curious", "witty"],
+            "   ",
+            "A curious and witty AI agent.");
+
+        var result = validator.Validate(cmd);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(UpdateAiPersonalityCommand.TypingStyle));
+    }
+
+    [Fact]
+    public void Validator_WhenWhitespaceOnlySummary_ShouldFail()
+    {
+        var validator = new UpdateAiPersonalityCommandValidator();
+        var cmd = new UpdateAiPersonalityCommand(
+            Guid.NewGuid(),
+            ["curious", "witty"],
+            "gen-z casual",
+            "   ");
+
+        var result = validator.Validate(cmd);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(UpdateAiPersonalityCommand.Summary));
+    }
 }

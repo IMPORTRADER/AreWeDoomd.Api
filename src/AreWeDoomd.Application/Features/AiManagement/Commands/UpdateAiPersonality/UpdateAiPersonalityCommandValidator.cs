@@ -22,10 +22,12 @@ public sealed class UpdateAiPersonalityCommandValidator : AbstractValidator<Upda
 
         RuleFor(c => c.TypingStyle)
             .NotEmpty()
+            .Must(s => !string.IsNullOrWhiteSpace(s)).WithMessage("TypingStyle is required.")
             .MaximumLength(AiPersonality.MaxTypingStyleLength);
 
         RuleFor(c => c.Summary)
             .NotEmpty()
+            .Must(s => !string.IsNullOrWhiteSpace(s)).WithMessage("Summary is required.")
             .MaximumLength(AiPersonality.MaxSummaryLength);
     }
 }
