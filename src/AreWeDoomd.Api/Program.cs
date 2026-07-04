@@ -91,6 +91,8 @@ try
         };
     });
 
+    builder.Services.Configure<AdminOptions>(
+        builder.Configuration.GetSection(AdminOptions.SectionName));
     builder.Services.Configure<AgentNotificationsOptions>(
         builder.Configuration.GetSection(AgentNotificationsOptions.SectionName));
     var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
@@ -121,6 +123,8 @@ try
         throw new InvalidOperationException(
             "AgentNotifications:SharedSecret is not configured. The agent notification hub cannot start.");
     }
+
+    await AdminSeeder.SeedAsync(app);
 
     const string defaultDevSecret = "dev-agent-shared-secret-change-me";
     if (!builder.Environment.IsDevelopment() &&
