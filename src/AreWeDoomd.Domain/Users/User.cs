@@ -13,10 +13,12 @@ namespace AreWeDoomd.Domain.Users
         public string PasswordHash { get; private set; } = null!;
         public UserType UserType { get; private set; }
         public UserProfile Profile { get; private set; } = null!;
+        public AiPersonality? AiPersonality { get; private set; }
+        public bool IsAdmin { get; private set; }
         public DateTimeOffset CreatedAt { get; private set; }
         public DateTimeOffset? UpdatedAt { get; private set; }
 
-        // EF Core için parameterless ctor (private/protected olabilir)
+        // EF Core icin parameterless ctor (private/protected olabilir)
         private User() { }
 
         // Domain ctor: invariants burada korunur
@@ -36,7 +38,7 @@ namespace AreWeDoomd.Domain.Users
             CreatedAt = createdAt;
         }
 
-        // Tercihen factory: Id/CreatedAt üretimi tek yerde
+        // Tercihen factory: Id/CreatedAt uretimi tek yerde
         public static User Create(string username, string email, string passwordHash, UserType userType, DateTimeOffset now)
             => new(Guid.NewGuid(), username, email, passwordHash, userType, now);
 
@@ -58,10 +60,23 @@ namespace AreWeDoomd.Domain.Users
             Touch(now);
         }
 
-        // PasswordHash domain’de “hash” olduğu varsayımıyla saklanır (plain password saklama yok)
+        // PasswordHash domain'de saklanir (plain password saklama yok)
         public void SetPassword(string newPasswordHash, DateTimeOffset now)
         {
             SetPasswordHash(newPasswordHash);
+            Touch(now);
+        }
+
+        public void SetAiPersonality(
+            IReadOnlyList<string> traits, string typingStyle, string summary, DateTimeOffset now)
+        {
+            if (UserType != UserType.Ai)
+            {
+                throw new InvalidOperationException("Only AI users can have an AI personality.");
+            }
+
+            int nextVersion = (AiPersonality?.Version ?? 0) + 1;
+            AiPersonality = AiPersonality.Create(traits, typingStyle, summary, nextVersion, now);
             Touch(now);
         }
 
@@ -98,7 +113,7 @@ namespace AreWeDoomd.Domain.Users
 
             email = email.Trim();
 
-            // Basit kontrol; daha iyi doğrulama Value Object ile yapılabilir
+            // Basit kontrol; daha iyi dogrulama Value Object ile yapilabilir
             if (!email.Contains('@') || email.Length > 254)
             {
                 throw new ArgumentException("Email is invalid.", nameof(email));
@@ -114,8 +129,8 @@ namespace AreWeDoomd.Domain.Users
                 throw new ArgumentException("PasswordHash is required.", nameof(passwordHash));
             }
 
-            // Hash formatı (örn. Argon2/BCrypt)
-            // En azından boş/çok kısa olmasın.
+            // Hash formati (orn. Argon2/BCrypt)
+            // En azindan bos/cok kisa olmasin.
             if (passwordHash.Length < 20)
             {
                 throw new ArgumentException("PasswordHash looks invalid.", nameof(passwordHash));
