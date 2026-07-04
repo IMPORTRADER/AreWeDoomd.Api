@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\src\AreWeDoomd.ActivityNotifications.Contracts\AreWeDoomd.ActivityNotifications.Contracts.csproj" />
     <ProjectReference Include="..\..\src\AreWeDoomd.Api\AreWeDoomd.Api.csproj" />
     <ProjectReference Include="..\..\src\AreWeDoomd.AgentService\AreWeDoomd.AgentService.csproj" />
+    <ProjectReference Include="..\..\src\AreWeDoomd.ChatProviders\AreWeDoomd.ChatProviders.csproj" />
   </ItemGroup>
 
 </Project>
