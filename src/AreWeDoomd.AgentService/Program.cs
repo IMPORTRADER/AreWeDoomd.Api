@@ -3,6 +3,7 @@ using AreWeDoomd.AgentService.Actions;
 using AreWeDoomd.AgentService.Ai;
 using AreWeDoomd.AgentService.Context;
 using AreWeDoomd.AgentService.Decisions;
+using AreWeDoomd.AgentService.Logging;
 using AreWeDoomd.AgentService.Processing;
 using AreWeDoomd.AgentService.Prompting;
 using AreWeDoomd.ChatProviders;
@@ -38,6 +39,17 @@ if (!string.IsNullOrWhiteSpace(openRouterApiKey))
     });
 }
 
+// Map the conventional DECISION_LOG_ROOT environment variable onto the
+// decision log's config key, same pattern as the API-key mappings above.
+string? decisionLogRoot = Environment.GetEnvironmentVariable("DECISION_LOG_ROOT");
+if (!string.IsNullOrWhiteSpace(decisionLogRoot))
+{
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["DecisionLog:RootPath"] = decisionLogRoot
+    });
+}
+
 builder.Services.AddSerilog((services, loggerConfig) =>
 {
     loggerConfig
@@ -49,6 +61,7 @@ builder.Services.AddSerilog((services, loggerConfig) =>
 
 builder.Services.Configure<AgentServiceOptions>(
     builder.Configuration.GetSection(AgentServiceOptions.SectionName));
+builder.Services.Configure<DecisionLogOptions>(builder.Configuration.GetSection(DecisionLogOptions.SectionName));
 builder.Services.AddChatProviders(builder.Configuration);
 builder.Services.AddSingleton<IAiSessionLogger, AiSessionLogger>();
 
@@ -61,6 +74,10 @@ builder.Services.AddSingleton<DecisionParser>();
 builder.Services.AddSingleton<PriorityDecayPolicy>();
 builder.Services.AddSingleton<IContextFetcher, ContextFetcher>();
 builder.Services.AddSingleton<IActionExecutor, ActionExecutor>();
+
+builder.Services.AddSingleton<DecisionLogWriter>();
+builder.Services.AddSingleton<IDecisionLogWriter>(sp => sp.GetRequiredService<DecisionLogWriter>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<DecisionLogWriter>());
 
 builder.Services.AddHostedService<AgentNotificationListener>();
 builder.Services.AddHostedService(serviceProvider =>
