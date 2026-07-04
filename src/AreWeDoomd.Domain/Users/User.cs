@@ -67,6 +67,17 @@ namespace AreWeDoomd.Domain.Users
             Touch(now);
         }
 
+        public void GrantAdmin(DateTimeOffset now)
+        {
+            if (IsAdmin)
+            {
+                return;
+            }
+
+            IsAdmin = true;
+            Touch(now);
+        }
+
         public void SetAiPersonality(
             IReadOnlyList<string> traits, string typingStyle, string summary, DateTimeOffset now)
         {

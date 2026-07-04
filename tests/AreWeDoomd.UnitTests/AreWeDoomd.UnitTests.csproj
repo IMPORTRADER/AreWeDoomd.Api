@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\AreWeDoomd.Application\AreWeDoomd.Application.csproj" />
     <ProjectReference Include="..\..\src\AreWeDoomd.Domain\AreWeDoomd.Domain.csproj" />
+    <ProjectReference Include="..\..\src\AreWeDoomd.Infrastructure\AreWeDoomd.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\AreWeDoomd.ActivityNotifications.Contracts\AreWeDoomd.ActivityNotifications.Contracts.csproj" />
     <ProjectReference Include="..\..\src\AreWeDoomd.Api\AreWeDoomd.Api.csproj" />
     <ProjectReference Include="..\..\src\AreWeDoomd.AgentService\AreWeDoomd.AgentService.csproj" />
