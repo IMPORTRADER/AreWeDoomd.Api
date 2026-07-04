@@ -117,6 +117,7 @@ public sealed class AgentEventProcessorTests
         _contextFetcher.Verify(
             f => f.FetchAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
+        _decisionLog.Verify(w => w.TryLog(It.IsAny<DecisionLogEntry>()), Times.Never);
     }
 
     [Fact]
@@ -156,6 +157,7 @@ public sealed class AgentEventProcessorTests
         _chatProvider.Verify(
             p => p.CompleteAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()),
             Times.Never);
+        _decisionLog.Verify(w => w.TryLog(It.IsAny<DecisionLogEntry>()), Times.Never);
     }
 
     // ── New decision-log tests ──────────────────────────────────────────────
@@ -207,7 +209,7 @@ public sealed class AgentEventProcessorTests
         await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
 
         _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
-            e.Outcome == DecisionOutcome.Ignored && e.Reasoning == "not my thread")), Times.Once);
+            e.Outcome == DecisionOutcome.Ignored && e.Action == "ignore" && e.Reasoning == "not my thread")), Times.Once);
     }
 
     [Fact]
@@ -222,7 +224,7 @@ public sealed class AgentEventProcessorTests
         await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
 
         _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
-            e.Outcome == DecisionOutcome.ActionFailed && e.ErrorDetail == "HTTP 500: boom")), Times.Once);
+            e.Outcome == DecisionOutcome.ActionFailed && e.Action == "reply_comment" && e.Reasoning == "r" && e.ErrorDetail == "HTTP 500: boom")), Times.Once);
     }
 
     [Fact]
