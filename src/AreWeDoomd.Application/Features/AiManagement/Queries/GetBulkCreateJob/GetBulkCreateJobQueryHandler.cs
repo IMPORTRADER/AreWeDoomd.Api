@@ -31,6 +31,9 @@ public sealed class GetBulkCreateJobQueryHandler(
 
         var createdUsernames = records.Select(r => r.Username).ToList();
 
+        // Known limitation of DB rebuild: Requested is set to the count of
+        // successfully-created records because the original requested count and
+        // any failure details are not persisted — only successes land in the DB.
         var rebuilt = new BulkCreateJobSnapshot(
             JobId: request.JobId,
             Status: "completed",
