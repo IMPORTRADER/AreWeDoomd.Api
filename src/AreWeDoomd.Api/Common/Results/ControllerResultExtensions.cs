@@ -51,6 +51,21 @@ public static class ControllerResultExtensions
         };
     }
 
+    public static ActionResult<TResponse> ToActionResult<TValue, TResponse>(
+        this ControllerBase controller,
+        Result<TValue> result,
+        Func<TValue, TResponse> mapSuccess,
+        int successStatusCode)
+    {
+        if (result.IsSuccess)
+        {
+            return new ActionResult<TResponse>(
+                controller.StatusCode(successStatusCode, mapSuccess(result.Value!)));
+        }
+
+        return ToActionResult(controller, result, mapSuccess);
+    }
+
     public static ActionResult ToNoContentResult<TValue>(
         this ControllerBase controller,
         Result<TValue> result)

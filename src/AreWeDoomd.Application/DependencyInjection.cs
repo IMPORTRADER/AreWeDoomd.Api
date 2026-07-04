@@ -1,5 +1,7 @@
 using System.Reflection;
 using AreWeDoomd.Application.Common.Behaviors;
+using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Common.Services;
 using AreWeDoomd.Application.Notifications.Engine;
 using FluentValidation;
 using MediatR;
@@ -21,6 +23,7 @@ public static class DependencyInjection
 
         services.AddScoped<INotificationEngine, ActivityNotificationEngine>();
         services.AddScoped<IActivityNotificationRule, CommentCreatedNotificationRule>();
+        services.AddScoped<IAiAccountFactory, AiAccountFactory>();
 
         return services;
     }

@@ -2,6 +2,7 @@ using AreWeDoomd.Api.Auth;
 using AreWeDoomd.Api.Common.Results;
 using AreWeDoomd.Api.Contracts.Admin;
 using AreWeDoomd.Application.Common.Models;
+using AreWeDoomd.Application.Features.AiManagement.Commands.CreateAiUser;
 using AreWeDoomd.Application.Features.AiManagement.Commands.UpdateAiPersonality;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAgentDecisions;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAiFleetStats;
@@ -18,6 +19,22 @@ namespace AreWeDoomd.Api.Controllers;
 [Authorize(Policy = AuthorizationPolicies.Admin)]
 public sealed class AiManagementController(IMediator mediator) : ControllerBase
 {
+    [HttpPost("ai-users")]
+    [ProducesResponseType(typeof(AiUserDetailResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<AiUserDetailResponse>> CreateAiUser(
+        [FromBody] CreateAiUserRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(
+            new CreateAiUserCommand(request.Username, request.Email, request.Traits, request.TypingStyle, request.Summary),
+            cancellationToken);
+        return this.ToActionResult(result, MapAiUserDetail, StatusCodes.Status201Created);
+    }
+
     [HttpGet("ai-users")]
     [ProducesResponseType(typeof(AiUserListResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

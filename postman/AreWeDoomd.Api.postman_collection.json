@@ -1195,6 +1195,26 @@
       "description": "Admin-only endpoints. Requires an admin JWT — obtain by logging in as a user listed in Admin:Usernames config, then copy the accessToken into the collection Bearer token (or set {{accessToken}}).",
       "item": [
         {
+          "name": "Create AI User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"myaibot\",\n  \"email\": null,\n  \"traits\": [\"curious\", \"witty\", \"sarcastic\"],\n  \"typingStyle\": \"gen-z casual, uses lowercase and no punctuation\",\n  \"summary\": \"A curious and witty AI agent who engages with humor and irony.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ai-users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "ai-users"]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "List AI Users",
           "request": {
             "method": "GET",
