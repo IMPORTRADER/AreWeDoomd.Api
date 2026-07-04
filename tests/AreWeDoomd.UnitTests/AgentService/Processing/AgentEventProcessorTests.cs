@@ -23,6 +23,7 @@ public sealed class AgentEventProcessorTests
     private const string AiUserId = "33333333-3333-3333-3333-333333333333";
 
     private readonly Mock<IContextFetcher> _contextFetcher = new();
+    private readonly Mock<IPersonaProvider> _personaProvider = new();
     private readonly Mock<IPromptComposer> _promptComposer = new();
     private readonly Mock<IChatProvider> _chatProvider = new();
     private readonly Mock<IActionExecutor> _actionExecutor = new();
@@ -34,6 +35,9 @@ public sealed class AgentEventProcessorTests
         _contextFetcher
             .Setup(f => f.FetchAsync(PostId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SampleContext());
+        _personaProvider
+            .Setup(p => p.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PersonaResolution(null, PersonaSource.Default));
         _promptComposer
             .Setup(c => c.Compose(It.IsAny<AgentPersona?>(), It.IsAny<CommentCreatedPromptInput>()))
             .Returns(new ComposedPrompt("sys", "user"));
@@ -259,6 +263,62 @@ public sealed class AgentEventProcessorTests
         _decisionLog.Verify(w => w.TryLog(It.IsAny<DecisionLogEntry>()), Times.Once);
     }
 
+    // ── Persona resolution / decision-log stamping ─────────────────────────
+
+    [Fact]
+    public async Task ProcessSingleAsync_ShouldStampPersonaVersionAndSourceOnDecisionEntry()
+    {
+        var persona = new AgentPersona(["toxic"], "gen-z", "sum", 3);
+        _personaProvider
+            .Setup(p => p.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PersonaResolution(persona, PersonaSource.Api));
+        SetupLlmResponses("""{"action":"reply_comment","content":"Hi!","reasoning":"r"}""");
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
+
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.PersonaVersion == 3 && e.PersonaSource == "api")), Times.Once);
+        _promptComposer.Verify(c => c.Compose(
+            It.Is<AgentPersona?>(p => p != null && p.Version == 3),
+            It.IsAny<CommentCreatedPromptInput>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessSingleAsync_WhenNoPersona_ShouldComposeWithNullAndStampDefaultSource()
+    {
+        // _personaProvider default mock returns PersonaResolution(null, "default")
+        SetupLlmResponses("""{"action":"ignore","reasoning":"n/a"}""");
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
+
+        _promptComposer.Verify(c => c.Compose(
+            (AgentPersona?)null,
+            It.IsAny<CommentCreatedPromptInput>()), Times.Once);
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.PersonaSource == "default" && e.PersonaVersion == null)), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessSingleAsync_WhenPrioritySkipped_ShouldNotResolvePersona()
+    {
+        _contextFetcher
+            .Setup(f => f.FetchAsync(PostId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(SampleContext("Ai", "Ai", "Ai", "Ai"));
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Ai), CancellationToken.None);
+
+        _personaProvider.Verify(
+            p => p.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Outcome == DecisionOutcome.SkippedPriority &&
+            e.PersonaSource == null &&
+            e.PersonaVersion == null)), Times.Once);
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────
 
     private void SetupLlmResponses(params string[] texts)
@@ -290,6 +350,7 @@ public sealed class AgentEventProcessorTests
             new AgentEventQueue(),
             _contextFetcher.Object,
             new PriorityDecayPolicy(options),
+            _personaProvider.Object,
             _promptComposer.Object,
             _chatProvider.Object,
             new DecisionParser(),

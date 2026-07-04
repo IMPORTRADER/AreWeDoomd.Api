@@ -88,6 +88,7 @@ builder.Services.AddHostedService(serviceProvider =>
         serviceProvider.GetRequiredService<AgentEventQueue>(),
         serviceProvider.GetRequiredService<IContextFetcher>(),
         serviceProvider.GetRequiredService<PriorityDecayPolicy>(),
+        serviceProvider.GetRequiredService<IPersonaProvider>(),
         serviceProvider.GetRequiredService<IPromptComposer>(),
         serviceProvider.GetRequiredKeyedService<IChatProvider>(agentOptions.Value.ChatProvider),
         serviceProvider.GetRequiredService<DecisionParser>(),

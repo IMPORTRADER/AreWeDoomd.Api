@@ -18,6 +18,7 @@ public sealed class AgentEventProcessor : BackgroundService
     private readonly AgentEventQueue _queue;
     private readonly IContextFetcher _contextFetcher;
     private readonly PriorityDecayPolicy _decayPolicy;
+    private readonly IPersonaProvider _personaProvider;
     private readonly IPromptComposer _promptComposer;
     private readonly IChatProvider _chatProvider;
     private readonly DecisionParser _decisionParser;
@@ -31,6 +32,7 @@ public sealed class AgentEventProcessor : BackgroundService
         AgentEventQueue queue,
         IContextFetcher contextFetcher,
         PriorityDecayPolicy decayPolicy,
+        IPersonaProvider personaProvider,
         IPromptComposer promptComposer,
         IChatProvider chatProvider,
         DecisionParser decisionParser,
@@ -43,6 +45,7 @@ public sealed class AgentEventProcessor : BackgroundService
         _queue = queue;
         _contextFetcher = contextFetcher;
         _decayPolicy = decayPolicy;
+        _personaProvider = personaProvider;
         _promptComposer = promptComposer;
         _chatProvider = chatProvider;
         _decisionParser = decisionParser;
@@ -94,15 +97,28 @@ public sealed class AgentEventProcessor : BackgroundService
             return;
         }
 
-        if (agentEvent.ActivityType != ActivityType.CommentCreated)
+        // Dispatch on activity type; only CommentCreated has an agent pipeline today.
+        // New scheduled-post event types will slot in as additional cases without
+        // surgery to the existing pipeline.
+        switch (agentEvent.ActivityType)
         {
-            _logger.LogDebug(
-                "No agent pipeline for activity type {ActivityType}; skipping {ActivityId}.",
-                agentEvent.ActivityType,
-                agentEvent.ActivityId);
-            return;
+            case ActivityType.CommentCreated:
+                await ProcessCommentCreatedAsync(agentEvent, aiRecipient, ct);
+                break;
+            default:
+                _logger.LogDebug(
+                    "No agent pipeline for activity type {ActivityType}; skipping {ActivityId}.",
+                    agentEvent.ActivityType,
+                    agentEvent.ActivityId);
+                break;
         }
+    }
 
+    private async Task ProcessCommentCreatedAsync(
+        AgentEvent agentEvent,
+        AgentEvent.RecipientInfo aiRecipient,
+        CancellationToken ct)
+    {
         if (!Guid.TryParse(agentEvent.Target.Id, out var postId) ||
             !Guid.TryParse(agentEvent.Content.Id, out var commentId))
         {
@@ -128,6 +144,7 @@ public sealed class AgentEventProcessor : BackgroundService
             _logger.LogInformation(
                 "AI↔AI conversation decayed out at event {ActivityId}; not calling the LLM.",
                 agentEvent.ActivityId);
+            // skipped_priority is written BEFORE persona resolution; PersonaVersion/PersonaSource are null here by design.
             _decisionLog.TryLog(new DecisionLogEntry(
                 Ts: DateTimeOffset.UtcNow,
                 AiUserId: aiRecipient.UserId,
@@ -139,6 +156,12 @@ public sealed class AgentEventProcessor : BackgroundService
                 Priority: priority.ToString()));
             return;
         }
+
+        // Resolve persona for the acting AI user. Parse the UserId defensively; if
+        // it is not a valid Guid, fall back to no-persona rather than throwing.
+        var personaResolution = Guid.TryParse(aiRecipient.UserId, out var parsedAiUserId)
+            ? await _personaProvider.GetAsync(parsedAiUserId, ct)
+            : new PersonaResolution(null, PersonaSource.Default);
 
         string incomingComment = context.Comments
             .FirstOrDefault(c => c.Id == commentId)?.Content
@@ -152,8 +175,7 @@ public sealed class AgentEventProcessor : BackgroundService
             IncomingComment: incomingComment,
             Priority: priority);
 
-        // TODO(M2 Task 7): resolve persona via IPersonaProvider
-        var prompt = _promptComposer.Compose(null, input);
+        var prompt = _promptComposer.Compose(personaResolution.Persona, input);
 
         var llmResult = await GetDecisionAsync(agentEvent.ActivityId, prompt, ct);
 
@@ -170,6 +192,8 @@ public sealed class AgentEventProcessor : BackgroundService
                 Priority: priority.ToString(),
                 ErrorDetail: llmResult.ErrorDetail,
                 LlmAttempts: llmResult.Attempts,
+                PersonaVersion: personaResolution.Persona?.Version,
+                PersonaSource: personaResolution.Source,
                 SessionLogRef: llmResult.SessionLogRef));
             return;
         }
@@ -186,6 +210,8 @@ public sealed class AgentEventProcessor : BackgroundService
                 CommentId: commentId,
                 Priority: priority.ToString(),
                 LlmAttempts: llmResult.Attempts,
+                PersonaVersion: personaResolution.Persona?.Version,
+                PersonaSource: personaResolution.Source,
                 SessionLogRef: llmResult.SessionLogRef));
             return;
         }
@@ -214,6 +240,8 @@ public sealed class AgentEventProcessor : BackgroundService
             Reasoning: llmResult.Decision.Reasoning,
             Content: llmResult.Decision.Content,
             LlmAttempts: llmResult.Attempts,
+            PersonaVersion: personaResolution.Persona?.Version,
+            PersonaSource: personaResolution.Source,
             SessionLogRef: llmResult.SessionLogRef,
             ErrorDetail: execResult.Outcome == ActionExecutionOutcome.Failed ? execResult.ErrorDetail : null));
     }
