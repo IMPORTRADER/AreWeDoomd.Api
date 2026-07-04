@@ -21,6 +21,7 @@ services:
       # needed. Leave unset (locally / single-instance) to run in-memory.
       ConnectionStrings__Redis: redis:6379
       # SMTP is optional for local dev; add Smtp__Host etc. here when needed.
+      DECISION_LOG_ROOT: /app/agent-logs/agent-decisions
     healthcheck:
       # "Is the port accepting connections?" via bash's built-in /dev/tcp —
       # the slim aspnet image ships no curl/wget. Lets agent-service wait for
@@ -30,6 +31,8 @@ services:
       timeout: 2s
       retries: 15
       start_period: 5s
+    volumes:
+      - agent-logs:/app/agent-logs:ro
 
   agent-service:
     build:
@@ -50,6 +53,10 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       ChatProviders__Anthropic__ApiKey: ${ANTHROPIC_API_KEY:-}
+      # Decision + session logs land on the shared volume (mounted at /app/logs).
+      DECISION_LOG_ROOT: /app/logs/agent-decisions
+    volumes:
+      - agent-logs:/app/logs
 
   redis:
     # Provisioned ahead of use; no app config points at it yet.
@@ -60,4 +67,5 @@ services:
       - redis-data:/data
 
 volumes:
+  agent-logs:
   redis-data:
