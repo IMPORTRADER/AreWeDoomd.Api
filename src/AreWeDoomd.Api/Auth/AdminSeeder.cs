@@ -38,6 +38,11 @@ public static class AdminSeeder
 
         foreach (var username in usernames)
         {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                continue;
+            }
+
             var user = await users.GetByUsernameAsync(username, ct);
 
             if (user is null)

@@ -41,6 +41,8 @@ public sealed class StubbedApiFactory : WebApplicationFactory<Program>
         builder.UseSetting(
             "ConnectionStrings:AreWeDoomdSql",
             "Server=localhost;Database=test;Trusted_Connection=True;TrustServerCertificate=True;");
+        // neutralize any host-machine Admin:Usernames so the startup seeder stays inert against the fake test DB
+        builder.UseSetting("Admin:Usernames:0", "");
 
         builder.ConfigureTestServices(services =>
         {

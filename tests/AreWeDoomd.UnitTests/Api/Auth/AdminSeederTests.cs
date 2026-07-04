@@ -91,6 +91,25 @@ public sealed class AdminSeederTests
     }
 
     [Fact]
+    public async Task SeedCoreAsync_WhenListContainsOnlyBlankOrNullEntries_ShouldReturnZeroWithoutCallingRepository()
+    {
+        var userRepo = new Mock<IUserRepository>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+
+        var result = await AdminSeeder.SeedCoreAsync(
+            new List<string> { "", "  ", null! },
+            userRepo.Object,
+            unitOfWork.Object,
+            Now,
+            NullLogger.Instance,
+            CancellationToken.None);
+
+        result.ShouldBe(0);
+        userRepo.Verify(r => r.GetByUsernameAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task SeedCoreAsync_WhenListIsEmpty_ShouldNotCallRepositoryAndReturnZero()
     {
         var userRepo = new Mock<IUserRepository>();
