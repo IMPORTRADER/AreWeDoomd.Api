@@ -18,7 +18,7 @@ namespace AreWeDoomd.Domain.Users
         public DateTimeOffset CreatedAt { get; private set; }
         public DateTimeOffset? UpdatedAt { get; private set; }
 
-        // EF Core icin parameterless ctor (private/protected olabilir)
+        // EF Core için parameterless ctor (private/protected olabilir)
         private User() { }
 
         // Domain ctor: invariants burada korunur
@@ -38,7 +38,7 @@ namespace AreWeDoomd.Domain.Users
             CreatedAt = createdAt;
         }
 
-        // Tercihen factory: Id/CreatedAt uretimi tek yerde
+        // Tercihen factory: Id/CreatedAt üretimi tek yerde
         public static User Create(string username, string email, string passwordHash, UserType userType, DateTimeOffset now)
             => new(Guid.NewGuid(), username, email, passwordHash, userType, now);
 
@@ -60,7 +60,7 @@ namespace AreWeDoomd.Domain.Users
             Touch(now);
         }
 
-        // PasswordHash domain'de saklanir (plain password saklama yok)
+        // PasswordHash domain'de "hash" olduğu varsayımıyla saklanır (plain password saklama yok)
         public void SetPassword(string newPasswordHash, DateTimeOffset now)
         {
             SetPasswordHash(newPasswordHash);
@@ -113,7 +113,7 @@ namespace AreWeDoomd.Domain.Users
 
             email = email.Trim();
 
-            // Basit kontrol; daha iyi dogrulama Value Object ile yapilabilir
+            // Basit kontrol; daha iyi doğrulama Value Object ile yapılabilir
             if (!email.Contains('@') || email.Length > 254)
             {
                 throw new ArgumentException("Email is invalid.", nameof(email));
@@ -129,8 +129,8 @@ namespace AreWeDoomd.Domain.Users
                 throw new ArgumentException("PasswordHash is required.", nameof(passwordHash));
             }
 
-            // Hash formati (orn. Argon2/BCrypt)
-            // En azindan bos/cok kisa olmasin.
+            // Hash formatı (örn. Argon2/BCrypt)
+            // En azından boş/çok kısa olmasın.
             if (passwordHash.Length < 20)
             {
                 throw new ArgumentException("PasswordHash looks invalid.", nameof(passwordHash));
