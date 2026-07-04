@@ -1,5 +1,6 @@
 using MessagePack;
 using AreWeDoomd.ActivityNotifications.Contracts;
+using AreWeDoomd.AgentService.Logging;
 using AreWeDoomd.AgentService.Processing;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,16 +14,19 @@ public sealed class AgentNotificationListener : BackgroundService
 {
     private readonly AgentServiceOptions _options;
     private readonly AgentEventQueue _queue;
+    private readonly IDecisionLogWriter _decisionLog;
     private readonly ILogger<AgentNotificationListener> _logger;
     private HubConnection? _connection;
 
     public AgentNotificationListener(
         IOptions<AgentServiceOptions> options,
         AgentEventQueue queue,
+        IDecisionLogWriter decisionLog,
         ILogger<AgentNotificationListener> logger)
     {
         _options = options.Value;
         _queue = queue;
+        _decisionLog = decisionLog;
         _logger = logger;
     }
 
@@ -45,24 +49,7 @@ public sealed class AgentNotificationListener : BackgroundService
 
         _connection.On<ActivityNotification>(
             AgentNotificationHubConstants.ReceiveEventMethod,
-            notification =>
-            {
-                var agentEvent = AgentEvent.From(notification);
-                if (_queue.TryEnqueue(agentEvent))
-                {
-                    _logger.LogInformation(
-                        "AgentEvent enqueued: {ActivityId} | {ActivityType} | Actor={ActorName}",
-                        agentEvent.ActivityId,
-                        agentEvent.ActivityType,
-                        agentEvent.Actor.DisplayName);
-                }
-                else
-                {
-                    _logger.LogWarning(
-                        "Agent event queue rejected event {ActivityId}; it was dropped.",
-                        agentEvent.ActivityId);
-                }
-            });
+            HandleNotification);
 
         _connection.Reconnecting += ex =>
         {
@@ -80,6 +67,36 @@ public sealed class AgentNotificationListener : BackgroundService
 
         if (!stoppingToken.IsCancellationRequested)
             _logger.LogInformation("Listening for activity notifications.");
+    }
+
+    public void HandleNotification(ActivityNotification notification)
+    {
+        var agentEvent = AgentEvent.From(notification);
+        if (_queue.TryEnqueue(agentEvent))
+        {
+            _logger.LogInformation(
+                "AgentEvent enqueued: {ActivityId} | {ActivityType} | Actor={ActorName}",
+                agentEvent.ActivityId,
+                agentEvent.ActivityType,
+                agentEvent.Actor.DisplayName);
+        }
+        else
+        {
+            _logger.LogWarning(
+                "Agent event queue rejected event {ActivityId}; it was dropped.",
+                agentEvent.ActivityId);
+
+            var aiRecipient = notification.Recipients
+                .FirstOrDefault(r => r.RecipientType == NotificationRecipientType.Ai);
+
+            _decisionLog.TryLog(new DecisionLogEntry(
+                Ts: DateTimeOffset.UtcNow,
+                AiUserId: aiRecipient?.UserId ?? string.Empty,
+                ActivityId: notification.ActivityId,
+                ActivityType: notification.ActivityType.ToString(),
+                Outcome: DecisionOutcome.Dropped,
+                Priority: aiRecipient?.Priority.ToString()));
+        }
     }
 
     private async Task ConnectWithRetryAsync(CancellationToken stoppingToken)
