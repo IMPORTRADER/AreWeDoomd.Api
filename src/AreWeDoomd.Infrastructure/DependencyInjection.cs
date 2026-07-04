@@ -66,6 +66,7 @@ public static class DependencyInjection
         services.AddScoped<IPasswordResetRequestRepository, PasswordResetRequestRepository>();
         services.AddScoped<IUserFollowRepository, UserFollowRepository>();
         services.AddScoped<IProfileStatsRepository, ProfileStatsRepository>();
+        services.AddScoped<IAiUserReadRepository, AiUserReadRepository>();
         services.AddScoped<IFeedRepository, FeedRepository>();
         services.AddScoped<IPostLikeRepository, PostLikeRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
