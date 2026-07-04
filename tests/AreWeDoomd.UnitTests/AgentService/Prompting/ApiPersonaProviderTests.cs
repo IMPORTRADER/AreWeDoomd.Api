@@ -187,6 +187,26 @@ public sealed class ApiPersonaProviderTests
         result.Persona.ShouldBeNull();
     }
 
+    [Fact]
+    public async Task GetAsync_WhenResponseMissingTraits_ShouldReturnDefaultNotThrow()
+    {
+        var handler = new StubHttpMessageHandler((_, _) =>
+        {
+            var payload = new { userId = UserId, typingStyle = "x", summary = "y", version = 1 };
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(payload))
+            });
+        });
+        var timeProvider = new FakeTimeProvider();
+        var provider = CreateProvider(handler, timeProvider);
+
+        var result = await provider.GetAsync(UserId, CancellationToken.None);
+
+        result.Source.ShouldBe(PersonaSource.Default);
+        result.Persona.ShouldBeNull();
+    }
+
     private sealed class StubHttpClientFactory : IHttpClientFactory
     {
         private readonly HttpClient _client;

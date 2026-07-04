@@ -67,7 +67,7 @@ public sealed class ApiPersonaProvider : IPersonaProvider
                 string body = await response.Content.ReadAsStringAsync(ct);
                 var dto = JsonSerializer.Deserialize<ApiAgentPersonaResponse>(body, SerializerOptions);
 
-                if (dto is null)
+                if (dto is null || dto.Traits is null)
                 {
                     _logger.LogWarning("Persona response for user {UserId} could not be deserialized", userId);
                     return GetStaleOrDefault(userId);
@@ -83,6 +83,10 @@ public sealed class ApiPersonaProvider : IPersonaProvider
                 userId,
                 (int)response.StatusCode);
             return GetStaleOrDefault(userId);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
