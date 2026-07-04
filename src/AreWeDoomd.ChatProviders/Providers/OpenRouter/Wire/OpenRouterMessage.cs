@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace AreWeDoomd.AgentService.Ai.Providers.OpenRouter.Wire;
+namespace AreWeDoomd.ChatProviders.Providers.OpenRouter.Wire;
 
 /// <summary>
 /// A single chat-completions message. Used for both request turns (role

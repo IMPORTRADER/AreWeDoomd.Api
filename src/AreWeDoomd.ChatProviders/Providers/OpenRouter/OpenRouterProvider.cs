@@ -1,12 +1,11 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using AreWeDoomd.ChatProviders;
-using AreWeDoomd.AgentService.Ai.Providers.OpenRouter.Wire;
+using AreWeDoomd.ChatProviders.Providers.OpenRouter.Wire;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace AreWeDoomd.AgentService.Ai.Providers.OpenRouter;
+namespace AreWeDoomd.ChatProviders.Providers.OpenRouter;
 
 /// <summary>
 /// Hand-rolled adapter for OpenRouter's OpenAI-compatible chat completions API.

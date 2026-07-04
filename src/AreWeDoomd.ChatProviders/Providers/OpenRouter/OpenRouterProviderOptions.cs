@@ -1,6 +1,4 @@
-using AreWeDoomd.ChatProviders;
-
-namespace AreWeDoomd.AgentService.Ai.Providers.OpenRouter;
+namespace AreWeDoomd.ChatProviders.Providers.OpenRouter;
 
 public sealed class OpenRouterProviderOptions : ChatProviderOptions
 {

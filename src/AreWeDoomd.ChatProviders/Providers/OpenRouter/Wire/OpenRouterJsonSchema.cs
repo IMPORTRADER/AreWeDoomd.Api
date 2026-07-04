@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace AreWeDoomd.AgentService.Ai.Providers.OpenRouter.Wire;
+namespace AreWeDoomd.ChatProviders.Providers.OpenRouter.Wire;
 
 internal sealed record OpenRouterJsonSchema
 {

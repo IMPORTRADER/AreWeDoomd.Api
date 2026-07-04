@@ -1,14 +1,14 @@
 using System.Net;
 using AreWeDoomd.ChatProviders;
-using AreWeDoomd.AgentService.Ai;
-using AreWeDoomd.AgentService.Ai.Providers.OpenRouter;
+using AreWeDoomd.ChatProviders.Providers.OpenRouter;
+using AreWeDoomd.UnitTests.AgentService.Ai;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Shouldly;
 using Xunit;
 
-namespace AreWeDoomd.UnitTests.AgentService.Ai;
+namespace AreWeDoomd.UnitTests.ChatProviders;
 
 public sealed class OpenRouterProviderTests
 {

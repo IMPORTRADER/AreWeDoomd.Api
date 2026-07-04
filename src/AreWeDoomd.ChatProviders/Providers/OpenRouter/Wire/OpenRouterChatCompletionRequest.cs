@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace AreWeDoomd.AgentService.Ai.Providers.OpenRouter.Wire;
+namespace AreWeDoomd.ChatProviders.Providers.OpenRouter.Wire;
 
 /// <summary>
 /// Request body for <c>POST {BaseUrl}/chat/completions</c>. Null optional
