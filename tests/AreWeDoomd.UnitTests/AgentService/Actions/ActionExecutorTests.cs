@@ -33,8 +33,9 @@ public sealed class ActionExecutorTests
         });
         var decision = new AgentDecision(AgentAction.ReplyComment, "Hello there!", "friendly");
 
-        await executor.ExecuteAsync(decision, PostId, CommentId, ActingUserId, CancellationToken.None);
+        var result = await executor.ExecuteAsync(decision, PostId, CommentId, ActingUserId, CancellationToken.None);
 
+        result.Outcome.ShouldBe(ActionExecutionOutcome.Executed);
         captured.ShouldNotBeNull();
         captured!.Method.ShouldBe(HttpMethod.Post);
         captured.RequestUri!.AbsolutePath.ShouldBe($"/api/posts/{PostId}/comments");
@@ -55,8 +56,9 @@ public sealed class ActionExecutorTests
         });
         var decision = new AgentDecision(AgentAction.LikeComment, null, "agree");
 
-        await executor.ExecuteAsync(decision, PostId, CommentId, ActingUserId, CancellationToken.None);
+        var result = await executor.ExecuteAsync(decision, PostId, CommentId, ActingUserId, CancellationToken.None);
 
+        result.Outcome.ShouldBe(ActionExecutionOutcome.Executed);
         captured.ShouldNotBeNull();
         captured!.Method.ShouldBe(HttpMethod.Post);
         captured.RequestUri!.AbsolutePath.ShouldBe($"/api/posts/{PostId}/comments/{CommentId}/likes");
@@ -74,23 +76,27 @@ public sealed class ActionExecutorTests
         });
         var decision = new AgentDecision(AgentAction.Ignore, null, "nothing to add");
 
-        await executor.ExecuteAsync(decision, PostId, CommentId, ActingUserId, CancellationToken.None);
+        var result = await executor.ExecuteAsync(decision, PostId, CommentId, ActingUserId, CancellationToken.None);
 
+        result.Outcome.ShouldBe(ActionExecutionOutcome.Ignored);
         called.ShouldBeFalse();
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhenApiFails_ShouldNotThrow()
+    public async Task ExecuteAsync_WhenApiFails_ShouldReturnFailed()
     {
         var executor = CreateExecutor((_, _) =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError)
             {
-                Content = new StringContent("{}")
+                Content = new StringContent("boom")
             }));
         var decision = new AgentDecision(AgentAction.ReplyComment, "Hi", "test");
 
-        // Must not throw — failures are logged and dropped.
-        await executor.ExecuteAsync(decision, PostId, CommentId, ActingUserId, CancellationToken.None);
+        var result = await executor.ExecuteAsync(decision, PostId, CommentId, ActingUserId, CancellationToken.None);
+
+        result.Outcome.ShouldBe(ActionExecutionOutcome.Failed);
+        result.ErrorDetail.ShouldNotBeNull();
+        result.ErrorDetail.ShouldContain("500");
     }
 
     private static ActionExecutor CreateExecutor(
