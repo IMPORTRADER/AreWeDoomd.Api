@@ -1,17 +1,16 @@
-using AreWeDoomd.ChatProviders;
 using AreWeDoomd.ChatProviders.Providers.Gemini;
 using AreWeDoomd.ChatProviders.Providers.OpenRouter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace AreWeDoomd.AgentService.Ai;
+namespace AreWeDoomd.ChatProviders;
 
 public static class ChatProviderServiceCollectionExtensions
 {
     /// <summary>
     /// Registers every chat provider adapter and its supporting HttpClient.
     /// Each provider is keyed by its <see cref="IChatProvider.Name"/> so callers
-    /// resolve one with <c>GetRequiredKeyedService&lt;IChatProvider&gt;("anthropic")</c>.
+    /// resolve one with <c>GetRequiredKeyedService&lt;IChatProvider&gt;("openrouter")</c>.
     /// </summary>
     public static IServiceCollection AddChatProviders(
         this IServiceCollection services,
