@@ -12,7 +12,7 @@ public sealed class FileSessionLogReader : ISessionLogReader
     private const string TruncationMarker = "[...truncated]";
 
     private static readonly Regex RefPattern =
-        new(@"^\d{4}-\d{2}-\d{2}/[A-Za-z0-9_\-]+\.txt$", RegexOptions.Compiled);
+        new(@"^\d{4}-\d{2}-\d{2}/[A-Za-z0-9_\-]+\.txt\z", RegexOptions.Compiled);
 
     private readonly string _sessionsRoot;
     private readonly ILogger<FileSessionLogReader> _logger;
@@ -35,22 +35,22 @@ public sealed class FileSessionLogReader : ISessionLogReader
             return null;
         }
 
-        // Defense 2: resolved absolute path must stay inside _sessionsRoot
-        var resolvedPath = Path.GetFullPath(Path.Combine(_sessionsRoot, sessionRef));
-        var sessionsRootWithSep = _sessionsRoot.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        if (!resolvedPath.StartsWith(sessionsRootWithSep, StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogWarning("Session log path traversal attempt blocked for ref '{Ref}'", sessionRef);
-            return null;
-        }
-
-        if (!File.Exists(resolvedPath))
-        {
-            return null;
-        }
-
         try
         {
+            // Defense 2: resolved absolute path must stay inside _sessionsRoot
+            var resolvedPath = Path.GetFullPath(Path.Combine(_sessionsRoot, sessionRef));
+            var sessionsRootWithSep = _sessionsRoot.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!resolvedPath.StartsWith(sessionsRootWithSep, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("Session log path traversal attempt blocked for ref '{Ref}'", sessionRef);
+                return null;
+            }
+
+            if (!File.Exists(resolvedPath))
+            {
+                return null;
+            }
+
             using var stream = new FileStream(resolvedPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
             // Read up to MaxBytes + 1 to detect whether truncation is needed
@@ -70,7 +70,7 @@ public sealed class FileSessionLogReader : ISessionLogReader
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error reading session log file '{Path}'", resolvedPath);
+            _logger.LogWarning(ex, "Error reading session log file '{Path}'", sessionRef);
             return null;
         }
     }

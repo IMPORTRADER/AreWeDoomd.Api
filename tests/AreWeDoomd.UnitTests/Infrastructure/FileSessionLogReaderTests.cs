@@ -88,6 +88,14 @@ public sealed class FileSessionLogReaderTests : IDisposable
         result.ShouldBeNull();
     }
 
+    [Fact]
+    public async Task ReadAsync_TrailingNewlineInRef_ReturnsNull()
+    {
+        var reader = CreateReader();
+        var result = await reader.ReadAsync("2026-01-01/valid.txt\n", CancellationToken.None);
+        result.ShouldBeNull();
+    }
+
     // ── Missing file ────────────────────────────────────────────────────────
 
     [Fact]
