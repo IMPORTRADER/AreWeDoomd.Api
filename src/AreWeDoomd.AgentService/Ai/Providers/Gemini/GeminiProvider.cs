@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AreWeDoomd.ChatProviders;
 using AreWeDoomd.AgentService.Ai.Providers.Gemini.Wire;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

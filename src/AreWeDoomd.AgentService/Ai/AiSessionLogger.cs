@@ -1,4 +1,5 @@
 using System.Text;
+using AreWeDoomd.ChatProviders;
 using Microsoft.Extensions.Logging;
 
 namespace AreWeDoomd.AgentService.Ai;

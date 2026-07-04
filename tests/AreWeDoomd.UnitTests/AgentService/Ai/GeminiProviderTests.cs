@@ -1,4 +1,5 @@
 using System.Net;
+using AreWeDoomd.ChatProviders;
 using AreWeDoomd.AgentService.Ai;
 using AreWeDoomd.AgentService.Ai.Providers.Gemini;
 using Microsoft.Extensions.Logging.Abstractions;

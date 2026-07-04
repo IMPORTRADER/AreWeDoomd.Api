@@ -1,4 +1,4 @@
-namespace AreWeDoomd.AgentService.Ai;
+namespace AreWeDoomd.ChatProviders;
 
 public interface IChatProvider
 {

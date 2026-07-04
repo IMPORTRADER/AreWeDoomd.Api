@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace AreWeDoomd.AgentService.Ai;
+namespace AreWeDoomd.ChatProviders;
 
 /// <summary>
 /// Common configuration shared by every chat provider adapter. Concrete

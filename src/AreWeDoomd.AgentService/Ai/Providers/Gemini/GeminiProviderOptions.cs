@@ -1,3 +1,5 @@
+using AreWeDoomd.ChatProviders;
+
 namespace AreWeDoomd.AgentService.Ai.Providers.Gemini;
 
 public sealed class GeminiProviderOptions : ChatProviderOptions

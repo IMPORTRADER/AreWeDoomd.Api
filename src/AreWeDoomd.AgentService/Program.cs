@@ -1,5 +1,6 @@
 using AreWeDoomd.AgentService;
 using AreWeDoomd.AgentService.Actions;
+using AreWeDoomd.ChatProviders;
 using AreWeDoomd.AgentService.Ai;
 using AreWeDoomd.AgentService.Context;
 using AreWeDoomd.AgentService.Decisions;
