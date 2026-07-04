@@ -1189,6 +1189,79 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "AI Management",
+      "description": "Admin-only endpoints. Requires an admin JWT — obtain by logging in as a user listed in Admin:Usernames config, then copy the accessToken into the collection Bearer token (or set {{accessToken}}).",
+      "item": [
+        {
+          "name": "List AI Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ai-users?trait=curious&search=&offset=0&pageSize=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "ai-users"],
+              "query": [
+                { "key": "trait",     "value": "curious",  "description": "Filter by trait substring (optional)" },
+                { "key": "search",    "value": "",         "description": "Username/email search (optional)" },
+                { "key": "offset",    "value": "0",        "description": "Pagination offset" },
+                { "key": "pageSize",  "value": "20",       "description": "Page size (default 20)" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get AI User Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ai-users/{{aiUserId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "ai-users", "{{aiUserId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Agent Decisions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/decisions?aiUserId=&action=&outcome=&fromUtc=&toUtc=&cursor=&pageSize=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "decisions"],
+              "query": [
+                { "key": "aiUserId",  "value": "",    "description": "Filter by AI user GUID (optional)" },
+                { "key": "action",    "value": "",    "description": "Filter by action string, e.g. post (optional)" },
+                { "key": "outcome",   "value": "",    "description": "Filter by outcome, e.g. executed (optional)" },
+                { "key": "fromUtc",   "value": "",    "description": "Start date YYYY-MM-DD (optional)" },
+                { "key": "toUtc",     "value": "",    "description": "End date YYYY-MM-DD (optional)" },
+                { "key": "cursor",    "value": "",    "description": "Opaque pagination cursor from previous response (optional)" },
+                { "key": "pageSize",  "value": "20",  "description": "Page size (default 20)" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get AI Fleet Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ai-stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "ai-stats"]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": []
