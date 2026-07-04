@@ -92,6 +92,7 @@ builder.Services.AddHostedService(serviceProvider =>
         serviceProvider.GetRequiredService<DecisionParser>(),
         serviceProvider.GetRequiredService<IActionExecutor>(),
         serviceProvider.GetRequiredService<IAiSessionLogger>(),
+        serviceProvider.GetRequiredService<IDecisionLogWriter>(),
         agentOptions,
         serviceProvider.GetRequiredService<ILogger<AgentEventProcessor>>());
 });

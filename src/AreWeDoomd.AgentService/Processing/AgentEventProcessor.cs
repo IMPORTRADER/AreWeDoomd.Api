@@ -1,8 +1,10 @@
+using System.Text.Json;
 using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.AgentService.Actions;
 using AreWeDoomd.AgentService.Ai;
 using AreWeDoomd.AgentService.Context;
 using AreWeDoomd.AgentService.Decisions;
+using AreWeDoomd.AgentService.Logging;
 using AreWeDoomd.AgentService.Prompting;
 using AreWeDoomd.ChatProviders;
 using Microsoft.Extensions.Hosting;
@@ -21,6 +23,7 @@ public sealed class AgentEventProcessor : BackgroundService
     private readonly DecisionParser _decisionParser;
     private readonly IActionExecutor _actionExecutor;
     private readonly IAiSessionLogger _sessionLogger;
+    private readonly IDecisionLogWriter _decisionLog;
     private readonly AgentServiceOptions _options;
     private readonly ILogger<AgentEventProcessor> _logger;
 
@@ -33,6 +36,7 @@ public sealed class AgentEventProcessor : BackgroundService
         DecisionParser decisionParser,
         IActionExecutor actionExecutor,
         IAiSessionLogger sessionLogger,
+        IDecisionLogWriter decisionLog,
         IOptions<AgentServiceOptions> options,
         ILogger<AgentEventProcessor> logger)
     {
@@ -44,6 +48,7 @@ public sealed class AgentEventProcessor : BackgroundService
         _decisionParser = decisionParser;
         _actionExecutor = actionExecutor;
         _sessionLogger = sessionLogger;
+        _decisionLog = decisionLog;
         _options = options.Value;
         _logger = logger;
     }
@@ -123,6 +128,15 @@ public sealed class AgentEventProcessor : BackgroundService
             _logger.LogInformation(
                 "AI↔AI conversation decayed out at event {ActivityId}; not calling the LLM.",
                 agentEvent.ActivityId);
+            _decisionLog.TryLog(new DecisionLogEntry(
+                Ts: DateTimeOffset.UtcNow,
+                AiUserId: aiRecipient.UserId,
+                ActivityId: agentEvent.ActivityId,
+                ActivityType: agentEvent.ActivityType.ToString(),
+                Outcome: DecisionOutcome.SkippedPriority,
+                PostId: postId,
+                CommentId: commentId,
+                Priority: priority.ToString()));
             return;
         }
 
@@ -140,13 +154,76 @@ public sealed class AgentEventProcessor : BackgroundService
 
         var prompt = _promptComposer.Compose(context.Post.AuthorUsername, input);
 
-        var decision = await GetDecisionAsync(agentEvent.ActivityId, prompt, ct);
-        await _actionExecutor.ExecuteAsync(decision, postId, commentId, aiRecipient.UserId, ct);
+        var llmResult = await GetDecisionAsync(agentEvent.ActivityId, prompt, ct);
+
+        if (llmResult.Source == LlmDecisionSource.ProviderFailed)
+        {
+            _decisionLog.TryLog(new DecisionLogEntry(
+                Ts: DateTimeOffset.UtcNow,
+                AiUserId: aiRecipient.UserId,
+                ActivityId: agentEvent.ActivityId,
+                ActivityType: agentEvent.ActivityType.ToString(),
+                Outcome: DecisionOutcome.LlmFailed,
+                PostId: postId,
+                CommentId: commentId,
+                Priority: priority.ToString(),
+                ErrorDetail: llmResult.ErrorDetail,
+                LlmAttempts: llmResult.Attempts,
+                SessionLogRef: llmResult.SessionLogRef));
+            return;
+        }
+
+        if (llmResult.Source == LlmDecisionSource.InvalidJson)
+        {
+            _decisionLog.TryLog(new DecisionLogEntry(
+                Ts: DateTimeOffset.UtcNow,
+                AiUserId: aiRecipient.UserId,
+                ActivityId: agentEvent.ActivityId,
+                ActivityType: agentEvent.ActivityType.ToString(),
+                Outcome: DecisionOutcome.LlmFallback,
+                PostId: postId,
+                CommentId: commentId,
+                Priority: priority.ToString(),
+                LlmAttempts: llmResult.Attempts,
+                SessionLogRef: llmResult.SessionLogRef));
+            return;
+        }
+
+        var execResult = await _actionExecutor.ExecuteAsync(
+            llmResult.Decision, postId, commentId, aiRecipient.UserId, ct);
+
+        var outcome = execResult.Outcome switch
+        {
+            ActionExecutionOutcome.Executed => DecisionOutcome.Executed,
+            ActionExecutionOutcome.Ignored => DecisionOutcome.Ignored,
+            ActionExecutionOutcome.Failed => DecisionOutcome.ActionFailed,
+            _ => DecisionOutcome.Executed
+        };
+
+        _decisionLog.TryLog(new DecisionLogEntry(
+            Ts: DateTimeOffset.UtcNow,
+            AiUserId: aiRecipient.UserId,
+            ActivityId: agentEvent.ActivityId,
+            ActivityType: agentEvent.ActivityType.ToString(),
+            Outcome: outcome,
+            PostId: postId,
+            CommentId: commentId,
+            Priority: priority.ToString(),
+            Action: JsonNamingPolicy.SnakeCaseLower.ConvertName(llmResult.Decision.Action.ToString()),
+            Reasoning: llmResult.Decision.Reasoning,
+            Content: llmResult.Decision.Content,
+            LlmAttempts: llmResult.Attempts,
+            SessionLogRef: llmResult.SessionLogRef,
+            ErrorDetail: execResult.Outcome == ActionExecutionOutcome.Failed ? execResult.ErrorDetail : null));
     }
 
-    private async Task<AgentDecision> GetDecisionAsync(string activityId, ComposedPrompt prompt, CancellationToken ct)
+    private async Task<LlmDecisionResult> GetDecisionAsync(
+        string activityId, ComposedPrompt prompt, CancellationToken ct)
     {
         const int maxAttempts = 2;
+        string? lastSessionRef = null;
+        string? lastError = null;
+        LlmDecisionSource lastSource = LlmDecisionSource.InvalidJson;
 
         for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
@@ -158,10 +235,16 @@ public sealed class AgentEventProcessor : BackgroundService
 
             var result = await _chatProvider.CompleteAsync(request, ct);
 
-            _sessionLogger.Log(activityId, attempt, request, result);
+            var sessionRef = _sessionLogger.Log(activityId, attempt, request, result);
+            if (sessionRef is not null)
+            {
+                lastSessionRef = sessionRef;
+            }
 
             if (!result.IsSuccess)
             {
+                lastError = result.Error?.Message;
+                lastSource = LlmDecisionSource.ProviderFailed;
                 _logger.LogWarning(
                     "LLM call failed on attempt {Attempt}: {Error}",
                     attempt,
@@ -169,6 +252,7 @@ public sealed class AgentEventProcessor : BackgroundService
                 continue;
             }
 
+            lastSource = LlmDecisionSource.InvalidJson;
             var decision = _decisionParser.Parse(result.Text);
             if (decision is not null)
             {
@@ -176,7 +260,7 @@ public sealed class AgentEventProcessor : BackgroundService
                     "Agent decision: {Action}. Reasoning: {Reasoning}",
                     decision.Action,
                     decision.Reasoning);
-                return decision;
+                return new LlmDecisionResult(decision, attempt, LlmDecisionSource.Parsed, null, lastSessionRef);
             }
 
             _logger.LogWarning(
@@ -185,9 +269,16 @@ public sealed class AgentEventProcessor : BackgroundService
                 result.Text);
         }
 
-        return new AgentDecision(
+        var fallback = new AgentDecision(
             AgentAction.Ignore,
             null,
             "fallback: provider failed or returned invalid JSON twice");
+
+        return new LlmDecisionResult(
+            fallback,
+            maxAttempts,
+            lastSource,
+            lastSource == LlmDecisionSource.ProviderFailed ? lastError : null,
+            lastSessionRef);
     }
 }
