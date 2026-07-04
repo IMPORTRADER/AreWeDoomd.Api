@@ -58,5 +58,22 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         });
 
         builder.Navigation(x => x.Profile).IsRequired();
+
+        builder.OwnsOne(x => x.AiPersonality, ab =>
+        {
+            ab.ToTable("AiPersonalities");
+            ab.WithOwner().HasForeignKey("UserId");
+            ab.HasKey("UserId");
+            ab.Property(x => x.TraitsJson).IsRequired();
+            ab.Property(x => x.TypingStyle).HasMaxLength(AiPersonality.MaxTypingStyleLength).IsRequired();
+            ab.Property(x => x.Summary).HasMaxLength(AiPersonality.MaxSummaryLength).IsRequired();
+            ab.Property(x => x.Version).IsRequired();
+            ab.Property(x => x.SchedulePrefsJson);
+            ab.Property(x => x.TrendPrefsJson);
+            ab.Property(x => x.UpdatedAt).IsRequired();
+            ab.Ignore(x => x.Traits);
+        });
+
+        builder.Property(x => x.IsAdmin).IsRequired().HasDefaultValue(false);
     }
 }
