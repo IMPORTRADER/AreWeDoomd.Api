@@ -42,11 +42,14 @@ public sealed class DecisionLogWriterTests : IDisposable
         for (int i = 0; i < 50; i++)
         {
             writer.TryLog(new DecisionLogEntry(
-                DateTimeOffset.UtcNow, "ai-1", $"act-{i}", "CommentCreated", DecisionOutcome.Executed));
+                DateTimeOffset.UtcNow, "ai-1", $"act-{i}", "CommentCreated", DecisionOutcome.Executed))
+                .ShouldBeTrue();
         }
 
         await writer.StopAsync(CancellationToken.None);
 
+        writer.ExecuteTask.ShouldNotBeNull();
+        writer.ExecuteTask.IsCompletedSuccessfully.ShouldBeTrue();
         string file = Path.Combine(_dir, $"decisions-{DateTime.UtcNow:yyyy-MM-dd}.jsonl");
         File.ReadAllLines(file).Length.ShouldBe(50);
     }

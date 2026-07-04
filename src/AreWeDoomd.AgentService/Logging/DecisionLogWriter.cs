@@ -17,6 +17,12 @@ public sealed class DecisionLogWriter : BackgroundService, IDecisionLogWriter
     private readonly DecisionLogOptions _options;
     private readonly ILogger<DecisionLogWriter> _logger;
     private long _rejectedCount;
+    // Used by StartAsync to block until ExecuteAsync has been called and the worker tasks
+    // are actually queued on the thread pool.  Needed because .NET 10's BackgroundService.StartAsync
+    // does Task.Run(() => ExecuteAsync(...), _stoppingCts.Token): if StopAsync cancels the token
+    // before that Task.Run gets a thread, _executeTask is pre-cancelled and the drain never runs.
+    private readonly TaskCompletionSource _executeCalled =
+        new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public DecisionLogWriter(IOptions<DecisionLogOptions> options, ILogger<DecisionLogWriter> logger)
     {
@@ -53,15 +59,30 @@ public sealed class DecisionLogWriter : BackgroundService, IDecisionLogWriter
         }
     }
 
+    public override async Task StartAsync(CancellationToken cancellationToken)
+    {
+        await base.StartAsync(cancellationToken);
+        // Wait until ExecuteAsync has been called so the pump/retention tasks are on the thread
+        // pool before we return.  This guarantees StopAsync cannot cancel _stoppingCts before
+        // the Task.Run inside BackgroundService.StartAsync has had a chance to call ExecuteAsync.
+        await _executeCalled.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
         _channel.Writer.TryComplete();
         await base.StopAsync(cancellationToken);
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await Task.WhenAll(PumpAsync(stoppingToken), RetentionLoopAsync(stoppingToken));
+        // Task.Run detaches the loops from any ambient SynchronizationContext (e.g. test frameworks);
+        // continuations must run on the thread pool or StopAsync's drain can be bypassed.
+        var pumpTask = Task.Run(() => PumpAsync(stoppingToken), CancellationToken.None);
+        var retentionTask = Task.Run(() => RetentionLoopAsync(stoppingToken), CancellationToken.None);
+        // Signal StartAsync that the worker tasks are queued; it is now safe for StopAsync to run.
+        _executeCalled.TrySetResult();
+        return Task.WhenAll(pumpTask, retentionTask);
     }
 
     private async Task PumpAsync(CancellationToken ct)
