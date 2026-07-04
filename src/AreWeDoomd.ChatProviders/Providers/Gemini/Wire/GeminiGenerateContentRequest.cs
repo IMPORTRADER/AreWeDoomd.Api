@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace AreWeDoomd.AgentService.Ai.Providers.Gemini.Wire;
+namespace AreWeDoomd.ChatProviders.Providers.Gemini.Wire;
 
 /// <summary>
 /// Request body for <c>POST /v1beta/models/{model}:generateContent</c>. Null

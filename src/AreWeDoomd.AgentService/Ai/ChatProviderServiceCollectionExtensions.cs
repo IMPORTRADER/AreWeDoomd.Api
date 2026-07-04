@@ -1,5 +1,5 @@
 using AreWeDoomd.ChatProviders;
-using AreWeDoomd.AgentService.Ai.Providers.Gemini;
+using AreWeDoomd.ChatProviders.Providers.Gemini;
 using AreWeDoomd.AgentService.Ai.Providers.OpenRouter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

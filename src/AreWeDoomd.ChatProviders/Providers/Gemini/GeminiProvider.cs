@@ -1,12 +1,11 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using AreWeDoomd.ChatProviders;
-using AreWeDoomd.AgentService.Ai.Providers.Gemini.Wire;
+using AreWeDoomd.ChatProviders.Providers.Gemini.Wire;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace AreWeDoomd.AgentService.Ai.Providers.Gemini;
+namespace AreWeDoomd.ChatProviders.Providers.Gemini;
 
 /// <summary>
 /// Hand-rolled adapter for the Google Gemini <c>generateContent</c> API. Cloned

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace AreWeDoomd.AgentService.Ai.Providers.Gemini.Wire;
+namespace AreWeDoomd.ChatProviders.Providers.Gemini.Wire;
 
 /// <summary>
 /// A single content part. Internal to the Gemini adapter — provider wire shapes

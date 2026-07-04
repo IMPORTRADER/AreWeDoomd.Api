@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace AreWeDoomd.AgentService.Ai.Providers.Gemini.Wire;
+namespace AreWeDoomd.ChatProviders.Providers.Gemini.Wire;
 
 internal sealed record GeminiGenerationConfig
 {

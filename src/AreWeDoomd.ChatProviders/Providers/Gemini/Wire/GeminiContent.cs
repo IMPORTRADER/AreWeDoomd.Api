@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace AreWeDoomd.AgentService.Ai.Providers.Gemini.Wire;
+namespace AreWeDoomd.ChatProviders.Providers.Gemini.Wire;
 
 /// <summary>
 /// A content block used in three places: request <c>contents</c> turns (role
