@@ -2,6 +2,7 @@ using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Common.Options;
 using AreWeDoomd.Application.Notifications.Engine;
 using AreWeDoomd.ChatProviders;
+using AreWeDoomd.Infrastructure.Ai;
 using AreWeDoomd.Infrastructure.Notifications;
 using AreWeDoomd.Infrastructure.Common.Email;
 using AreWeDoomd.Infrastructure.Common.Options;
@@ -12,6 +13,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -85,6 +88,19 @@ public static class DependencyInjection
         services.Configure<PersonaGenerationOptions>(configuration.GetSection(PersonaGenerationOptions.SectionName));
 
         services.AddChatProviders(configuration, validateOnStart: false);
+
+        // IPersonaGenerator: factory lambda resolves the configured keyed IChatProvider
+        // and determines IsConfigured by checking the provider's ApiKey in configuration.
+        services.AddScoped<IPersonaGenerator>(sp =>
+        {
+            var opts = sp.GetRequiredService<IOptions<PersonaGenerationOptions>>().Value;
+            var provider = sp.GetRequiredKeyedService<IChatProvider>(opts.Provider);
+            var config = sp.GetRequiredService<IConfiguration>();
+            var apiKey = config[$"ChatProviders:{opts.Provider}:ApiKey"] ?? string.Empty;
+            var isConfigured = !string.IsNullOrWhiteSpace(apiKey);
+            var logger = sp.GetRequiredService<ILogger<ChatPersonaGenerator>>();
+            return new ChatPersonaGenerator(provider, opts, logger, isConfigured);
+        });
 
         services.AddScoped<INotificationRecipientLookup, NotificationRecipientLookup>();
 
