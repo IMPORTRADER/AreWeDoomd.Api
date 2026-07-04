@@ -32,16 +32,31 @@ public sealed class DecisionLogWriter : BackgroundService, IDecisionLogWriter
 
     public bool TryLog(DecisionLogEntry entry)
     {
-        if (_channel.Writer.TryWrite(entry))
+        try
         {
-            return true;
-        }
+            if (_channel.Writer.TryWrite(entry))
+            {
+                return true;
+            }
 
-        long total = Interlocked.Increment(ref _rejectedCount);
-        _logger.LogWarning(
-            "Decision log channel full; entry for activity {ActivityId} dropped ({Total} rejected so far).",
-            entry.ActivityId, total);
-        return false;
+            long total = Interlocked.Increment(ref _rejectedCount);
+            _logger.LogWarning(
+                "Decision log channel full; entry for activity {ActivityId} dropped ({Total} rejected so far).",
+                entry.ActivityId, total);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Decision log TryLog failed for activity {ActivityId}; entry dropped.", entry.ActivityId);
+            return false;
+        }
+    }
+
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        _channel.Writer.TryComplete();
+        await base.StopAsync(cancellationToken);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -51,23 +66,17 @@ public sealed class DecisionLogWriter : BackgroundService, IDecisionLogWriter
 
     private async Task PumpAsync(CancellationToken ct)
     {
-        try
+        await foreach (DecisionLogEntry entry in _channel.Reader.ReadAllAsync(CancellationToken.None))
         {
-            await foreach (DecisionLogEntry entry in _channel.Reader.ReadAllAsync(ct))
+            try
             {
-                try
-                {
-                    _appender.Append(entry);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex,
-                        "Failed to append decision log entry for activity {ActivityId}.", entry.ActivityId);
-                }
+                _appender.Append(entry);
             }
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "Failed to append decision log entry for activity {ActivityId}.", entry.ActivityId);
+            }
         }
     }
 

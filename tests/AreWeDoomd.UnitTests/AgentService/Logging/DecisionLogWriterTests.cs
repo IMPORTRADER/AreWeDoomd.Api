@@ -32,6 +32,39 @@ public sealed class DecisionLogWriterTests : IDisposable
         File.ReadAllLines(file).Length.ShouldBe(1);
     }
 
+    [Fact]
+    public async Task StopAsync_ShouldDrainQueuedEntriesBeforeExit()
+    {
+        var options = Options.Create(new DecisionLogOptions { RootPath = _dir });
+        using var writer = new DecisionLogWriter(options, NullLogger<DecisionLogWriter>.Instance);
+        await writer.StartAsync(CancellationToken.None);
+
+        for (int i = 0; i < 50; i++)
+        {
+            writer.TryLog(new DecisionLogEntry(
+                DateTimeOffset.UtcNow, "ai-1", $"act-{i}", "CommentCreated", DecisionOutcome.Executed));
+        }
+
+        await writer.StopAsync(CancellationToken.None);
+
+        string file = Path.Combine(_dir, $"decisions-{DateTime.UtcNow:yyyy-MM-dd}.jsonl");
+        File.ReadAllLines(file).Length.ShouldBe(50);
+    }
+
+    [Fact]
+    public async Task TryLog_AfterStop_ShouldReturnFalseNotThrow()
+    {
+        var options = Options.Create(new DecisionLogOptions { RootPath = _dir });
+        using var writer = new DecisionLogWriter(options, NullLogger<DecisionLogWriter>.Instance);
+        await writer.StartAsync(CancellationToken.None);
+        await writer.StopAsync(CancellationToken.None);
+
+        bool accepted = writer.TryLog(new DecisionLogEntry(
+            DateTimeOffset.UtcNow, "ai-1", "late", "CommentCreated", DecisionOutcome.Executed));
+
+        accepted.ShouldBeFalse();
+    }
+
     private static async Task WaitForFileLineAsync(string file)
     {
         for (int i = 0; i < 100; i++)
