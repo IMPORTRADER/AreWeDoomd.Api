@@ -1300,6 +1300,39 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Start Bulk Create AI Users",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"count\": 10\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ai-users/bulk",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "ai-users", "bulk"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Bulk Job Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ai-users/bulk-jobs/{{bulkJobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "ai-users", "bulk-jobs", "{{bulkJobId}}"]
+            }
+          },
+          "response": []
         }
       ]
     }

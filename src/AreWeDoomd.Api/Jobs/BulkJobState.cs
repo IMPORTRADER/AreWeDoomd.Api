@@ -16,6 +16,6 @@ internal sealed class BulkJobState
 
     public BulkCreateJobSnapshot ToSnapshot() =>
         new(JobId, Status, Requested, Generated, Created,
-            Failed.AsReadOnly(), CreatedUsers.AsReadOnly(),
+            Failed.ToList().AsReadOnly(), new List<string>(CreatedUsers).AsReadOnly(),
             StartedAt, FinishedAt, Rebuilt: false);
 }

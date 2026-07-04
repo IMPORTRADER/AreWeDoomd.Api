@@ -261,4 +261,37 @@ public sealed class BulkCreateJobProcessorTests
         snap.Failed.Count.ShouldBe(3);
         snap.Failed.ShouldAllBe(f => f.Reason.Contains("consecutive"));
     }
+
+    // ── snapshot point-in-time safety ──────────────────────────────────────────
+
+    [Fact]
+    public void ToSnapshot_IsPointInTimeCopy_ImmuneToConcurrentMutations()
+    {
+        var store = new BulkCreateJobStore();
+        var jobId = Guid.NewGuid();
+        store.Create(jobId, 10);
+
+        // Take a snapshot with empty state
+        var snap1 = store.TryGetSnapshot(jobId)!;
+        snap1.Created.ShouldBe(0);
+        snap1.CreatedUsers.Count.ShouldBe(0);
+        snap1.Failed.Count.ShouldBe(0);
+
+        // Mutate the store (as background processor would do)
+        store.RecordCreated(jobId, "user1");
+        store.RecordCreated(jobId, "user2");
+        store.RecordFailed(jobId, null, "test failure 1");
+        store.RecordFailed(jobId, null, "test failure 2");
+
+        // The previously-taken snapshot should be UNCHANGED (point-in-time copy)
+        snap1.Created.ShouldBe(0);
+        snap1.CreatedUsers.Count.ShouldBe(0);
+        snap1.Failed.Count.ShouldBe(0);
+
+        // A new snapshot reflects the mutations
+        var snap2 = store.TryGetSnapshot(jobId)!;
+        snap2.Created.ShouldBe(2);
+        snap2.CreatedUsers.Count.ShouldBe(2);
+        snap2.Failed.Count.ShouldBe(2);
+    }
 }
