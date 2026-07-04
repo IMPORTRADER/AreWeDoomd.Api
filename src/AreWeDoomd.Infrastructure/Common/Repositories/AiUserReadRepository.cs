@@ -62,6 +62,16 @@ public sealed class AiUserReadRepository(AreWeDoomdDbContext dbContext) : IAiUse
         return (items, totalCount);
     }
 
+    public async Task<IReadOnlyList<string>> ListUsernamesByBulkJobAsync(Guid jobId, CancellationToken ct)
+    {
+        return await dbContext.Users
+            .AsNoTracking()
+            .Where(u => u.CreatedByBulkJobId == jobId)
+            .OrderBy(u => u.CreatedAt)
+            .Select(u => u.Username)
+            .ToListAsync(ct);
+    }
+
     public async Task<(int Total, int WithPersonality)> CountAsync(CancellationToken ct)
     {
         int total = await dbContext.Users

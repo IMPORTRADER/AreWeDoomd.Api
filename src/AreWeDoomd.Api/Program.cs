@@ -1,6 +1,7 @@
 using AreWeDoomd.Api.Auth;
 using Microsoft.AspNetCore.Mvc;
 using AreWeDoomd.Api.Common.Errors;
+using AreWeDoomd.Api.Jobs;
 using AreWeDoomd.Api.Notifications;
 using AreWeDoomd.Api.Realtime;
 using AreWeDoomd.Api.Realtime.Options;
@@ -145,6 +146,14 @@ try
     builder.Services.AddSingleton<IActivityNotificationQueue, ChannelActivityNotificationQueue>();
     builder.Services.AddScoped<INotificationDeliveryService, NotificationDeliveryService>();
     builder.Services.AddHostedService<ActivityNotificationPublisherService>();
+
+    // Bulk AI creation job pipeline
+    builder.Services.AddSingleton<BulkCreateJobStore>();
+    builder.Services.AddSingleton<IBulkCreateJobStore>(sp => sp.GetRequiredService<BulkCreateJobStore>());
+    builder.Services.AddSingleton<BulkCreateJobQueue>();
+    builder.Services.AddSingleton<IBulkCreateJobQueue>(sp => sp.GetRequiredService<BulkCreateJobQueue>());
+    builder.Services.AddScoped<BulkCreateJobProcessor>();
+    builder.Services.AddHostedService<BulkCreateJobRunner>();
 
     var app = builder.Build();
 

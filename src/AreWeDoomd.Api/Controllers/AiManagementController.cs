@@ -3,10 +3,12 @@ using AreWeDoomd.Api.Common.Results;
 using AreWeDoomd.Api.Contracts.Admin;
 using AreWeDoomd.Application.Common.Models;
 using AreWeDoomd.Application.Features.AiManagement.Commands.CreateAiUser;
+using AreWeDoomd.Application.Features.AiManagement.Commands.StartBulkCreateAiUsers;
 using AreWeDoomd.Application.Features.AiManagement.Commands.UpdateAiPersonality;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAgentDecisions;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAiFleetStats;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAiUserDetail;
+using AreWeDoomd.Application.Features.AiManagement.Queries.GetBulkCreateJob;
 using AreWeDoomd.Application.Features.AiManagement.Queries.ListAiUsers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -110,6 +112,35 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
         return this.ToActionResult(result, MapAiFleetStats);
     }
 
+    [HttpPost("ai-users/bulk")]
+    [ProducesResponseType(typeof(StartBulkCreateResponse), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<StartBulkCreateResponse>> StartBulkCreate(
+        [FromBody] StartBulkCreateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(
+            new StartBulkCreateAiUsersCommand(request.Count),
+            cancellationToken);
+        return this.ToActionResult(result, jobId => new StartBulkCreateResponse(jobId),
+            StatusCodes.Status202Accepted);
+    }
+
+    [HttpGet("ai-users/bulk-jobs/{jobId:guid}")]
+    [ProducesResponseType(typeof(BulkCreateJobResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BulkCreateJobResponse>> GetBulkJob(
+        Guid jobId,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetBulkCreateJobQuery(jobId), cancellationToken);
+        return this.ToActionResult(result, MapBulkCreateJob);
+    }
+
     private static AiUserListResponse MapAiUserList(AiUserListResult r) =>
         new(r.Items.Select(MapAiUserItem).ToList(), r.TotalCount, r.HasMore);
 
@@ -131,4 +162,10 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
     private static AiFleetStatsResponse MapAiFleetStats(AiFleetStatsResult r) =>
         new(r.TotalAiUsers, r.WithPersonality, r.DecisionsToday, r.ExecutedToday,
             r.DroppedToday, r.FailedToday, r.ActionsLastHour, r.LogAvailable);
+
+    private static BulkCreateJobResponse MapBulkCreateJob(BulkCreateJobSnapshot s) =>
+        new(s.JobId, s.Status, s.Requested, s.Generated, s.Created,
+            s.Failed.Select(f => new BulkCreateFailedEntryResponse(f.Username, f.Reason)).ToList(),
+            s.CreatedUsers,
+            s.StartedAt, s.FinishedAt, s.Rebuilt);
 }
