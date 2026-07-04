@@ -5,6 +5,7 @@ using AreWeDoomd.AgentService.Context;
 using AreWeDoomd.AgentService.Decisions;
 using AreWeDoomd.AgentService.Processing;
 using AreWeDoomd.AgentService.Prompting;
+using AreWeDoomd.ChatProviders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

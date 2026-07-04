@@ -1,3 +1,5 @@
+using AreWeDoomd.ChatProviders;
+
 namespace AreWeDoomd.AgentService.Ai;
 
 public interface IAiSessionLogger

@@ -4,6 +4,7 @@ using AreWeDoomd.AgentService.Ai;
 using AreWeDoomd.AgentService.Context;
 using AreWeDoomd.AgentService.Decisions;
 using AreWeDoomd.AgentService.Prompting;
+using AreWeDoomd.ChatProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
