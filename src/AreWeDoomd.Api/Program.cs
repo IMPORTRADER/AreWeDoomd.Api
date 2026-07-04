@@ -53,6 +53,29 @@ try
     builder.Services.AddExceptionHandler<ApiExceptionHandler>();
     builder.Services.AddOpenApi();
 
+    // Map the conventional GEMINI_API_KEY environment variable onto the provider's
+    // config key. Added last so it takes precedence over appsettings.json (and the
+    // dev user-secret above). Only applied when the variable is actually set.
+    string? geminiApiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+    if (!string.IsNullOrWhiteSpace(geminiApiKey))
+    {
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ChatProviders:Gemini:ApiKey"] = geminiApiKey
+        });
+    }
+
+    // Map the conventional OPENROUTER_API_KEY environment variable onto the
+    // provider's config key, same pattern as GEMINI_API_KEY above.
+    string? openRouterApiKey = Environment.GetEnvironmentVariable("OPENROUTER_API_KEY");
+    if (!string.IsNullOrWhiteSpace(openRouterApiKey))
+    {
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ChatProviders:OpenRouter:ApiKey"] = openRouterApiKey
+        });
+    }
+
     // Map the conventional DECISION_LOG_ROOT environment variable onto the
     // decision log's config key, same pattern as the AgentService's env-key mappings.
     string? decisionLogRoot = Environment.GetEnvironmentVariable("DECISION_LOG_ROOT");
@@ -135,7 +158,10 @@ try
             "AgentNotifications:SharedSecret is not configured. The agent notification hub cannot start.");
     }
 
-    await AdminSeeder.SeedAsync(app);
+    if (app.Configuration.GetValue("Admin:SeedOnStartup", true))
+    {
+        await AdminSeeder.SeedAsync(app);
+    }
 
     const string defaultDevSecret = "dev-agent-shared-secret-change-me";
     if (!builder.Environment.IsDevelopment() &&

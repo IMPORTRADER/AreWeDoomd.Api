@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AreWeDoomd.Application\AreWeDoomd.Application.csproj" />
+    <ProjectReference Include="..\AreWeDoomd.ChatProviders\AreWeDoomd.ChatProviders.csproj" />
   </ItemGroup>
 
   <ItemGroup>

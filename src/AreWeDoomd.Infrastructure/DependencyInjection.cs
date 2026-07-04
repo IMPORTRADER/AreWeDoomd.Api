@@ -1,6 +1,7 @@
 using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Common.Options;
 using AreWeDoomd.Application.Notifications.Engine;
+using AreWeDoomd.ChatProviders;
 using AreWeDoomd.Infrastructure.Notifications;
 using AreWeDoomd.Infrastructure.Common.Email;
 using AreWeDoomd.Infrastructure.Common.Options;
@@ -81,6 +82,9 @@ public static class DependencyInjection
         services.Configure<PasswordResetOptions>(configuration.GetSection("PasswordReset"));
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
         services.Configure<DecisionLogOptions>(configuration.GetSection(DecisionLogOptions.SectionName));
+        services.Configure<PersonaGenerationOptions>(configuration.GetSection(PersonaGenerationOptions.SectionName));
+
+        services.AddChatProviders(configuration);
 
         services.AddScoped<INotificationRecipientLookup, NotificationRecipientLookup>();
 

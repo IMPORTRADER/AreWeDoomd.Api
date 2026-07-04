@@ -21,6 +21,10 @@ services:
       # needed. Leave unset (locally / single-instance) to run in-memory.
       ConnectionStrings__Redis: redis:6379
       # SMTP is optional for local dev; add Smtp__Host etc. here when needed.
+      # Passed raw; Api's Program.cs maps these onto ChatProviders:*:ApiKey,
+      # same pattern as the agent-service below.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       DECISION_LOG_ROOT: /app/agent-logs/agent-decisions
     healthcheck:
       # "Is the port accepting connections?" via bash's built-in /dev/tcp —

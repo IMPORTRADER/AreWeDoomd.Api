@@ -43,6 +43,10 @@ public sealed class StubbedApiFactory : WebApplicationFactory<Program>
             "Server=localhost;Database=test;Trusted_Connection=True;TrustServerCertificate=True;");
         // neutralize any host-machine Admin:Usernames so the startup seeder stays inert against the fake test DB
         builder.UseSetting("Admin:Usernames:0", "");
+        builder.UseSetting("Admin:SeedOnStartup", "false");
+        // satisfy ChatProviders ValidateOnStart — no real LLM calls happen in tests
+        builder.UseSetting("ChatProviders:Gemini:ApiKey", "test-placeholder");
+        builder.UseSetting("ChatProviders:OpenRouter:ApiKey", "test-placeholder");
 
         builder.ConfigureTestServices(services =>
         {
