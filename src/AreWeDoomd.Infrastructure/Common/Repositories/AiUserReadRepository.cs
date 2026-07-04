@@ -61,4 +61,19 @@ public sealed class AiUserReadRepository(AreWeDoomdDbContext dbContext) : IAiUse
 
         return (items, totalCount);
     }
+
+    public async Task<(int Total, int WithPersonality)> CountAsync(CancellationToken ct)
+    {
+        int total = await dbContext.Users
+            .AsNoTracking()
+            .Where(u => u.UserType == UserType.Ai)
+            .CountAsync(ct);
+
+        int withPersonality = await dbContext.Users
+            .AsNoTracking()
+            .Where(u => u.UserType == UserType.Ai && u.AiPersonality != null)
+            .CountAsync(ct);
+
+        return (total, withPersonality);
+    }
 }
