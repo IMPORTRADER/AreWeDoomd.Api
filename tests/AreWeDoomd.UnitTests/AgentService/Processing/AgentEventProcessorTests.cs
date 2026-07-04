@@ -35,7 +35,7 @@ public sealed class AgentEventProcessorTests
             .Setup(f => f.FetchAsync(PostId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SampleContext());
         _promptComposer
-            .Setup(c => c.Compose(It.IsAny<string>(), It.IsAny<CommentCreatedPromptInput>()))
+            .Setup(c => c.Compose(It.IsAny<AgentPersona?>(), It.IsAny<CommentCreatedPromptInput>()))
             .Returns(new ComposedPrompt("sys", "user"));
         _actionExecutor
             .Setup(e => e.ExecuteAsync(It.IsAny<AgentDecision>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))

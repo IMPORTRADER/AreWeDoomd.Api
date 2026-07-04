@@ -152,7 +152,8 @@ public sealed class AgentEventProcessor : BackgroundService
             IncomingComment: incomingComment,
             Priority: priority);
 
-        var prompt = _promptComposer.Compose(context.Post.AuthorUsername, input);
+        // TODO(M2 Task 7): resolve persona via IPersonaProvider
+        var prompt = _promptComposer.Compose(null, input);
 
         var llmResult = await GetDecisionAsync(agentEvent.ActivityId, prompt, ct);
 
