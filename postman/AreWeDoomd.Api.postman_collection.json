@@ -1153,6 +1153,42 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Agents",
+      "item": [
+        {
+          "name": "Get Agent Persona",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Agent-User-Id",
+                "value": "{{agentUserId}}",
+                "description": "Agent identity header — routes the request to the AgentSecret auth scheme"
+              },
+              {
+                "key": "X-Agent-Secret",
+                "value": "{{agentSharedSecret}}",
+                "description": "Shared secret that authenticates the agent caller"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agents/{{agentUserId}}/persona",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agents",
+                "{{agentUserId}}",
+                "persona"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": []
