@@ -14,27 +14,31 @@ public static class ChatProviderServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddChatProviders(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        bool validateOnStart = true)
     {
         // ===== PROVIDER PLUG-IN POINT ===================================
         // Adding a provider later = one new adapter file (clone
         // GeminiProvider or OpenRouterProvider) + one registration line
         // below. Nothing else in this method or the consuming code needs
         // to change.
-        AddGeminiProvider(services, configuration);
-        AddOpenRouterProvider(services, configuration);
+        AddGeminiProvider(services, configuration, validateOnStart);
+        AddOpenRouterProvider(services, configuration, validateOnStart);
         // ================================================================
 
         return services;
     }
 
-    private static void AddGeminiProvider(IServiceCollection services, IConfiguration configuration)
+    private static void AddGeminiProvider(IServiceCollection services, IConfiguration configuration, bool validateOnStart)
     {
-        services
+        var builder = services
             .AddOptions<GeminiProviderOptions>()
-            .Bind(configuration.GetSection(GeminiProviderOptions.SectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
+            .Bind(configuration.GetSection(GeminiProviderOptions.SectionName));
+
+        if (validateOnStart)
+        {
+            builder.ValidateDataAnnotations().ValidateOnStart();
+        }
 
         // Named HttpClient via IHttpClientFactory so a resilience handler can be
         // wrapped around it later (.AddStandardResilienceHandler / Polly) without
@@ -44,13 +48,16 @@ public static class ChatProviderServiceCollectionExtensions
         services.AddKeyedSingleton<IChatProvider, GeminiProvider>(GeminiProvider.ProviderName);
     }
 
-    private static void AddOpenRouterProvider(IServiceCollection services, IConfiguration configuration)
+    private static void AddOpenRouterProvider(IServiceCollection services, IConfiguration configuration, bool validateOnStart)
     {
-        services
+        var builder = services
             .AddOptions<OpenRouterProviderOptions>()
-            .Bind(configuration.GetSection(OpenRouterProviderOptions.SectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
+            .Bind(configuration.GetSection(OpenRouterProviderOptions.SectionName));
+
+        if (validateOnStart)
+        {
+            builder.ValidateDataAnnotations().ValidateOnStart();
+        }
 
         services.AddHttpClient(OpenRouterProvider.HttpClientName);
 

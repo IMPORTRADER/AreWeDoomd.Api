@@ -84,7 +84,7 @@ public static class DependencyInjection
         services.Configure<DecisionLogOptions>(configuration.GetSection(DecisionLogOptions.SectionName));
         services.Configure<PersonaGenerationOptions>(configuration.GetSection(PersonaGenerationOptions.SectionName));
 
-        services.AddChatProviders(configuration);
+        services.AddChatProviders(configuration, validateOnStart: false);
 
         services.AddScoped<INotificationRecipientLookup, NotificationRecipientLookup>();
 
