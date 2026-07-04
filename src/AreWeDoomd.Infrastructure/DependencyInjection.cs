@@ -75,9 +75,11 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordResetCodeGenerator, NumericPasswordResetCodeGenerator>();
         services.AddSingleton<IEmailSender, SmtpEmailSender>();
         services.AddSingleton<IPasswordResetSettings, PasswordResetSettings>();
+        services.AddSingleton<IDecisionLogReader, FileDecisionLogReader>();
 
         services.Configure<PasswordResetOptions>(configuration.GetSection("PasswordReset"));
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+        services.Configure<DecisionLogOptions>(configuration.GetSection(DecisionLogOptions.SectionName));
 
         services.AddScoped<INotificationRecipientLookup, NotificationRecipientLookup>();
 

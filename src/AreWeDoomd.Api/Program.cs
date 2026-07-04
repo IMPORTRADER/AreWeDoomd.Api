@@ -53,6 +53,17 @@ try
     builder.Services.AddExceptionHandler<ApiExceptionHandler>();
     builder.Services.AddOpenApi();
 
+    // Map the conventional DECISION_LOG_ROOT environment variable onto the
+    // decision log's config key, same pattern as the AgentService's env-key mappings.
+    string? decisionLogRoot = Environment.GetEnvironmentVariable("DECISION_LOG_ROOT");
+    if (!string.IsNullOrWhiteSpace(decisionLogRoot))
+    {
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["DecisionLog:RootPath"] = decisionLogRoot
+        });
+    }
+
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
