@@ -142,6 +142,7 @@ try
         Log.Information("SignalR running in-memory (no Redis backplane configured).");
     }
     builder.Services.AddSingleton<IAgentHubSender, AgentHubSender>();
+    builder.Services.AddSingleton<IScheduleRunHubSender, ScheduleRunHubSender>();
     builder.Services.AddSingleton<IUserHubSender, UserHubSender>();
     builder.Services.AddSingleton<IActivityNotificationQueue, ChannelActivityNotificationQueue>();
     builder.Services.AddScoped<INotificationDeliveryService, NotificationDeliveryService>();
