@@ -2,6 +2,7 @@
 using AreWeDoomd.Domain.Comments;
 using AreWeDoomd.Domain.Notifications;
 using AreWeDoomd.Domain.Posts;
+using AreWeDoomd.Domain.Scheduling;
 using AreWeDoomd.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,6 +20,10 @@ public class AreWeDoomdDbContext(DbContextOptions<AreWeDoomdDbContext> options) 
     public DbSet<PostLike> PostLikes => Set<PostLike>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<BulkCreationRecord> BulkCreationRecords => Set<BulkCreationRecord>();
+    public DbSet<ScheduleRun> ScheduleRuns => Set<ScheduleRun>();
+    public DbSet<ScheduleRunItem> ScheduleRunItems => Set<ScheduleRunItem>();
+    public DbSet<ScheduledPost> ScheduledPosts => Set<ScheduledPost>();
+    public DbSet<SchedulingSettings> SchedulingSettings => Set<SchedulingSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
