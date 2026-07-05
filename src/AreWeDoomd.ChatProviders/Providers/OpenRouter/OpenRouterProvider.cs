@@ -139,7 +139,10 @@ public sealed class OpenRouterProvider : IChatProvider
             Messages = messages,
             MaxTokens = maxTokens,
             Temperature = request.Temperature,
-            ResponseFormat = responseFormat
+            ResponseFormat = responseFormat,
+            Reasoning = request.ReasoningEnabled is { } enabled
+                ? new OpenRouterReasoning(enabled)
+                : null
         };
 
         string json = JsonSerializer.Serialize(payload, SerializerOptions);
@@ -196,9 +199,22 @@ public sealed class OpenRouterProvider : IChatProvider
         // Ok carrying empty text.
         if (string.IsNullOrWhiteSpace(text))
         {
-            string message = finish == FinishReason.ContentFilter
-                ? "OpenRouter stopped on a content filter and returned no text."
-                : "OpenRouter returned no usable text content.";
+            string message;
+            if (finish == FinishReason.ContentFilter)
+            {
+                message = "OpenRouter stopped on a content filter and returned no text.";
+            }
+            else if (finish == FinishReason.MaxTokens)
+            {
+                int output = parsed?.Usage?.CompletionTokens ?? 0;
+                message = $"Token budget exhausted before any usable text was produced " +
+                          $"(output tokens spent={output}, likely on reasoning). " +
+                          $"Increase the token budget or disable thinking in LLM settings.";
+            }
+            else
+            {
+                message = "OpenRouter returned no usable text content.";
+            }
             return ChatResult.Fail(new ChatError(message, statusCode, ProviderName));
         }
 
