@@ -67,7 +67,9 @@ public sealed class SweepStaleScheduleRunsCommandHandler(
                     var windowEnd = TurkeySchedulingWindow.DayEndUtc(run.RunDate);
                     var message = new ScheduleRunRequest(
                         run.Id, run.ThresholdSnapshot, run.MaxPostsSnapshot, run.PostLengthGuideSnapshot,
-                        (int)run.StrategySnapshot, now.AddMinutes(5), windowEnd, items);
+                        (int)run.StrategySnapshot, now.AddMinutes(5), windowEnd, items,
+                        Model: "openai/gpt-oss-120b:free", ScoringModel: "", ThinkingEnabled: false,
+                        ScoringTokensPerAccount: 512, CompositionTokensPerPost: 800);
                     await hubSender.SendAsync(message, cancellationToken);
                 }
 

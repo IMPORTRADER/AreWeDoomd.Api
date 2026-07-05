@@ -15,4 +15,9 @@ public sealed record ScheduleRunRequest(
     int Strategy,
     DateTimeOffset WindowStartUtc,
     DateTimeOffset WindowEndUtc,
-    List<ScheduleRunRequestItem> Items);
+    List<ScheduleRunRequestItem> Items,
+    string Model,
+    string ScoringModel,
+    bool ThinkingEnabled,
+    int ScoringTokensPerAccount,
+    int CompositionTokensPerPost);
