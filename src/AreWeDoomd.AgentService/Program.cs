@@ -75,6 +75,7 @@ builder.Services.AddSingleton<IScheduleDecisionCallbackClient>(
 builder.Services.AddSingleton<PromptFileSet>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPersonaProvider, ApiPersonaProvider>();
+builder.Services.AddSingleton<ILlmSettingsProvider, ApiLlmSettingsProvider>();
 builder.Services.AddSingleton<IPromptComposer, PromptComposer>();
 builder.Services.AddSingleton<DecisionParser>();
 builder.Services.AddSingleton<PriorityDecayPolicy>();
@@ -101,6 +102,7 @@ builder.Services.AddHostedService(serviceProvider =>
         serviceProvider.GetRequiredService<IActionExecutor>(),
         serviceProvider.GetRequiredService<IAiSessionLogger>(),
         serviceProvider.GetRequiredService<IDecisionLogWriter>(),
+        serviceProvider.GetRequiredService<ILlmSettingsProvider>(),
         agentOptions,
         serviceProvider.GetRequiredService<ILogger<AgentEventProcessor>>());
 });

@@ -25,6 +25,7 @@ public sealed class AgentEventProcessor : BackgroundService
     private readonly IActionExecutor _actionExecutor;
     private readonly IAiSessionLogger _sessionLogger;
     private readonly IDecisionLogWriter _decisionLog;
+    private readonly ILlmSettingsProvider _llmSettings;
     private readonly AgentServiceOptions _options;
     private readonly ILogger<AgentEventProcessor> _logger;
 
@@ -39,6 +40,7 @@ public sealed class AgentEventProcessor : BackgroundService
         IActionExecutor actionExecutor,
         IAiSessionLogger sessionLogger,
         IDecisionLogWriter decisionLog,
+        ILlmSettingsProvider llmSettings,
         IOptions<AgentServiceOptions> options,
         ILogger<AgentEventProcessor> logger)
     {
@@ -52,6 +54,7 @@ public sealed class AgentEventProcessor : BackgroundService
         _actionExecutor = actionExecutor;
         _sessionLogger = sessionLogger;
         _decisionLog = decisionLog;
+        _llmSettings = llmSettings;
         _options = options.Value;
         _logger = logger;
     }
@@ -177,7 +180,7 @@ public sealed class AgentEventProcessor : BackgroundService
 
         var prompt = _promptComposer.Compose(personaResolution.Persona, input);
 
-        var llmResult = await GetDecisionAsync(agentEvent.ActivityId, prompt, ct);
+        var llmResult = await GetDecisionAsync(agentEvent.ActivityId, parsedAiUserId, prompt, ct);
 
         if (llmResult.Source == LlmDecisionSource.ProviderFailed)
         {
@@ -247,20 +250,24 @@ public sealed class AgentEventProcessor : BackgroundService
     }
 
     private async Task<LlmDecisionResult> GetDecisionAsync(
-        string activityId, ComposedPrompt prompt, CancellationToken ct)
+        string activityId, Guid aiUserId, ComposedPrompt prompt, CancellationToken ct)
     {
         const int maxAttempts = 2;
         string? lastSessionRef = null;
         string? lastError = null;
         LlmDecisionSource lastSource = LlmDecisionSource.InvalidJson;
 
+        var llm = await _llmSettings.GetAsync(aiUserId, ct);
+
         for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
             var request = new ChatRequest(
-                Model: _options.Model,
+                Model: llm.Model,
                 Messages: [new ChatMessage(prompt.UserMessage)],
                 System: prompt.System,
-                JsonResponseSchema: AgentDecisionSchema.Json);
+                MaxTokens: llm.ReplyMaxTokens,
+                JsonResponseSchema: AgentDecisionSchema.Json,
+                ReasoningEnabled: llm.ThinkingEnabled);
 
             var result = await _chatProvider.CompleteAsync(request, ct);
 

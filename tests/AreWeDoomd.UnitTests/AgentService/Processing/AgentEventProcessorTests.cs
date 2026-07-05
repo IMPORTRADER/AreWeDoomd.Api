@@ -29,6 +29,7 @@ public sealed class AgentEventProcessorTests
     private readonly Mock<IActionExecutor> _actionExecutor = new();
     private readonly Mock<IAiSessionLogger> _sessionLogger = new();
     private readonly Mock<IDecisionLogWriter> _decisionLog = new();
+    private readonly Mock<ILlmSettingsProvider> _llmSettings = new();
 
     public AgentEventProcessorTests()
     {
@@ -44,6 +45,9 @@ public sealed class AgentEventProcessorTests
         _actionExecutor
             .Setup(e => e.ExecuteAsync(It.IsAny<AgentDecision>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ActionExecutionResult(ActionExecutionOutcome.Executed));
+        _llmSettings
+            .Setup(l => l.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LlmRuntimeSettings("test-model", "", false, 512, 800, 700, 1024));
     }
 
     [Fact]
@@ -357,6 +361,7 @@ public sealed class AgentEventProcessorTests
             _actionExecutor.Object,
             _sessionLogger.Object,
             _decisionLog.Object,
+            _llmSettings.Object,
             options,
             NullLogger<AgentEventProcessor>.Instance);
     }
