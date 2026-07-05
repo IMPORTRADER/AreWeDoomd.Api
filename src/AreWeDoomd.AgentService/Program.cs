@@ -67,6 +67,9 @@ builder.Services.AddSingleton<IAiSessionLogger, AiSessionLogger>();
 
 builder.Services.AddHttpClient(ContextFetcher.HttpClientName);
 builder.Services.AddSingleton<AgentEventQueue>();
+builder.Services.AddSingleton<ScheduleRunQueue>();
+builder.Services.AddSingleton<DailyPostPlanParser>();
+builder.Services.AddSingleton<ScheduleDecisionCallbackClient>();
 builder.Services.AddSingleton<PromptFileSet>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPersonaProvider, ApiPersonaProvider>();
@@ -81,6 +84,7 @@ builder.Services.AddSingleton<IDecisionLogWriter>(sp => sp.GetRequiredService<De
 builder.Services.AddHostedService(sp => sp.GetRequiredService<DecisionLogWriter>());
 
 builder.Services.AddHostedService<AgentNotificationListener>();
+builder.Services.AddHostedService<DailySchedulePlanner>();
 builder.Services.AddHostedService(serviceProvider =>
 {
     var agentOptions = serviceProvider.GetRequiredService<IOptions<AgentServiceOptions>>();
