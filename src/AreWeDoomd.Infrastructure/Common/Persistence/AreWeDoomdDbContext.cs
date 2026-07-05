@@ -1,4 +1,5 @@
 ﻿using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Domain.Ai;
 using AreWeDoomd.Domain.Comments;
 using AreWeDoomd.Domain.Notifications;
 using AreWeDoomd.Domain.Posts;
@@ -24,6 +25,7 @@ public class AreWeDoomdDbContext(DbContextOptions<AreWeDoomdDbContext> options) 
     public DbSet<ScheduleRunItem> ScheduleRunItems => Set<ScheduleRunItem>();
     public DbSet<ScheduledPost> ScheduledPosts => Set<ScheduledPost>();
     public DbSet<SchedulingSettings> SchedulingSettings => Set<SchedulingSettings>();
+    public DbSet<LlmSettings> LlmSettings => Set<LlmSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

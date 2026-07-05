@@ -78,6 +78,7 @@ public static class DependencyInjection
         services.AddScoped<IScheduleRunRepository, ScheduleRunRepository>();
         services.AddScoped<IScheduledPostRepository, ScheduledPostRepository>();
         services.AddScoped<ISchedulingSettingsRepository, SchedulingSettingsRepository>();
+        services.AddScoped<ILlmSettingsRepository, LlmSettingsRepository>();
         services.AddScoped<IScheduleTargetReadRepository, ScheduleTargetReadRepository>();
         services.AddScoped<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
