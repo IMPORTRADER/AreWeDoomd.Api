@@ -156,6 +156,9 @@ try
     builder.Services.AddScoped<BulkCreateJobProcessor>();
     builder.Services.AddHostedService<BulkCreateJobRunner>();
 
+    // No-op waker until a real publisher hosted service is introduced.
+    builder.Services.AddSingleton<ISchedulePublisherWaker, NoOpSchedulePublisherWaker>();
+
     var app = builder.Build();
 
     var agentSecret = app.Configuration
