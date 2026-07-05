@@ -16,4 +16,7 @@ internal sealed record GeminiGenerationConfig
 
     [JsonPropertyName("responseSchema")]
     public JsonElement? ResponseSchema { get; init; }
+
+    [JsonPropertyName("thinkingConfig")]
+    public GeminiThinkingConfig? ThinkingConfig { get; init; }
 }

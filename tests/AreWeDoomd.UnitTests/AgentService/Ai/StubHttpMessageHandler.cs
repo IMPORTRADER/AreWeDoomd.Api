@@ -22,6 +22,10 @@ public sealed class StubHttpMessageHandler : HttpMessageHandler
     public static StubHttpMessageHandler AlwaysRespondWith(Func<HttpResponseMessage> factory) =>
         new((_, _) => Task.FromResult(factory()));
 
+    /// <summary>Calls <paramref name="factory"/> with the incoming request on every call, allowing request inspection.</summary>
+    public static StubHttpMessageHandler AlwaysRespondWith(Func<HttpRequestMessage, HttpResponseMessage> factory) =>
+        new((req, _) => Task.FromResult(factory(req)));
+
     public static StubHttpMessageHandler Throw(Exception exception) =>
         new((_, _) => throw exception);
 

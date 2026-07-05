@@ -165,6 +165,77 @@ public sealed class GeminiProviderTests
         requestBody.ShouldNotContain("responseMimeType");
     }
 
+    [Fact]
+    public async Task CompleteAsync_WhenReasoningDisabled_ShouldSendZeroThinkingBudget()
+    {
+        string? capturedBody = null;
+        var provider = CreateProvider(
+            StubHttpMessageHandler.AlwaysRespondWith(request =>
+            {
+                capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""
+                    {"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}],
+                     "usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":2}}
+                    """)
+                };
+            }),
+            maxRetries: 0);
+
+        await provider.CompleteAsync(SampleRequest with { ReasoningEnabled = false }, CancellationToken.None);
+
+        capturedBody.ShouldNotBeNull();
+        capturedBody.ShouldContain("\"thinkingConfig\"");
+        capturedBody.ShouldContain("\"thinkingBudget\":0");
+    }
+
+    [Fact]
+    public async Task CompleteAsync_WhenReasoningNull_ShouldNotSendThinkingConfig()
+    {
+        string? capturedBody = null;
+        var provider = CreateProvider(
+            StubHttpMessageHandler.AlwaysRespondWith(request =>
+            {
+                capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""
+                    {"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}],
+                     "usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":2}}
+                    """)
+                };
+            }),
+            maxRetries: 0);
+
+        await provider.CompleteAsync(SampleRequest, CancellationToken.None);
+
+        capturedBody.ShouldNotBeNull();
+        capturedBody.ShouldNotContain("thinkingConfig");
+    }
+
+    [Fact]
+    public async Task CompleteAsync_WhenMaxTokensAndNoText_ShouldReportTokenBudgetExhausted()
+    {
+        const string body = """
+        {"candidates":[{"finishReason":"MAX_TOKENS"}],
+         "usageMetadata":{"promptTokenCount":100,"candidatesTokenCount":5,"thoughtsTokenCount":141}}
+        """;
+        var provider = CreateProvider(
+            StubHttpMessageHandler.AlwaysRespondWith(() => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(body)
+            }),
+            maxRetries: 0);
+
+        var result = await provider.CompleteAsync(SampleRequest, CancellationToken.None);
+
+        result.IsSuccess.ShouldBeFalse();
+        result.Error!.Message.ShouldStartWith("Token budget exhausted");
+        result.Error.Message.ShouldContain("thinking=141");
+        result.Error.Message.ShouldContain("output=5");
+    }
+
     private static GeminiProvider CreateProvider(
         HttpMessageHandler handler,
         int maxRetries = 3,
