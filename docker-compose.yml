@@ -49,7 +49,6 @@ services:
       # itself, same as GEMINI_API_KEY.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      ChatProviders__Anthropic__ApiKey: ${ANTHROPIC_API_KEY:-}
 
   redis:
     # Provisioned ahead of use; no app config points at it yet.
