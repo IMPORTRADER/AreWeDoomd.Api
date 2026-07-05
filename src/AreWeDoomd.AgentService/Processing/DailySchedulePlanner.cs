@@ -15,13 +15,16 @@ public sealed class DailySchedulePlanner(
     PromptFileSet prompts,
     DailyPostPlanParser parser,
     IPersonaProvider personaProvider,
-    ScheduleDecisionCallbackClient callbackClient,
+    IScheduleDecisionCallbackClient callbackClient,
     IServiceProvider serviceProvider,
     IOptions<AgentServiceOptions> options,
     TimeProvider timeProvider,
     ILogger<DailySchedulePlanner> logger)
     : BackgroundService
 {
+    // ScheduleRunItem.ErrorDetail column limit (ScheduleRunItemConfiguration.cs: HasMaxLength(1000)).
+    private const int ErrorDetailMaxLength = 1000;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -63,26 +66,29 @@ public sealed class DailySchedulePlanner(
 
         // ---- Aşama 1: batch puanlama (ucuz model) ----
         var scored = new List<ScoredAccount>();
-        var failedItems = new List<ScheduleRunRequestItem>();
+        var failedItems = new List<(ScheduleRunRequestItem Item, string Error)>();
 
         foreach (var chunk in run.Items.Chunk(Math.Max(1, options.Value.ScoringBatchSize)))
         {
-            var result = await ScoreBatchAsync(run, chunk, chatProvider, ct);
+            var (result, error) = await ScoreBatchAsync(run, chunk, chatProvider, ct);
             if (result is null)
             {
-                failedItems.AddRange(chunk);
+                failedItems.AddRange(chunk.Select(i => (i, error ?? "LLM scoring failed.")));
                 continue;
             }
 
             scored.AddRange(result);
             // Yanıtta eksik kalan item'lar (LLM satır atladı) → tek tek Failed.
-            failedItems.AddRange(chunk.Where(i => result.All(s => s.RunItemId != i.RunItemId)));
+            failedItems.AddRange(chunk
+                .Where(i => result.All(s => s.RunItemId != i.RunItemId))
+                .Select(i => (i, "LLM scoring omitted this account from its response.")));
         }
 
-        foreach (var item in failedItems)
+        foreach (var (item, error) in failedItems)
         {
             await callbackClient.SubmitAsync(item.AiUserId, new ScheduleDecisionCallbackClient.CallbackPayload(
-                item.RunItemId, 0, null, 0, ScoringModelName(), "LLM scoring failed or omitted this account.", []), ct);
+                item.RunItemId, 0, null, 0, ScoringModelName(run),
+                Truncate($"Scoring failed: {error}"), []), ct);
         }
 
         // ---- Aşama 2: yalnız eşiği geçenler, hesap başına kompozisyon ----
@@ -95,7 +101,7 @@ public sealed class DailySchedulePlanner(
         {
             var item = itemById[score.RunItemId];
             await callbackClient.SubmitAsync(item.AiUserId, new ScheduleDecisionCallbackClient.CallbackPayload(
-                score.RunItemId, score.DesireScore, score.Reasoning, 0, ScoringModelName(), null, []), ct);
+                score.RunItemId, score.DesireScore, score.Reasoning, 0, ScoringModelName(run), null, []), ct);
         }
 
         using var semaphore = new SemaphoreSlim(Math.Max(1, options.Value.MaxParallelCompositions));
@@ -114,7 +120,7 @@ public sealed class DailySchedulePlanner(
         await Task.WhenAll(tasks);
     }
 
-    private async Task<IReadOnlyList<ScoredAccount>?> ScoreBatchAsync(
+    private async Task<(IReadOnlyList<ScoredAccount>? Scores, string? Error)> ScoreBatchAsync(
         ScheduleRunRequest run, ScheduleRunRequestItem[] chunk, IChatProvider chatProvider, CancellationToken ct)
     {
         var now = timeProvider.GetUtcNow();
@@ -138,34 +144,47 @@ public sealed class DailySchedulePlanner(
 
         var expected = chunk.Select(i => i.RunItemId).ToHashSet();
 
+        string? lastError = null;
         for (int attempt = 1; attempt <= 2; attempt++)
         {
             var request = new ChatRequest(
-                Model: ScoringModelName(),
+                Model: string.IsNullOrWhiteSpace(run.ScoringModel) ? run.Model : run.ScoringModel,
                 Messages: [new ChatMessage(task)],
                 System: null,
-                MaxTokens: 150 * chunk.Length, // DefaultMaxTokens=1024 batch çıktısında KESİN yetmez
+                MaxTokens: run.ScoringTokensPerAccount * chunk.Length,
                 Temperature: 0.9,
-                JsonResponseSchema: DailyPostScoreSchema.Json);
+                JsonResponseSchema: DailyPostScoreSchema.Json,
+                ReasoningEnabled: run.ThinkingEnabled);
 
             var result = await chatProvider.CompleteAsync(request, ct);
             if (result.IsSuccess)
             {
                 if (result.Finish == FinishReason.MaxTokens)
                 {
+                    lastError = "Token budget exhausted: scoring output was truncated at max tokens.";
                     logger.LogWarning("Scoring batch truncated at MaxTokens (size {Size}); retrying.", chunk.Length);
-                    continue; // parse hatası değil — retry sinyali
+                    continue;
                 }
 
                 var parsed = parser.ParseScores(result.Text, expected);
                 if (parsed is not null)
                 {
-                    return parsed;
+                    return (parsed, null);
                 }
+
+                lastError = "Scoring response could not be parsed as valid JSON scores.";
+                logger.LogWarning("Scoring batch parse failed (size {Size}, attempt {Attempt}).", chunk.Length, attempt);
+            }
+            else
+            {
+                lastError = result.Error!.Message;
+                logger.LogWarning(
+                    "Scoring LLM call failed (attempt {Attempt}/2, provider {Provider}): {Message}",
+                    attempt, result.Error.Provider, result.Error.Message);
             }
         }
 
-        return null;
+        return (null, lastError ?? "LLM scoring failed.");
     }
 
     private async Task ComposeAndSubmitAsync(
@@ -195,29 +214,44 @@ public sealed class DailySchedulePlanner(
             .Replace("{{window_end_utc}}", run.WindowEndUtc.ToString("yyyy-MM-ddTHH:mm:ssZ"));
 
         ComposedPlan? plan = null;
+        string? lastError = null;
         for (int attempt = 1; attempt <= 2 && plan is null; attempt++)
         {
             var request = new ChatRequest(
-                Model: options.Value.Model,
+                Model: run.Model,
                 Messages: [new ChatMessage(task + "\n\n" + prompts.Guardrails)],
                 System: system,
-                MaxTokens: 600 * postCount,
+                MaxTokens: run.CompositionTokensPerPost * postCount,
                 Temperature: 0.9,
-                JsonResponseSchema: DailyPostComposeSchema.Json);
+                JsonResponseSchema: DailyPostComposeSchema.Json,
+                ReasoningEnabled: run.ThinkingEnabled);
 
             var result = await chatProvider.CompleteAsync(request, ct);
             if (result.IsSuccess && result.Finish != FinishReason.MaxTokens)
             {
                 plan = parser.ParseCompose(result.Text);
+                if (plan is null)
+                {
+                    lastError = "Compose response could not be parsed as a valid plan.";
+                }
+            }
+            else
+            {
+                lastError = result.IsSuccess
+                    ? "Token budget exhausted: compose output was truncated at max tokens."
+                    : result.Error!.Message;
+                logger.LogWarning(
+                    "Compose LLM call failed for {Username} (attempt {Attempt}/2): {Message}",
+                    item.Username, attempt, lastError);
             }
         }
 
         var payload = plan is null
             ? new ScheduleDecisionCallbackClient.CallbackPayload(
                 score.RunItemId, score.DesireScore, score.Reasoning, postCount,
-                ModelName(), "LLM composition failed after retries.", [])
+                ModelName(run), Truncate($"Composition failed: {lastError ?? "unknown error"}"), [])
             : new ScheduleDecisionCallbackClient.CallbackPayload(
-                score.RunItemId, score.DesireScore, score.Reasoning, postCount, ModelName(), null,
+                score.RunItemId, score.DesireScore, score.Reasoning, postCount, ModelName(run), null,
                 plan.Posts.Select(p => new ScheduleDecisionCallbackClient.CallbackPost(
                     p.Content, p.ScheduledTimeUtc)).ToList());
 
@@ -235,7 +269,7 @@ public sealed class DailySchedulePlanner(
             await semaphore.WaitAsync(ct);
             try
             {
-                var scores = await ScoreBatchAsync(run, [item], chatProvider, ct);
+                var (scores, _) = await ScoreBatchAsync(run, [item], chatProvider, ct);
                 var score = scores?.FirstOrDefault()
                     ?? new ScoredAccount(item.RunItemId, "scoring failed; defaulting", 0, 1);
                 await ComposeAndSubmitAsync(run, item, score, chatProvider, ct);
@@ -248,8 +282,12 @@ public sealed class DailySchedulePlanner(
         await Task.WhenAll(tasks);
     }
 
-    private string ScoringModelName() =>
-        string.IsNullOrWhiteSpace(options.Value.ScoringModel) ? options.Value.Model : options.Value.ScoringModel;
+    private static string ScoringModelName(ScheduleRunRequest run) =>
+        string.IsNullOrWhiteSpace(run.ScoringModel) ? run.Model : run.ScoringModel;
 
-    private string ModelName() => options.Value.Model;
+    private static string ModelName(ScheduleRunRequest run) => run.Model;
+
+    // ScheduleRunItem.ErrorDetail kolon sınırına sığması için.
+    private static string Truncate(string value) =>
+        value.Length <= ErrorDetailMaxLength ? value : value[..ErrorDetailMaxLength];
 }

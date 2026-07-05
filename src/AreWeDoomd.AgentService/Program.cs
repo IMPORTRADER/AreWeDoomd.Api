@@ -70,6 +70,8 @@ builder.Services.AddSingleton<AgentEventQueue>();
 builder.Services.AddSingleton<ScheduleRunQueue>();
 builder.Services.AddSingleton<DailyPostPlanParser>();
 builder.Services.AddSingleton<ScheduleDecisionCallbackClient>();
+builder.Services.AddSingleton<IScheduleDecisionCallbackClient>(
+    sp => sp.GetRequiredService<ScheduleDecisionCallbackClient>());
 builder.Services.AddSingleton<PromptFileSet>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPersonaProvider, ApiPersonaProvider>();

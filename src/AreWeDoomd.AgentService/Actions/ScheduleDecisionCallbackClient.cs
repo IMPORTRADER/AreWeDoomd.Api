@@ -9,7 +9,7 @@ namespace AreWeDoomd.AgentService.Actions;
 public sealed class ScheduleDecisionCallbackClient(
     IHttpClientFactory httpClientFactory,
     IOptions<AgentServiceOptions> options,
-    ILogger<ScheduleDecisionCallbackClient> logger)
+    ILogger<ScheduleDecisionCallbackClient> logger) : IScheduleDecisionCallbackClient
 {
     public const string HttpClientName = "arewedoomd-api";
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
