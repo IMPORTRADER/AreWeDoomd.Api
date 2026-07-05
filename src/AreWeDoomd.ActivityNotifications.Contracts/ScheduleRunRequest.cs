@@ -16,8 +16,8 @@ public sealed record ScheduleRunRequest(
     DateTimeOffset WindowStartUtc,
     DateTimeOffset WindowEndUtc,
     List<ScheduleRunRequestItem> Items,
-    string Model,
-    string ScoringModel,
-    bool ThinkingEnabled,
-    int ScoringTokensPerAccount,
-    int CompositionTokensPerPost);
+    string Model = "",
+    string ScoringModel = "",
+    bool ThinkingEnabled = false,
+    int ScoringTokensPerAccount = 512,
+    int CompositionTokensPerPost = 800);
