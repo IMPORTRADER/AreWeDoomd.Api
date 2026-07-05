@@ -106,7 +106,11 @@ public static class DependencyInjection
             var apiKey = config[$"ChatProviders:{opts.Provider}:ApiKey"] ?? string.Empty;
             var isConfigured = !string.IsNullOrWhiteSpace(apiKey);
             var logger = sp.GetRequiredService<ILogger<ChatPersonaGenerator>>();
-            return new ChatPersonaGenerator(provider, opts, logger, isConfigured);
+            return new ChatPersonaGenerator(
+                provider, opts,
+                sp.GetRequiredService<ILlmSettingsRepository>(),
+                sp.GetRequiredService<IDateTimeProvider>(),
+                logger, isConfigured);
         });
 
         services.AddScoped<INotificationRecipientLookup, NotificationRecipientLookup>();

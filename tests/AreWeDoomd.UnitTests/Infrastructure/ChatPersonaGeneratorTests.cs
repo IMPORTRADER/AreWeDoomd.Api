@@ -1,6 +1,7 @@
 using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.ChatProviders;
+using AreWeDoomd.Domain.Ai;
 using AreWeDoomd.Infrastructure.Ai;
 using AreWeDoomd.Infrastructure.Common.Options;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -20,14 +21,63 @@ public sealed class ChatPersonaGeneratorTests
         MaxCount = 50
     };
 
+    // ── instance fields used by the LlmSettings-aware tests ──────────────────
+
+    private readonly Mock<IChatProvider> _provider;
+    private readonly Mock<ILlmSettingsRepository> _llmSettingsRepo;
+    private readonly Mock<IDateTimeProvider> _clock;
+    private readonly ChatPersonaGenerator _generator;
+
+    public ChatPersonaGeneratorTests()
+    {
+        _provider = new Mock<IChatProvider>();
+        _llmSettingsRepo = new Mock<ILlmSettingsRepository>();
+        _clock = new Mock<IDateTimeProvider>();
+        _clock.Setup(c => c.UtcNow).Returns(new DateTimeOffset(2026, 7, 6, 12, 0, 0, TimeSpan.Zero));
+        _llmSettingsRepo
+            .Setup(r => r.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((LlmSettings?)null);
+
+        _generator = new ChatPersonaGenerator(
+            _provider.Object,
+            DefaultOptions,
+            _llmSettingsRepo.Object,
+            _clock.Object,
+            NullLogger<ChatPersonaGenerator>.Instance,
+            isConfigured: true);
+    }
+
+    // ── static helper for tests that supply their own provider mock ───────────
+
     private static ChatPersonaGenerator CreateGenerator(
         IChatProvider provider,
         PersonaGenerationOptions? options = null,
+        ILlmSettingsRepository? llmSettings = null,
+        IDateTimeProvider? dateTimeProvider = null,
         bool isConfigured = true)
     {
+        if (llmSettings is null)
+        {
+            var repoMock = new Mock<ILlmSettingsRepository>();
+            repoMock
+                .Setup(r => r.GetAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync((LlmSettings?)null);
+            llmSettings = repoMock.Object;
+        }
+
+        if (dateTimeProvider is null)
+        {
+            var clockMock = new Mock<IDateTimeProvider>();
+            clockMock.Setup(c => c.UtcNow)
+                .Returns(new DateTimeOffset(2026, 7, 6, 12, 0, 0, TimeSpan.Zero));
+            dateTimeProvider = clockMock.Object;
+        }
+
         return new ChatPersonaGenerator(
             provider,
             options ?? DefaultOptions,
+            llmSettings,
+            dateTimeProvider,
             NullLogger<ChatPersonaGenerator>.Instance,
             isConfigured);
     }
@@ -99,7 +149,8 @@ public sealed class ChatPersonaGeneratorTests
         capturedRequest.ShouldNotBeNull();
         capturedRequest!.JsonResponseSchema.ShouldBe(PersonaBatchSchema.Json);
         capturedRequest.Temperature.ShouldBe(1.0);
-        capturedRequest.Model.ShouldBe(DefaultOptions.Model);
+        // model falls back to LlmSettings.CreateDefault when repo returns null
+        capturedRequest.Model.ShouldBe(LlmSettings.DefaultModel);
     }
 
     // ── dirty payload ─────────────────────────────────────────────────────────
@@ -333,5 +384,50 @@ public sealed class ChatPersonaGeneratorTests
         var provider = new Mock<IChatProvider>();
         var generator = CreateGenerator(provider.Object, isConfigured: true);
         generator.IsConfigured.ShouldBeTrue();
+    }
+
+    // ── LlmSettings integration ───────────────────────────────────────────────
+
+    [Fact]
+    public async Task GenerateBatchAsync_ShouldUseLlmSettingsModelBudgetAndThinking()
+    {
+        var now = new DateTimeOffset(2026, 7, 6, 12, 0, 0, TimeSpan.Zero);
+        var settings = LlmSettings.CreateDefault(now);
+        settings.Update("anthropic/claude-haiku-4.5", "", thinkingEnabled: true,
+            scoringTokensPerAccount: 512, compositionTokensPerPost: 800,
+            personaTokensPerPersona: 600, replyMaxTokens: 1024, now: now);
+        _llmSettingsRepo.Setup(r => r.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
+
+        ChatRequest? captured = null;
+        _provider
+            .Setup(p => p.CompleteAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<ChatRequest, CancellationToken>((r, _) => captured = r)
+            .ReturnsAsync(ChatResult.Ok("""{"personas":[]}""", new TokenUsage(1, 1), FinishReason.Stop));
+
+        await _generator.GenerateBatchAsync(count: 5, CancellationToken.None);
+
+        captured.ShouldNotBeNull();
+        captured!.Model.ShouldBe("anthropic/claude-haiku-4.5");
+        captured.MaxTokens.ShouldBe(600 * 5);
+        captured.ReasoningEnabled.ShouldBe(true);
+    }
+
+    [Fact]
+    public async Task GenerateBatchAsync_WhenNoSettingsRow_ShouldFallBackToDefaults()
+    {
+        _llmSettingsRepo.Setup(r => r.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((LlmSettings?)null);
+
+        ChatRequest? captured = null;
+        _provider
+            .Setup(p => p.CompleteAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<ChatRequest, CancellationToken>((r, _) => captured = r)
+            .ReturnsAsync(ChatResult.Ok("""{"personas":[]}""", new TokenUsage(1, 1), FinishReason.Stop));
+
+        await _generator.GenerateBatchAsync(count: 10, CancellationToken.None);
+
+        captured!.Model.ShouldBe("openai/gpt-oss-120b:free");
+        captured.MaxTokens.ShouldBe(700 * 10);
+        captured.ReasoningEnabled.ShouldBe(false);
     }
 }
