@@ -12,6 +12,8 @@ public sealed class PromptFileSet
 
         Base = File.ReadAllText(Path.Combine(root, "00-base.md"));
         CommentCreatedTask = File.ReadAllText(Path.Combine(root, "20-tasks", "comment-created.md"));
+        DailyPostScoreTask = File.ReadAllText(Path.Combine(root, "20-tasks", "daily-post-score.md"));
+        DailyPostComposeTask = File.ReadAllText(Path.Combine(root, "20-tasks", "daily-post-compose.md"));
         Guardrails = File.ReadAllText(Path.Combine(root, "90-guardrails.md"));
 
         string instructionsRoot = Path.Combine(root, "30-priority-instructions");
@@ -27,6 +29,10 @@ public sealed class PromptFileSet
     public string Base { get; }
 
     public string CommentCreatedTask { get; }
+
+    public string DailyPostScoreTask { get; }
+
+    public string DailyPostComposeTask { get; }
 
     public string Guardrails { get; }
 
