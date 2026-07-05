@@ -50,5 +50,6 @@ public sealed class UpdateLlmSettingsCommandHandlerTests
 
         result.Value!.ReplyMaxTokens.ShouldBe(2048);
         _repo.Verify(r => r.AddAsync(It.IsAny<DomainLlmSettings>(), It.IsAny<CancellationToken>()), Times.Never);
+        _uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }
