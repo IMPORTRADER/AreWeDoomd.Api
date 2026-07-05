@@ -51,6 +51,7 @@ services:
       AgentNotifications__HubUrl: http://api:8080/hubs/agent-notifications
       AgentNotifications__ApiBaseUrl: http://api:8080
       AgentNotifications__SharedSecret: ${AGENT_SHARED_SECRET}
+      AgentNotifications__ChatProvider: openrouter
       # Passed raw (not ChatProviders__OpenRouter__ApiKey): the AgentService's
       # Program.cs maps OPENROUTER_API_KEY onto ChatProviders:OpenRouter:ApiKey
       # itself, same as GEMINI_API_KEY.
