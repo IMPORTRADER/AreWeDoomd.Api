@@ -1,7 +1,11 @@
 using System.Security.Claims;
+using AreWeDoomd.Api.Auth;
 using AreWeDoomd.Api.Common.Results;
+using AreWeDoomd.Api.Contracts.Admin;
 using AreWeDoomd.Api.Contracts.Agents;
 using AreWeDoomd.Application.Features.Agents.Queries.GetAgentPersona;
+using AreWeDoomd.Application.Features.LlmSettings.Queries.GetLlmSettings;
+using AreWeDoomd.Domain.Users;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -33,6 +37,19 @@ public sealed class AgentsController(IMediator mediator) : ControllerBase
 
         var result = await mediator.Send(new GetAgentPersonaQuery(userId), cancellationToken);
         return this.ToActionResult(result, MapPersona);
+    }
+
+    [HttpGet("llm-settings")]
+    [Authorize(AuthenticationSchemes = AgentSecretAuthenticationDefaults.SchemeName, Roles = nameof(UserType.Ai))]
+    [ProducesResponseType(typeof(LlmSettingsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<LlmSettingsResponse>> GetLlmSettings(CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetLlmSettingsQuery(), cancellationToken);
+        return this.ToActionResult(result, s => new LlmSettingsResponse(
+            s.Model, s.ScoringModel, s.ThinkingEnabled,
+            s.ScoringTokensPerAccount, s.CompositionTokensPerPost,
+            s.PersonaTokensPerPersona, s.ReplyMaxTokens, s.UpdatedAt));
     }
 
     private static AgentPersonaResponse MapPersona(AgentPersonaResult r) =>
