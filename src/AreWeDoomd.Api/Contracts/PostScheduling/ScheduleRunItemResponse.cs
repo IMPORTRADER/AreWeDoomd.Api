@@ -3,6 +3,8 @@ namespace AreWeDoomd.Api.Contracts.PostScheduling;
 public sealed record ScheduleRunItemResponse(
     Guid Id,
     Guid AiUserId,
+    string Username,
+    string? ProfileImageUrl,
     string Status,
     int? DesireScore,
     string? Reasoning,

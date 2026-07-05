@@ -81,7 +81,13 @@ public sealed class StartScheduleRunCommandHandler(
         }
 
         await runRepository.AddAsync(run, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        var saved = await unitOfWork.TrySaveChangesAsync(cancellationToken);
+        if (!saved)
+        {
+            return Result<StartScheduleRunResult>.Conflict(
+                "scheduling.already_scheduled",
+                "Another schedule run for one of these accounts was just created. Retry with overwrite if intended.");
+        }
 
         var message = BuildRequest(run, targets, windowStart, windowEnd);
         await hubSender.SendAsync(message, cancellationToken);

@@ -8,7 +8,8 @@ namespace AreWeDoomd.Application.Features.PostScheduling.Queries.ListScheduleRun
 
 public sealed class ListScheduleRunsQueryHandler(
     IScheduleRunRepository runRepository,
-    IScheduledPostRepository scheduledPostRepository)
+    IScheduledPostRepository scheduledPostRepository,
+    IScheduleTargetReadRepository targetReadRepository)
     : IRequestHandler<ListScheduleRunsQuery, Result<ScheduleRunListResult>>
 {
     public async Task<Result<ScheduleRunListResult>> Handle(
@@ -29,6 +30,12 @@ public sealed class ListScheduleRunsQueryHandler(
             .GroupBy(p => p.ScheduleRunItemId!.Value)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        var allUserIds = runs.SelectMany(r => r.Items.Select(i => i.AiUserId)).Distinct().ToList();
+        var summaries = allUserIds.Count > 0
+            ? await targetReadRepository.GetUserSummariesAsync(allUserIds, cancellationToken)
+            : [];
+        var summaryByUserId = summaries.ToDictionary(s => s.UserId);
+
         var runResults = runs
             .Select(run =>
             {
@@ -36,8 +43,9 @@ public sealed class ListScheduleRunsQueryHandler(
                     .Select(item =>
                     {
                         var itemPosts = postsByItemId.TryGetValue(item.Id, out var list) ? list : [];
-                        var postResults = itemPosts.Select(MapPost).ToList();
-                        return MapItem(item, postResults);
+                        summaryByUserId.TryGetValue(item.AiUserId, out var summary);
+                        var postResults = itemPosts.Select(p => MapPost(p, summary)).ToList();
+                        return MapItem(item, summary, postResults);
                     })
                     .ToList();
                 return MapRun(run, itemResults);
@@ -60,10 +68,12 @@ public sealed class ListScheduleRunsQueryHandler(
             items);
 
     private static ScheduleRunItemResult MapItem(
-        ScheduleRunItem item, IReadOnlyList<ScheduledPostResult> posts)
+        ScheduleRunItem item, AiUserSummary? summary, IReadOnlyList<ScheduledPostResult> posts)
         => new(
             item.Id,
             item.AiUserId,
+            summary?.Username ?? "unknown",
+            summary?.ProfileImageUrl,
             item.Status.ToString(),
             item.DesireScore,
             item.Reasoning,
@@ -73,11 +83,13 @@ public sealed class ListScheduleRunsQueryHandler(
             item.ErrorDetail,
             posts);
 
-    private static ScheduledPostResult MapPost(ScheduledPost post)
+    private static ScheduledPostResult MapPost(ScheduledPost post, AiUserSummary? summary)
         => new(
             post.Id,
             post.ScheduleRunItemId,
             post.AiUserId,
+            summary?.Username ?? "unknown",
+            summary?.ProfileImageUrl,
             post.Content,
             post.ScheduledAtUtc,
             post.Status.ToString(),

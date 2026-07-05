@@ -31,5 +31,20 @@ public class AreWeDoomdDbContext(DbContextOptions<AreWeDoomdDbContext> options) 
 
         base.OnModelCreating(modelBuilder);
     }
+
+    public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateException)
+        {
+            // Covers unique-index violations (SqlException 2601/2627) and
+            // optimistic-concurrency conflicts (DbUpdateConcurrencyException).
+            return false;
+        }
+    }
 }
 

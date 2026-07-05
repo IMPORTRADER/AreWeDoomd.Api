@@ -20,6 +20,9 @@ public sealed class ScheduleRunItemConfiguration : IEntityTypeConfiguration<Sche
         item.Property(x => x.LastPushedAtUtc).IsRequired();
         item.Property(x => x.CreatedAt).IsRequired();
 
+        // Optimistic concurrency: prevents concurrent LLM callbacks from double-writing a decision.
+        item.Property(x => x.RowVersion).IsRowVersion();
+
         // Aynı gün + aynı hesap için tek aktif item — çift tıklama/iki sekme yarışını
         // DB seviyesinde engeller. 4 = ScheduleRunItemStatus.Superseded (enum değeri sabit).
         item.HasIndex(x => new { x.AiUserId, x.RunDate })

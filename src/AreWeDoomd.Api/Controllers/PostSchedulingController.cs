@@ -106,13 +106,13 @@ public sealed class PostSchedulingController(IMediator mediator) : ControllerBas
     private static ScheduleRunResponse MapRun(ScheduleRunDetailResult r) =>
         new(r.Id, r.RunDate, r.ThresholdSnapshot, r.MaxPostsSnapshot, r.Status, r.CreatedAt, r.CompletedAt,
             r.Items.Select(i => new ScheduleRunItemResponse(
-                i.Id, i.AiUserId, i.Status, i.DesireScore, i.Reasoning, i.RequestedPostCount,
-                i.DroppedPostCount, i.ModelUsed, i.ErrorDetail,
+                i.Id, i.AiUserId, i.Username, i.ProfileImageUrl, i.Status, i.DesireScore, i.Reasoning,
+                i.RequestedPostCount, i.DroppedPostCount, i.ModelUsed, i.ErrorDetail,
                 i.Posts.Select(MapPost).ToList())).ToList());
 
     private static ScheduledPostResponse MapPost(ScheduledPostResult p) =>
-        new(p.Id, p.ScheduleRunItemId, p.AiUserId, p.Content, p.ScheduledAtUtc, p.Status,
-            p.WasTimeAdjusted, p.ErrorMessage, p.PublishedAtUtc, p.PublishedPostId);
+        new(p.Id, p.ScheduleRunItemId, p.AiUserId, p.AiUsername, p.AiProfileImageUrl, p.Content,
+            p.ScheduledAtUtc, p.Status, p.WasTimeAdjusted, p.ErrorMessage, p.PublishedAtUtc, p.PublishedPostId);
 
     private static SchedulingSettingsResponse MapSettings(SchedulingSettingsResult s) =>
         new(s.DesireThreshold, s.MaxPostsPerDay, s.PostLengthGuide, s.LatePolicy, s.LateGraceHours,

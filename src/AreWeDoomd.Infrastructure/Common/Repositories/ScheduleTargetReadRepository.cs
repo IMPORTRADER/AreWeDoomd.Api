@@ -29,4 +29,14 @@ public sealed class ScheduleTargetReadRepository(AreWeDoomdDbContext dbContext) 
                     .Max(p => (DateTimeOffset?)p.CreatedAt)))
             .ToListAsync(ct);
     }
+
+    public async Task<IReadOnlyList<AiUserSummary>> GetUserSummariesAsync(
+        IReadOnlyList<Guid> userIds, CancellationToken ct)
+    {
+        return await dbContext.Users
+            .AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new AiUserSummary(u.Id, u.Username, u.Profile.ProfileImageUrl))
+            .ToListAsync(ct);
+    }
 }

@@ -43,7 +43,11 @@ public sealed class SubmitScheduleDecisionCommandHandler(
         {
             item.MarkFailed(request.ErrorDetail, now);
             run.TryComplete(now);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            var errorSaved = await unitOfWork.TrySaveChangesAsync(cancellationToken);
+            if (!errorSaved)
+            {
+                return Result<Unit>.Conflict("scheduling.already_decided", "Decision already recorded for this item.");
+            }
             return Result<Unit>.Success(Unit.Value);
         }
 
@@ -89,7 +93,11 @@ public sealed class SubmitScheduleDecisionCommandHandler(
             request.ModelUsed, passed, surviving, now);
         run.TryComplete(now);
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        var decisionSaved = await unitOfWork.TrySaveChangesAsync(cancellationToken);
+        if (!decisionSaved)
+        {
+            return Result<Unit>.Conflict("scheduling.already_decided", "Decision already recorded for this item.");
+        }
 
         if (surviving > 0)
         {

@@ -35,6 +35,7 @@ public sealed class StartScheduleRunCommandHandlerTests
             .ReturnsAsync([new ScheduleTarget(Ai1, "ai-1", "özet", 2, Now.AddDays(-1))]);
         _runRepo.Setup(r => r.GetActiveItemsForDateAsync(It.IsAny<DateOnly>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
+        _uow.Setup(u => u.TrySaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _handler = new StartScheduleRunCommandHandler(
             _runRepo.Object, _postRepo.Object, _settingsRepo.Object, _targets.Object,
             _hub.Object, _clock.Object, _uow.Object);
@@ -48,7 +49,7 @@ public sealed class StartScheduleRunCommandHandlerTests
         result.IsSuccess.ShouldBeTrue();
         result.Value!.ItemCount.ShouldBe(1);
         _runRepo.Verify(r => r.AddAsync(It.Is<ScheduleRun>(x => x.Items.Count == 1), It.IsAny<CancellationToken>()), Times.Once);
-        _uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _uow.Verify(u => u.TrySaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         _hub.Verify(h => h.SendAsync(
             It.Is<ScheduleRunRequest>(m => m.Items.Count == 1 && m.Items[0].AiUserId == Ai1 && m.Threshold == 60),
             It.IsAny<CancellationToken>()), Times.Once);
@@ -107,5 +108,18 @@ public sealed class StartScheduleRunCommandHandlerTests
         var result = await _handler.Handle(new StartScheduleRunCommand(Admin, [Guid.NewGuid()], false), CancellationToken.None);
 
         result.ErrorType.ShouldBe(ErrorType.NotFound);
+    }
+
+    [Fact]
+    public async Task Handle_WhenTrySaveReturnsFalse_ShouldReturnConflictAndNotPushHub()
+    {
+        // Simulates a concurrent request winning the unique-index race.
+        _uow.Setup(u => u.TrySaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var result = await _handler.Handle(new StartScheduleRunCommand(Admin, null, false), CancellationToken.None);
+
+        result.IsSuccess.ShouldBeFalse();
+        result.ErrorType.ShouldBe(ErrorType.Conflict);
+        _hub.Verify(h => h.SendAsync(It.IsAny<ScheduleRunRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

@@ -4,6 +4,8 @@ public sealed record ScheduledPostResult(
     Guid Id,
     Guid? ScheduleRunItemId,
     Guid AiUserId,
+    string AiUsername,
+    string? AiProfileImageUrl,
     string Content,
     DateTimeOffset ScheduledAtUtc,
     string Status,

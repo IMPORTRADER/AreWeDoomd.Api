@@ -17,6 +17,7 @@ public sealed class ScheduleRunItem
     public DateTimeOffset LastPushedAtUtc { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
+    public byte[] RowVersion { get; private set; } = null!; // Optimistic concurrency token
 
     private ScheduleRunItem() { } // EF Core
 

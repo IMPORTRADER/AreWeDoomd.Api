@@ -33,6 +33,7 @@ public sealed class SubmitScheduleDecisionCommandHandlerTests
             maxPostsSnapshot: 3, postLengthGuideSnapshot: 500, LlmSchedulingStrategy.TwoStage, Now);
         _item = _run.AddItem(Ai1, Now);
         _runRepo.Setup(r => r.GetRunOfItemAsync(_item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_run);
+        _uow.Setup(u => u.TrySaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _handler = new SubmitScheduleDecisionCommandHandler(
             _runRepo.Object, _postRepo.Object, _clock.Object, _uow.Object, _waker.Object);
     }
@@ -141,5 +142,19 @@ public sealed class SubmitScheduleDecisionCommandHandlerTests
     {
         await _handler.Handle(Cmd(_item.Id, Ai1, 80, [new("tek", Now.AddHours(2))]), CancellationToken.None);
         _run.Status.ShouldBe(ScheduleRunStatus.Completed);
+    }
+
+    [Fact]
+    public async Task Handle_WhenTrySaveReturnsFalse_ShouldReturnConflictAndNotWakePublisher()
+    {
+        // Simulates a RowVersion concurrency conflict: a concurrent callback already committed.
+        _uow.Setup(u => u.TrySaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var result = await _handler.Handle(
+            Cmd(_item.Id, Ai1, 80, [new("içerik", Now.AddHours(2))]), CancellationToken.None);
+
+        result.IsSuccess.ShouldBeFalse();
+        result.ErrorType.ShouldBe(ErrorType.Conflict);
+        _waker.Verify(w => w.Wake(), Times.Never);
     }
 }

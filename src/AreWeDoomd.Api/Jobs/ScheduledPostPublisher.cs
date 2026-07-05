@@ -15,7 +15,9 @@ public sealed class ScheduledPostPublisher(
     ILogger<ScheduledPostPublisher> logger)
     : BackgroundService
 {
-    private static readonly TimeSpan MaxIdle = TimeSpan.FromMinutes(20);
+    // 120 min: Azure SQL serverless minimum auto-pause is 60 min, so polling at most every
+    // 2 hours ensures the DB is always awoken before the publisher needs it on an idle day.
+    private static readonly TimeSpan MaxIdle = TimeSpan.FromMinutes(120);
     private static readonly TimeSpan MinSleep = TimeSpan.FromSeconds(5);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
