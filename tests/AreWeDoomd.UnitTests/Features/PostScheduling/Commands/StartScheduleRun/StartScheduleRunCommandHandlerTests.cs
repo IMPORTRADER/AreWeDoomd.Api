@@ -161,5 +161,6 @@ public sealed class StartScheduleRunCommandHandlerTests
 
         result.ErrorType.ShouldBe(ErrorType.Conflict);
         result.Error!.Message.ShouldContain("başarısız olmuştu");
+        result.Error!.Message.ShouldContain("Üzerine yazarak yeniden deneyebilirsiniz");
     }
 }

@@ -3,6 +3,7 @@ using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Domain.Scheduling;
 using MediatR;
+using DomainLlmSettings = AreWeDoomd.Domain.Ai.LlmSettings;
 
 namespace AreWeDoomd.Application.Features.PostScheduling.Commands.SweepStaleScheduleRuns;
 
@@ -10,6 +11,7 @@ public sealed class SweepStaleScheduleRunsCommandHandler(
     IScheduleRunRepository runRepository,
     IScheduleTargetReadRepository targetRepository,
     IScheduleRunHubSender hubSender,
+    ILlmSettingsRepository llmSettingsRepository,
     IDateTimeProvider dateTimeProvider,
     IUnitOfWork unitOfWork)
     : IRequestHandler<SweepStaleScheduleRunsCommand, Result<Unit>>
@@ -21,6 +23,8 @@ public sealed class SweepStaleScheduleRunsCommandHandler(
     public async Task<Result<Unit>> Handle(SweepStaleScheduleRunsCommand request, CancellationToken cancellationToken)
     {
         var now = dateTimeProvider.UtcNow;
+        var llmSettings = await llmSettingsRepository.GetAsync(cancellationToken)
+            ?? DomainLlmSettings.CreateDefault(now);
         var runs = await runRepository.GetRunningRunsWithItemsAsync(cancellationToken);
         bool changed = false;
 
@@ -68,8 +72,10 @@ public sealed class SweepStaleScheduleRunsCommandHandler(
                     var message = new ScheduleRunRequest(
                         run.Id, run.ThresholdSnapshot, run.MaxPostsSnapshot, run.PostLengthGuideSnapshot,
                         (int)run.StrategySnapshot, now.AddMinutes(5), windowEnd, items,
-                        Model: "openai/gpt-oss-120b:free", ScoringModel: "", ThinkingEnabled: false,
-                        ScoringTokensPerAccount: 512, CompositionTokensPerPost: 800);
+                        Model: llmSettings.Model, ScoringModel: llmSettings.ScoringModel,
+                        ThinkingEnabled: llmSettings.ThinkingEnabled,
+                        ScoringTokensPerAccount: llmSettings.ScoringTokensPerAccount,
+                        CompositionTokensPerPost: llmSettings.CompositionTokensPerPost);
                     await hubSender.SendAsync(message, cancellationToken);
                 }
 
