@@ -25,5 +25,6 @@ public sealed class AgentHubTestFactory : WebApplicationFactory<Program>
         // neutralize any host-machine Admin:Usernames so the startup seeder stays inert against the fake test DB
         builder.UseSetting("Admin:Usernames:0", "");
         builder.UseSetting("Admin:SeedOnStartup", "false");
+        builder.UseSetting("Preflight:Database:Enabled", "false");
     }
 }

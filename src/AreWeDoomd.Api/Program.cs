@@ -1,4 +1,8 @@
 using AreWeDoomd.Api.Auth;
+using AreWeDoomd.Api.Startup;
+using AreWeDoomd.ChatProviders;
+using AreWeDoomd.Infrastructure.Common.Options;
+using AreWeDoomd.Infrastructure.Common.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using AreWeDoomd.Api.Common.Errors;
 using AreWeDoomd.Api.Jobs;
@@ -100,6 +104,9 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
+    builder.Services.AddHealthChecks()
+        .AddDbContextCheck<AreWeDoomdDbContext>();
+
     builder.Services.AddAuthorization(options =>
     {
         options.AddPolicy(AuthorizationPolicies.Admin,
@@ -171,6 +178,16 @@ try
 
     var app = builder.Build();
 
+    await DatabasePreflight.RunAsync(app);
+
+    var personaProvider = app.Configuration
+        .GetSection(PersonaGenerationOptions.SectionName)
+        .Get<PersonaGenerationOptions>()?.Provider ?? new PersonaGenerationOptions().Provider;
+    ChatProviderStartupSummary.LogSummary(
+        app.Configuration,
+        personaProvider,
+        app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ChatProviderStartup"));
+
     var agentSecret = app.Configuration
         .GetSection(AgentNotificationsOptions.SectionName)
         .Get<AgentNotificationsOptions>()?.SharedSecret;
@@ -232,6 +249,8 @@ try
     app.MapHub<UserNotificationHub>(UserNotificationHubConstants.HubPath);
 
     app.MapControllers();
+
+    app.MapHealthChecks("/health");
 
     if (app.Environment.IsDevelopment())
     {
