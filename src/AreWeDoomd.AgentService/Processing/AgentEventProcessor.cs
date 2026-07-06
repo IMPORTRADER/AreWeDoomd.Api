@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.AgentService.Actions;
@@ -25,6 +26,7 @@ public sealed class AgentEventProcessor : BackgroundService
     private readonly IActionExecutor _actionExecutor;
     private readonly IAiSessionLogger _sessionLogger;
     private readonly IDecisionLogWriter _decisionLog;
+    private readonly IAgentOpsLogWriter _opsLog;
     private readonly ILlmSettingsProvider _llmSettings;
     private readonly AgentServiceOptions _options;
     private readonly ILogger<AgentEventProcessor> _logger;
@@ -40,6 +42,7 @@ public sealed class AgentEventProcessor : BackgroundService
         IActionExecutor actionExecutor,
         IAiSessionLogger sessionLogger,
         IDecisionLogWriter decisionLog,
+        IAgentOpsLogWriter opsLog,
         ILlmSettingsProvider llmSettings,
         IOptions<AgentServiceOptions> options,
         ILogger<AgentEventProcessor> logger)
@@ -54,6 +57,7 @@ public sealed class AgentEventProcessor : BackgroundService
         _actionExecutor = actionExecutor;
         _sessionLogger = sessionLogger;
         _decisionLog = decisionLog;
+        _opsLog = opsLog;
         _llmSettings = llmSettings;
         _options = options.Value;
         _logger = logger;
@@ -138,6 +142,10 @@ public sealed class AgentEventProcessor : BackgroundService
                 "Context fetch failed for post {PostId}; dropping event {ActivityId}.",
                 postId,
                 agentEvent.ActivityId);
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Warning, AgentOpsLogSource.Pipeline,
+                $"Context fetch failed for post {postId}; event dropped.",
+                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId));
             return;
         }
 
@@ -147,6 +155,10 @@ public sealed class AgentEventProcessor : BackgroundService
             _logger.LogInformation(
                 "AI↔AI conversation decayed out at event {ActivityId}; not calling the LLM.",
                 agentEvent.ActivityId);
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.Pipeline,
+                "AI↔AI conversation decayed out; LLM not called.",
+                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId));
             // skipped_priority is written BEFORE persona resolution; PersonaVersion/PersonaSource are null here by design.
             _decisionLog.TryLog(new DecisionLogEntry(
                 Ts: DateTimeOffset.UtcNow,
@@ -230,6 +242,22 @@ public sealed class AgentEventProcessor : BackgroundService
             _ => DecisionOutcome.Executed
         };
 
+        if (execResult.Outcome == ActionExecutionOutcome.Failed)
+        {
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Error, AgentOpsLogSource.Actions,
+                $"Action {llmResult.Decision.Action} failed against the API.",
+                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId,
+                Detail: execResult.ErrorDetail));
+        }
+        else
+        {
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.Actions,
+                $"Action {llmResult.Decision.Action} {outcome.ToString().ToLowerInvariant()}.",
+                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId));
+        }
+
         _decisionLog.TryLog(new DecisionLogEntry(
             Ts: DateTimeOffset.UtcNow,
             AiUserId: aiRecipient.UserId,
@@ -269,7 +297,14 @@ public sealed class AgentEventProcessor : BackgroundService
                 JsonResponseSchema: AgentDecisionSchema.Json,
                 ReasoningEnabled: llm.ThinkingEnabled);
 
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.LlmProvider,
+                $"Requesting {_chatProvider.Name} ({llm.Model}), attempt {attempt}/{maxAttempts}.",
+                AiUserId: aiUserId.ToString(), ActivityId: activityId));
+
+            var sw = Stopwatch.StartNew();
             var result = await _chatProvider.CompleteAsync(request, ct);
+            sw.Stop();
 
             var sessionRef = _sessionLogger.Log(activityId, attempt, request, result);
             if (sessionRef is not null)
@@ -285,6 +320,11 @@ public sealed class AgentEventProcessor : BackgroundService
                     "LLM call failed on attempt {Attempt}: {Error}",
                     attempt,
                     result.Error?.Message);
+                _opsLog.TryLog(new AgentOpsLogEntry(
+                    DateTimeOffset.UtcNow, AgentOpsLogLevel.Error, AgentOpsLogSource.LlmProvider,
+                    $"{_chatProvider.Name} call failed on attempt {attempt} after {sw.ElapsedMilliseconds} ms.",
+                    AiUserId: aiUserId.ToString(), ActivityId: activityId,
+                    Detail: result.Error?.Message));
                 continue;
             }
 
@@ -296,6 +336,10 @@ public sealed class AgentEventProcessor : BackgroundService
                     "Agent decision: {Action}. Reasoning: {Reasoning}",
                     decision.Action,
                     decision.Reasoning);
+                _opsLog.TryLog(new AgentOpsLogEntry(
+                    DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.LlmProvider,
+                    $"{_chatProvider.Name} responded in {sw.ElapsedMilliseconds} ms; decision: {decision.Action}.",
+                    AiUserId: aiUserId.ToString(), ActivityId: activityId));
                 return new LlmDecisionResult(decision, attempt, LlmDecisionSource.Parsed, null, lastSessionRef);
             }
 
@@ -303,6 +347,11 @@ public sealed class AgentEventProcessor : BackgroundService
                 "LLM returned an invalid decision on attempt {Attempt}: {RawOutput}",
                 attempt,
                 result.Text);
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Warning, AgentOpsLogSource.LlmProvider,
+                $"{_chatProvider.Name} returned malformed decision JSON on attempt {attempt}.",
+                AiUserId: aiUserId.ToString(), ActivityId: activityId,
+                Detail: result.Text is { Length: > 500 } ? result.Text[..500] : result.Text));
         }
 
         var fallback = new AgentDecision(

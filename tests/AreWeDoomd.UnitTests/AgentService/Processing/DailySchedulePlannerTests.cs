@@ -5,6 +5,7 @@ using AreWeDoomd.AgentService.Decisions;
 using AreWeDoomd.AgentService.Processing;
 using AreWeDoomd.AgentService.Prompting;
 using AreWeDoomd.ChatProviders;
+using AreWeDoomd.UnitTests.AgentService;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -43,7 +44,8 @@ public sealed class DailySchedulePlannerTests
         _planner = new DailySchedulePlanner(
             new ScheduleRunQueue(), new PromptFileSet(), new DailyPostPlanParser(),
             _personas.Object, _callback.Object, services.BuildServiceProvider(),
-            options, new FakeTimeProvider(Now), NullLogger<DailySchedulePlanner>.Instance);
+            options, new FakeTimeProvider(Now), new FakeAgentOpsLogWriter(),
+            NullLogger<DailySchedulePlanner>.Instance);
     }
 
     private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider

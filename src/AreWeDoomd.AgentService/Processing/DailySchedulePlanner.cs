@@ -1,6 +1,7 @@
 using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.AgentService.Actions;
 using AreWeDoomd.AgentService.Decisions;
+using AreWeDoomd.AgentService.Logging;
 using AreWeDoomd.AgentService.Prompting;
 using AreWeDoomd.ChatProviders;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,7 @@ public sealed class DailySchedulePlanner(
     IServiceProvider serviceProvider,
     IOptions<AgentServiceOptions> options,
     TimeProvider timeProvider,
+    IAgentOpsLogWriter opsLog,
     ILogger<DailySchedulePlanner> logger)
     : BackgroundService
 {
@@ -57,10 +59,16 @@ public sealed class DailySchedulePlanner(
     public async Task ProcessRunAsync(ScheduleRunRequest run, CancellationToken ct)
     {
         var chatProvider = serviceProvider.GetRequiredKeyedService<IChatProvider>(options.Value.ChatProvider);
+        opsLog.TryLog(new AgentOpsLogEntry(
+            timeProvider.GetUtcNow(), AgentOpsLogLevel.Info, AgentOpsLogSource.Scheduling,
+            $"Schedule run {run.RunId}: planning posts for {run.Items.Count} account(s) with {chatProvider.Name}."));
 
         if (run.Strategy == 1) // SingleCall
         {
             await ProcessSingleCallAsync(run, chatProvider, ct);
+            opsLog.TryLog(new AgentOpsLogEntry(
+                timeProvider.GetUtcNow(), AgentOpsLogLevel.Info, AgentOpsLogSource.Scheduling,
+                $"Schedule run {run.RunId} completed (single-call strategy)."));
             return;
         }
 
@@ -118,6 +126,9 @@ public sealed class DailySchedulePlanner(
             }
         });
         await Task.WhenAll(tasks);
+        opsLog.TryLog(new AgentOpsLogEntry(
+            timeProvider.GetUtcNow(), AgentOpsLogLevel.Info, AgentOpsLogSource.Scheduling,
+            $"Schedule run {run.RunId} completed: {passed.Count} account(s) passed threshold, {below.Count} below, {failedItems.Count} failed."));
     }
 
     private async Task<(IReadOnlyList<ScoredAccount>? Scores, string? Error)> ScoreBatchAsync(

@@ -16,6 +16,7 @@ public sealed class AgentNotificationListener : BackgroundService
     private readonly AgentEventQueue _queue;
     private readonly ScheduleRunQueue _scheduleQueue;
     private readonly IDecisionLogWriter _decisionLog;
+    private readonly IAgentOpsLogWriter _opsLog;
     private readonly ILogger<AgentNotificationListener> _logger;
     private HubConnection? _connection;
 
@@ -24,12 +25,14 @@ public sealed class AgentNotificationListener : BackgroundService
         AgentEventQueue queue,
         ScheduleRunQueue scheduleQueue,
         IDecisionLogWriter decisionLog,
+        IAgentOpsLogWriter opsLog,
         ILogger<AgentNotificationListener> logger)
     {
         _options = options.Value;
         _queue = queue;
         _scheduleQueue = scheduleQueue;
         _decisionLog = decisionLog;
+        _opsLog = opsLog;
         _logger = logger;
     }
 
@@ -94,12 +97,20 @@ public sealed class AgentNotificationListener : BackgroundService
                 agentEvent.ActivityId,
                 agentEvent.ActivityType,
                 agentEvent.Actor.DisplayName);
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.Pipeline,
+                $"Event received: {agentEvent.ActivityType} from {agentEvent.Actor.DisplayName}; queued for processing.",
+                ActivityId: agentEvent.ActivityId));
         }
         else
         {
             _logger.LogWarning(
                 "Agent event queue rejected event {ActivityId}; it was dropped.",
                 agentEvent.ActivityId);
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Warning, AgentOpsLogSource.Pipeline,
+                $"Event queue full; event {notification.ActivityId} dropped.",
+                ActivityId: notification.ActivityId));
 
             var aiRecipient = notification.Recipients
                 .FirstOrDefault(r => r.RecipientType == NotificationRecipientType.Ai);

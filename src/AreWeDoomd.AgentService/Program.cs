@@ -117,6 +117,7 @@ builder.Services.AddHostedService(serviceProvider =>
         serviceProvider.GetRequiredService<IActionExecutor>(),
         serviceProvider.GetRequiredService<IAiSessionLogger>(),
         serviceProvider.GetRequiredService<IDecisionLogWriter>(),
+        serviceProvider.GetRequiredService<IAgentOpsLogWriter>(),
         serviceProvider.GetRequiredService<ILlmSettingsProvider>(),
         agentOptions,
         serviceProvider.GetRequiredService<ILogger<AgentEventProcessor>>());
