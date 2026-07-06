@@ -140,8 +140,8 @@ public sealed class AgentNotificationListener : BackgroundService
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogWarning(
-                    ex,
-                    "Failed to connect to agent notification hub, retrying in 5 seconds");
+                    "Failed to connect to agent notification hub ({Message}), retrying in 5 seconds",
+                    ex.Message);
                 await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
             }
         }
