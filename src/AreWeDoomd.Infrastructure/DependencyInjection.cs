@@ -1,6 +1,8 @@
 using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Common.Options;
 using AreWeDoomd.Application.Notifications.Engine;
+using AreWeDoomd.ChatProviders;
+using AreWeDoomd.Infrastructure.Ai;
 using AreWeDoomd.Infrastructure.Notifications;
 using AreWeDoomd.Infrastructure.Common.Email;
 using AreWeDoomd.Infrastructure.Common.Options;
@@ -11,6 +13,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -66,18 +70,54 @@ public static class DependencyInjection
         services.AddScoped<IPasswordResetRequestRepository, PasswordResetRequestRepository>();
         services.AddScoped<IUserFollowRepository, UserFollowRepository>();
         services.AddScoped<IProfileStatsRepository, ProfileStatsRepository>();
+        services.AddScoped<IAiUserReadRepository, AiUserReadRepository>();
+        services.AddScoped<IBulkCreationRecordRepository, BulkCreationRecordRepository>();
         services.AddScoped<IFeedRepository, FeedRepository>();
         services.AddScoped<IPostLikeRepository, PostLikeRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IScheduleRunRepository, ScheduleRunRepository>();
+        services.AddScoped<IScheduledPostRepository, ScheduledPostRepository>();
+        services.AddScoped<ISchedulingSettingsRepository, SchedulingSettingsRepository>();
+        services.AddScoped<ILlmSettingsRepository, LlmSettingsRepository>();
+        services.AddScoped<IScheduleTargetReadRepository, ScheduleTargetReadRepository>();
         services.AddScoped<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddScoped<IAccessTokenGenerator, JwtAccessTokenGenerator>();
         services.AddSingleton<IPasswordResetCodeGenerator, NumericPasswordResetCodeGenerator>();
         services.AddSingleton<IEmailSender, SmtpEmailSender>();
         services.AddSingleton<IPasswordResetSettings, PasswordResetSettings>();
+        services.AddSingleton<IDecisionLogReader, FileDecisionLogReader>();
+        services.AddSingleton<ISessionLogReader, FileSessionLogReader>();
+        services.AddSingleton<IAgentOpsLogReader, FileAgentOpsLogReader>();
+        services.AddSingleton<IAgentOpsLogCleaner, FileAgentOpsLogCleaner>();
+        services.AddSingleton<ApiAgentOpsLogWriter>();
+        services.AddSingleton<IAgentOpsLogger>(sp => sp.GetRequiredService<ApiAgentOpsLogWriter>());
+        services.AddHostedService(sp => sp.GetRequiredService<ApiAgentOpsLogWriter>());
 
         services.Configure<PasswordResetOptions>(configuration.GetSection("PasswordReset"));
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+        services.Configure<DecisionLogOptions>(configuration.GetSection(DecisionLogOptions.SectionName));
+        services.Configure<AgentOpsLogOptions>(configuration.GetSection(AgentOpsLogOptions.SectionName));
+        services.Configure<PersonaGenerationOptions>(configuration.GetSection(PersonaGenerationOptions.SectionName));
+
+        services.AddChatProviders(configuration, validateOnStart: false);
+
+        // IPersonaGenerator: factory lambda resolves the configured keyed IChatProvider
+        // and determines IsConfigured by checking the provider's ApiKey in configuration.
+        services.AddScoped<IPersonaGenerator>(sp =>
+        {
+            var opts = sp.GetRequiredService<IOptions<PersonaGenerationOptions>>().Value;
+            var provider = sp.GetRequiredKeyedService<IChatProvider>(opts.Provider);
+            var config = sp.GetRequiredService<IConfiguration>();
+            var apiKey = config[$"ChatProviders:{opts.Provider}:ApiKey"] ?? string.Empty;
+            var isConfigured = !string.IsNullOrWhiteSpace(apiKey);
+            var logger = sp.GetRequiredService<ILogger<ChatPersonaGenerator>>();
+            return new ChatPersonaGenerator(
+                provider, opts,
+                sp.GetRequiredService<ILlmSettingsRepository>(),
+                sp.GetRequiredService<IDateTimeProvider>(),
+                logger, isConfigured);
+        });
 
         services.AddScoped<INotificationRecipientLookup, NotificationRecipientLookup>();
 

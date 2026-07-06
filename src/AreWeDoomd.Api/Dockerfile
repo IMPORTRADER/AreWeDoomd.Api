@@ -9,6 +9,7 @@ COPY src/AreWeDoomd.Application/AreWeDoomd.Application.csproj src/AreWeDoomd.App
 COPY src/AreWeDoomd.Domain/AreWeDoomd.Domain.csproj src/AreWeDoomd.Domain/
 COPY src/AreWeDoomd.Infrastructure/AreWeDoomd.Infrastructure.csproj src/AreWeDoomd.Infrastructure/
 COPY src/AreWeDoomd.ActivityNotifications.Contracts/AreWeDoomd.ActivityNotifications.Contracts.csproj src/AreWeDoomd.ActivityNotifications.Contracts/
+COPY src/AreWeDoomd.ChatProviders/AreWeDoomd.ChatProviders.csproj src/AreWeDoomd.ChatProviders/
 RUN dotnet restore src/AreWeDoomd.Api/AreWeDoomd.Api.csproj
 
 COPY src/ src/

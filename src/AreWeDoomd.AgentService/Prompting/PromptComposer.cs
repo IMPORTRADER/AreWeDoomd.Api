@@ -3,17 +3,19 @@ namespace AreWeDoomd.AgentService.Prompting;
 public sealed class PromptComposer : IPromptComposer
 {
     private readonly PromptFileSet _files;
-    private readonly AgentProfileStore _profiles;
 
-    public PromptComposer(PromptFileSet files, AgentProfileStore profiles)
+    public PromptComposer(PromptFileSet files)
     {
         _files = files;
-        _profiles = profiles;
     }
 
-    public ComposedPrompt Compose(string personaUsername, CommentCreatedPromptInput input)
+    public ComposedPrompt Compose(AgentPersona? persona, CommentCreatedPromptInput input)
     {
-        string system = _files.Base + "\n\n" + _profiles.GetPersonality(personaUsername);
+        string personality = persona is null
+            ? PersonaPromptRenderer.DefaultPersonality
+            : PersonaPromptRenderer.Render(persona);
+
+        string system = _files.Base + "\n\n" + personality;
 
         string task = _files.CommentCreatedTask
             .Replace("{{actor_name}}", input.ActorName)

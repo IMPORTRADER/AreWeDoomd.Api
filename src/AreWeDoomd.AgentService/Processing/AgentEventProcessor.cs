@@ -1,9 +1,13 @@
+using System.Diagnostics;
+using System.Text.Json;
 using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.AgentService.Actions;
 using AreWeDoomd.AgentService.Ai;
 using AreWeDoomd.AgentService.Context;
 using AreWeDoomd.AgentService.Decisions;
+using AreWeDoomd.AgentService.Logging;
 using AreWeDoomd.AgentService.Prompting;
+using AreWeDoomd.ChatProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,11 +19,15 @@ public sealed class AgentEventProcessor : BackgroundService
     private readonly AgentEventQueue _queue;
     private readonly IContextFetcher _contextFetcher;
     private readonly PriorityDecayPolicy _decayPolicy;
+    private readonly IPersonaProvider _personaProvider;
     private readonly IPromptComposer _promptComposer;
     private readonly IChatProvider _chatProvider;
     private readonly DecisionParser _decisionParser;
     private readonly IActionExecutor _actionExecutor;
     private readonly IAiSessionLogger _sessionLogger;
+    private readonly IDecisionLogWriter _decisionLog;
+    private readonly IAgentOpsLogWriter _opsLog;
+    private readonly ILlmSettingsProvider _llmSettings;
     private readonly AgentServiceOptions _options;
     private readonly ILogger<AgentEventProcessor> _logger;
 
@@ -27,22 +35,30 @@ public sealed class AgentEventProcessor : BackgroundService
         AgentEventQueue queue,
         IContextFetcher contextFetcher,
         PriorityDecayPolicy decayPolicy,
+        IPersonaProvider personaProvider,
         IPromptComposer promptComposer,
         IChatProvider chatProvider,
         DecisionParser decisionParser,
         IActionExecutor actionExecutor,
         IAiSessionLogger sessionLogger,
+        IDecisionLogWriter decisionLog,
+        IAgentOpsLogWriter opsLog,
+        ILlmSettingsProvider llmSettings,
         IOptions<AgentServiceOptions> options,
         ILogger<AgentEventProcessor> logger)
     {
         _queue = queue;
         _contextFetcher = contextFetcher;
         _decayPolicy = decayPolicy;
+        _personaProvider = personaProvider;
         _promptComposer = promptComposer;
         _chatProvider = chatProvider;
         _decisionParser = decisionParser;
         _actionExecutor = actionExecutor;
         _sessionLogger = sessionLogger;
+        _decisionLog = decisionLog;
+        _opsLog = opsLog;
+        _llmSettings = llmSettings;
         _options = options.Value;
         _logger = logger;
     }
@@ -88,15 +104,28 @@ public sealed class AgentEventProcessor : BackgroundService
             return;
         }
 
-        if (agentEvent.ActivityType != ActivityType.CommentCreated)
+        // Dispatch on activity type; only CommentCreated has an agent pipeline today.
+        // New scheduled-post event types will slot in as additional cases without
+        // surgery to the existing pipeline.
+        switch (agentEvent.ActivityType)
         {
-            _logger.LogDebug(
-                "No agent pipeline for activity type {ActivityType}; skipping {ActivityId}.",
-                agentEvent.ActivityType,
-                agentEvent.ActivityId);
-            return;
+            case ActivityType.CommentCreated:
+                await ProcessCommentCreatedAsync(agentEvent, aiRecipient, ct);
+                break;
+            default:
+                _logger.LogDebug(
+                    "No agent pipeline for activity type {ActivityType}; skipping {ActivityId}.",
+                    agentEvent.ActivityType,
+                    agentEvent.ActivityId);
+                break;
         }
+    }
 
+    private async Task ProcessCommentCreatedAsync(
+        AgentEvent agentEvent,
+        AgentEvent.RecipientInfo aiRecipient,
+        CancellationToken ct)
+    {
         if (!Guid.TryParse(agentEvent.Target.Id, out var postId) ||
             !Guid.TryParse(agentEvent.Content.Id, out var commentId))
         {
@@ -113,6 +142,10 @@ public sealed class AgentEventProcessor : BackgroundService
                 "Context fetch failed for post {PostId}; dropping event {ActivityId}.",
                 postId,
                 agentEvent.ActivityId);
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Warning, AgentOpsLogSource.Pipeline,
+                $"Context fetch failed for post {postId}; event dropped.",
+                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId));
             return;
         }
 
@@ -122,8 +155,28 @@ public sealed class AgentEventProcessor : BackgroundService
             _logger.LogInformation(
                 "AI↔AI conversation decayed out at event {ActivityId}; not calling the LLM.",
                 agentEvent.ActivityId);
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.Pipeline,
+                "AI↔AI conversation decayed out; LLM not called.",
+                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId));
+            // skipped_priority is written BEFORE persona resolution; PersonaVersion/PersonaSource are null here by design.
+            _decisionLog.TryLog(new DecisionLogEntry(
+                Ts: DateTimeOffset.UtcNow,
+                AiUserId: aiRecipient.UserId,
+                ActivityId: agentEvent.ActivityId,
+                ActivityType: agentEvent.ActivityType.ToString(),
+                Outcome: DecisionOutcome.SkippedPriority,
+                PostId: postId,
+                CommentId: commentId,
+                Priority: priority.ToString()));
             return;
         }
+
+        // Resolve persona for the acting AI user. Parse the UserId defensively; if
+        // it is not a valid Guid, fall back to no-persona rather than throwing.
+        var personaResolution = Guid.TryParse(aiRecipient.UserId, out var parsedAiUserId)
+            ? await _personaProvider.GetAsync(parsedAiUserId, ct)
+            : new PersonaResolution(null, PersonaSource.Default);
 
         string incomingComment = context.Comments
             .FirstOrDefault(c => c.Id == commentId)?.Content
@@ -137,37 +190,145 @@ public sealed class AgentEventProcessor : BackgroundService
             IncomingComment: incomingComment,
             Priority: priority);
 
-        var prompt = _promptComposer.Compose(context.Post.AuthorUsername, input);
+        var prompt = _promptComposer.Compose(personaResolution.Persona, input);
 
-        var decision = await GetDecisionAsync(agentEvent.ActivityId, prompt, ct);
-        await _actionExecutor.ExecuteAsync(decision, postId, commentId, aiRecipient.UserId, ct);
+        var llmResult = await GetDecisionAsync(agentEvent.ActivityId, parsedAiUserId, prompt, ct);
+
+        if (llmResult.Source == LlmDecisionSource.ProviderFailed)
+        {
+            _decisionLog.TryLog(new DecisionLogEntry(
+                Ts: DateTimeOffset.UtcNow,
+                AiUserId: aiRecipient.UserId,
+                ActivityId: agentEvent.ActivityId,
+                ActivityType: agentEvent.ActivityType.ToString(),
+                Outcome: DecisionOutcome.LlmFailed,
+                PostId: postId,
+                CommentId: commentId,
+                Priority: priority.ToString(),
+                ErrorDetail: llmResult.ErrorDetail,
+                LlmAttempts: llmResult.Attempts,
+                PersonaVersion: personaResolution.Persona?.Version,
+                PersonaSource: personaResolution.Source,
+                SessionLogRef: llmResult.SessionLogRef));
+            return;
+        }
+
+        if (llmResult.Source == LlmDecisionSource.InvalidJson)
+        {
+            _decisionLog.TryLog(new DecisionLogEntry(
+                Ts: DateTimeOffset.UtcNow,
+                AiUserId: aiRecipient.UserId,
+                ActivityId: agentEvent.ActivityId,
+                ActivityType: agentEvent.ActivityType.ToString(),
+                Outcome: DecisionOutcome.LlmFallback,
+                PostId: postId,
+                CommentId: commentId,
+                Priority: priority.ToString(),
+                LlmAttempts: llmResult.Attempts,
+                PersonaVersion: personaResolution.Persona?.Version,
+                PersonaSource: personaResolution.Source,
+                SessionLogRef: llmResult.SessionLogRef));
+            return;
+        }
+
+        var execResult = await _actionExecutor.ExecuteAsync(
+            llmResult.Decision, postId, commentId, aiRecipient.UserId, ct);
+
+        var outcome = execResult.Outcome switch
+        {
+            ActionExecutionOutcome.Executed => DecisionOutcome.Executed,
+            ActionExecutionOutcome.Ignored => DecisionOutcome.Ignored,
+            ActionExecutionOutcome.Failed => DecisionOutcome.ActionFailed,
+            _ => DecisionOutcome.Executed
+        };
+
+        if (execResult.Outcome == ActionExecutionOutcome.Failed)
+        {
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Error, AgentOpsLogSource.Actions,
+                $"Action {llmResult.Decision.Action} failed against the API.",
+                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId,
+                Detail: execResult.ErrorDetail));
+        }
+        else
+        {
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.Actions,
+                $"Action {llmResult.Decision.Action} {outcome.ToString().ToLowerInvariant()}.",
+                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId));
+        }
+
+        _decisionLog.TryLog(new DecisionLogEntry(
+            Ts: DateTimeOffset.UtcNow,
+            AiUserId: aiRecipient.UserId,
+            ActivityId: agentEvent.ActivityId,
+            ActivityType: agentEvent.ActivityType.ToString(),
+            Outcome: outcome,
+            PostId: postId,
+            CommentId: commentId,
+            Priority: priority.ToString(),
+            Action: JsonNamingPolicy.SnakeCaseLower.ConvertName(llmResult.Decision.Action.ToString()),
+            Reasoning: llmResult.Decision.Reasoning,
+            Content: llmResult.Decision.Content,
+            LlmAttempts: llmResult.Attempts,
+            PersonaVersion: personaResolution.Persona?.Version,
+            PersonaSource: personaResolution.Source,
+            SessionLogRef: llmResult.SessionLogRef,
+            ErrorDetail: execResult.Outcome == ActionExecutionOutcome.Failed ? execResult.ErrorDetail : null));
     }
 
-    private async Task<AgentDecision> GetDecisionAsync(string activityId, ComposedPrompt prompt, CancellationToken ct)
+    private async Task<LlmDecisionResult> GetDecisionAsync(
+        string activityId, Guid aiUserId, ComposedPrompt prompt, CancellationToken ct)
     {
         const int maxAttempts = 2;
+        string? lastSessionRef = null;
+        string? lastError = null;
+        LlmDecisionSource lastSource = LlmDecisionSource.InvalidJson;
+
+        var llm = await _llmSettings.GetAsync(aiUserId, ct);
 
         for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
             var request = new ChatRequest(
-                Model: _options.Model,
+                Model: llm.Model,
                 Messages: [new ChatMessage(prompt.UserMessage)],
                 System: prompt.System,
-                JsonResponseSchema: AgentDecisionSchema.Json);
+                MaxTokens: llm.ReplyMaxTokens,
+                JsonResponseSchema: AgentDecisionSchema.Json,
+                ReasoningEnabled: llm.ThinkingEnabled);
 
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.LlmProvider,
+                $"Requesting {_chatProvider.Name} ({llm.Model}), attempt {attempt}/{maxAttempts}.",
+                AiUserId: aiUserId.ToString(), ActivityId: activityId));
+
+            var sw = Stopwatch.StartNew();
             var result = await _chatProvider.CompleteAsync(request, ct);
+            sw.Stop();
 
-            _sessionLogger.Log(activityId, attempt, request, result);
+            var sessionRef = _sessionLogger.Log(activityId, attempt, request, result);
+            if (sessionRef is not null)
+            {
+                lastSessionRef = sessionRef;
+            }
 
             if (!result.IsSuccess)
             {
+                lastError = result.Error?.Message;
+                lastSource = LlmDecisionSource.ProviderFailed;
                 _logger.LogWarning(
                     "LLM call failed on attempt {Attempt}: {Error}",
                     attempt,
                     result.Error?.Message);
+                _opsLog.TryLog(new AgentOpsLogEntry(
+                    DateTimeOffset.UtcNow, AgentOpsLogLevel.Error, AgentOpsLogSource.LlmProvider,
+                    $"{_chatProvider.Name} call failed on attempt {attempt} after {sw.ElapsedMilliseconds} ms.",
+                    AiUserId: aiUserId.ToString(), ActivityId: activityId,
+                    Detail: result.Error?.Message));
                 continue;
             }
 
+            lastSource = LlmDecisionSource.InvalidJson;
             var decision = _decisionParser.Parse(result.Text);
             if (decision is not null)
             {
@@ -175,18 +336,34 @@ public sealed class AgentEventProcessor : BackgroundService
                     "Agent decision: {Action}. Reasoning: {Reasoning}",
                     decision.Action,
                     decision.Reasoning);
-                return decision;
+                _opsLog.TryLog(new AgentOpsLogEntry(
+                    DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.LlmProvider,
+                    $"{_chatProvider.Name} responded in {sw.ElapsedMilliseconds} ms; decision: {decision.Action}.",
+                    AiUserId: aiUserId.ToString(), ActivityId: activityId));
+                return new LlmDecisionResult(decision, attempt, LlmDecisionSource.Parsed, null, lastSessionRef);
             }
 
             _logger.LogWarning(
                 "LLM returned an invalid decision on attempt {Attempt}: {RawOutput}",
                 attempt,
                 result.Text);
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Warning, AgentOpsLogSource.LlmProvider,
+                $"{_chatProvider.Name} returned malformed decision JSON on attempt {attempt}.",
+                AiUserId: aiUserId.ToString(), ActivityId: activityId,
+                Detail: result.Text is { Length: > 500 } ? result.Text[..500] : result.Text));
         }
 
-        return new AgentDecision(
+        var fallback = new AgentDecision(
             AgentAction.Ignore,
             null,
             "fallback: provider failed or returned invalid JSON twice");
+
+        return new LlmDecisionResult(
+            fallback,
+            maxAttempts,
+            lastSource,
+            lastSource == LlmDecisionSource.ProviderFailed ? lastError : null,
+            lastSessionRef);
     }
 }

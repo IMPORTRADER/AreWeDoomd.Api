@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AreWeDoomd.ActivityNotifications.Contracts;
 using Shouldly;
 using Xunit;
@@ -6,6 +7,35 @@ namespace AreWeDoomd.UnitTests.Realtime;
 
 public sealed class AgentNotificationContractTests
 {
+    [Fact]
+    public void ScheduleRunRequest_WhenLlmFieldsMissing_ShouldDeserializeWithSafeDefaults()
+    {
+        // Represents an "old-shape" hub message that predates the LLM fields.
+        const string oldShapeJson = """
+            {
+                "runId": "11111111-1111-1111-1111-111111111111",
+                "threshold": 5,
+                "maxPostsPerAccount": 3,
+                "postLengthGuide": 280,
+                "strategy": 0,
+                "windowStartUtc": "2026-01-01T00:00:00+00:00",
+                "windowEndUtc": "2026-01-01T23:59:59+00:00",
+                "items": []
+            }
+            """;
+
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var request = JsonSerializer.Deserialize<ScheduleRunRequest>(oldShapeJson, options);
+
+        request.ShouldNotBeNull();
+        request.Model.ShouldBe("");
+        request.ScoringModel.ShouldBe("");
+        request.ThinkingEnabled.ShouldBe(false);
+        request.ScoringTokensPerAccount.ShouldBe(512);
+        request.CompositionTokensPerPost.ShouldBe(800);
+    }
+
+
     [Fact]
     public void ActivityNotification_Constructs_WithAllFields()
     {

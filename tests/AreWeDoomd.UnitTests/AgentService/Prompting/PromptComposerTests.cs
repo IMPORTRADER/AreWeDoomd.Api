@@ -13,17 +13,16 @@ public sealed class PromptComposerTests : IDisposable
     public PromptComposerTests()
     {
         _root = Path.Combine(Path.GetTempPath(), $"prompts-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(Path.Combine(_root, "10-personalities"));
         Directory.CreateDirectory(Path.Combine(_root, "20-tasks"));
         Directory.CreateDirectory(Path.Combine(_root, "30-priority-instructions"));
 
         File.WriteAllText(Path.Combine(_root, "00-base.md"), "BASE");
         File.WriteAllText(
-            Path.Combine(_root, "10-personalities", "default.md"), "PERSONALITY");
-        File.WriteAllText(
             Path.Combine(_root, "20-tasks", "comment-created.md"),
             "actor={{actor_name}} post={{post_content}} comments={{comments}} " +
             "incoming={{incoming_comment}} prio={{priority_instruction}}");
+        File.WriteAllText(Path.Combine(_root, "20-tasks", "daily-post-score.md"), "DAILY-POST-SCORE");
+        File.WriteAllText(Path.Combine(_root, "20-tasks", "daily-post-compose.md"), "DAILY-POST-COMPOSE");
         File.WriteAllText(
             Path.Combine(_root, "30-priority-instructions", "high.md"), "PRIO-HIGH");
         File.WriteAllText(
@@ -35,21 +34,34 @@ public sealed class PromptComposerTests : IDisposable
         File.WriteAllText(Path.Combine(_root, "90-guardrails.md"), "GUARDRAILS");
 
         var files = new PromptFileSet(_root);
-        _composer = new PromptComposer(files, new AgentProfileStore(_root));
+        _composer = new PromptComposer(files);
     }
 
     [Fact]
-    public void Compose_ShouldPutBaseAndPersonalityInSystemPrompt()
+    public void Compose_WhenPersonaIsNull_ShouldUseDefaultPersonalityInSystemPrompt()
     {
-        var prompt = _composer.Compose("any-user", SampleInput(EffectivePriority.Normal));
+        var prompt = _composer.Compose(null, SampleInput(EffectivePriority.Normal));
 
-        prompt.System.ShouldBe("BASE\n\nPERSONALITY");
+        prompt.System.ShouldBe("BASE\n\n" + PersonaPromptRenderer.DefaultPersonality);
+    }
+
+    [Fact]
+    public void Compose_WhenPersonaProvided_ShouldRenderPersonaInSystemPrompt()
+    {
+        var persona = new AgentPersona(["Curious", "Witty"], "Short sentences.", "I am a test bot.", 1);
+
+        var prompt = _composer.Compose(persona, SampleInput(EffectivePriority.Normal));
+
+        prompt.System.ShouldStartWith("BASE\n\n");
+        prompt.System.ShouldContain("I am a test bot.");
+        prompt.System.ShouldContain("Curious");
+        prompt.System.ShouldContain("Short sentences.");
     }
 
     [Fact]
     public void Compose_ShouldFillAllPlaceholders()
     {
-        var prompt = _composer.Compose("any-user", SampleInput(EffectivePriority.Normal));
+        var prompt = _composer.Compose(null, SampleInput(EffectivePriority.Normal));
 
         prompt.UserMessage.ShouldContain("actor=Alice");
         prompt.UserMessage.ShouldContain("post=My post");
@@ -62,7 +74,7 @@ public sealed class PromptComposerTests : IDisposable
     [Fact]
     public void Compose_ShouldAlwaysAppendGuardrailsLast()
     {
-        var prompt = _composer.Compose("any-user", SampleInput(EffectivePriority.LowClosing));
+        var prompt = _composer.Compose(null, SampleInput(EffectivePriority.LowClosing));
 
         prompt.UserMessage.ShouldEndWith("GUARDRAILS");
     }
@@ -75,7 +87,7 @@ public sealed class PromptComposerTests : IDisposable
         EffectivePriority priority,
         string expected)
     {
-        var prompt = _composer.Compose("any-user", SampleInput(priority));
+        var prompt = _composer.Compose(null, SampleInput(priority));
 
         prompt.UserMessage.ShouldContain($"prio={expected}");
     }

@@ -13,6 +13,8 @@ namespace AreWeDoomd.Domain.Users
         public string PasswordHash { get; private set; } = null!;
         public UserType UserType { get; private set; }
         public UserProfile Profile { get; private set; } = null!;
+        public AiPersonality? AiPersonality { get; private set; }
+        public bool IsAdmin { get; private set; }
         public DateTimeOffset CreatedAt { get; private set; }
         public DateTimeOffset? UpdatedAt { get; private set; }
 
@@ -58,10 +60,34 @@ namespace AreWeDoomd.Domain.Users
             Touch(now);
         }
 
-        // PasswordHash domain’de “hash” olduğu varsayımıyla saklanır (plain password saklama yok)
+        // PasswordHash domain'de "hash" olduğu varsayımıyla saklanır (plain password saklama yok)
         public void SetPassword(string newPasswordHash, DateTimeOffset now)
         {
             SetPasswordHash(newPasswordHash);
+            Touch(now);
+        }
+
+        public void GrantAdmin(DateTimeOffset now)
+        {
+            if (IsAdmin)
+            {
+                return;
+            }
+
+            IsAdmin = true;
+            Touch(now);
+        }
+
+        public void SetAiPersonality(
+            IReadOnlyList<string> traits, string typingStyle, string summary, DateTimeOffset now)
+        {
+            if (UserType != UserType.Ai)
+            {
+                throw new InvalidOperationException("Only AI users can have an AI personality.");
+            }
+
+            int nextVersion = (AiPersonality?.Version ?? 0) + 1;
+            AiPersonality = AiPersonality.Create(traits, typingStyle, summary, nextVersion, now);
             Touch(now);
         }
 

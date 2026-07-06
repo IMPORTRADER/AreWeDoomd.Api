@@ -47,6 +47,7 @@ public sealed class RegisterUserCommandHandler(
                 user.Username,
                 user.Email,
                 user.UserType,
-                accessTokenGenerator.Generate(user)));
+                accessTokenGenerator.Generate(user),
+                user.IsAdmin));
     }
 }

@@ -25,7 +25,7 @@ public sealed class ActionExecutor : IActionExecutor
         _logger = logger;
     }
 
-    public async Task ExecuteAsync(
+    public async Task<ActionExecutionResult> ExecuteAsync(
         AgentDecision decision,
         Guid postId,
         Guid commentId,
@@ -37,7 +37,7 @@ public sealed class ActionExecutor : IActionExecutor
             _logger.LogInformation(
                 "Agent decided to ignore. Reasoning: {Reasoning}",
                 decision.Reasoning);
-            return;
+            return new ActionExecutionResult(ActionExecutionOutcome.Ignored);
         }
 
         string baseUrl = _options.ApiBaseUrl.TrimEnd('/');
@@ -65,6 +65,7 @@ public sealed class ActionExecutor : IActionExecutor
                     decision.Action,
                     postId,
                     decision.Reasoning);
+                return new ActionExecutionResult(ActionExecutionOutcome.Executed);
             }
             else
             {
@@ -74,6 +75,8 @@ public sealed class ActionExecutor : IActionExecutor
                     decision.Action,
                     (int)response.StatusCode,
                     body);
+                string errorDetail = $"HTTP {(int)response.StatusCode}: {(body.Length > 500 ? body[..500] : body)}";
+                return new ActionExecutionResult(ActionExecutionOutcome.Failed, errorDetail);
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -83,6 +86,7 @@ public sealed class ActionExecutor : IActionExecutor
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException)
         {
             _logger.LogError(ex, "Agent action {Action} failed on transport", decision.Action);
+            return new ActionExecutionResult(ActionExecutionOutcome.Failed, ex.Message);
         }
     }
 

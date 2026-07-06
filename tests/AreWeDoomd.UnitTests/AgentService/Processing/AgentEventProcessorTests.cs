@@ -1,11 +1,14 @@
 using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.AgentService;
+using AreWeDoomd.UnitTests.AgentService;
 using AreWeDoomd.AgentService.Actions;
 using AreWeDoomd.AgentService.Ai;
 using AreWeDoomd.AgentService.Context;
 using AreWeDoomd.AgentService.Decisions;
+using AreWeDoomd.AgentService.Logging;
 using AreWeDoomd.AgentService.Processing;
 using AreWeDoomd.AgentService.Prompting;
+using AreWeDoomd.ChatProviders;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -21,19 +24,31 @@ public sealed class AgentEventProcessorTests
     private const string AiUserId = "33333333-3333-3333-3333-333333333333";
 
     private readonly Mock<IContextFetcher> _contextFetcher = new();
+    private readonly Mock<IPersonaProvider> _personaProvider = new();
     private readonly Mock<IPromptComposer> _promptComposer = new();
     private readonly Mock<IChatProvider> _chatProvider = new();
     private readonly Mock<IActionExecutor> _actionExecutor = new();
     private readonly Mock<IAiSessionLogger> _sessionLogger = new();
+    private readonly Mock<IDecisionLogWriter> _decisionLog = new();
+    private readonly Mock<ILlmSettingsProvider> _llmSettings = new();
 
     public AgentEventProcessorTests()
     {
         _contextFetcher
             .Setup(f => f.FetchAsync(PostId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SampleContext());
+        _personaProvider
+            .Setup(p => p.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PersonaResolution(null, PersonaSource.Default));
         _promptComposer
-            .Setup(c => c.Compose(It.IsAny<string>(), It.IsAny<CommentCreatedPromptInput>()))
+            .Setup(c => c.Compose(It.IsAny<AgentPersona?>(), It.IsAny<CommentCreatedPromptInput>()))
             .Returns(new ComposedPrompt("sys", "user"));
+        _actionExecutor
+            .Setup(e => e.ExecuteAsync(It.IsAny<AgentDecision>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ActionExecutionResult(ActionExecutionOutcome.Executed));
+        _llmSettings
+            .Setup(l => l.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LlmRuntimeSettings("test-model", "", false, 512, 800, 700, 1024));
     }
 
     [Fact]
@@ -78,7 +93,7 @@ public sealed class AgentEventProcessorTests
     }
 
     [Fact]
-    public async Task ProcessSingleAsync_WhenBothLlmOutputsInvalid_ShouldFallBackToIgnore()
+    public async Task ProcessSingleAsync_WhenBothLlmOutputsInvalid_ShouldLogLlmFallbackAndNotCallExecutor()
     {
         SetupLlmResponses("garbage", "more garbage");
         var processor = CreateProcessor();
@@ -87,12 +102,14 @@ public sealed class AgentEventProcessorTests
 
         _actionExecutor.Verify(
             e => e.ExecuteAsync(
-                It.Is<AgentDecision>(d => d.Action == AgentAction.Ignore),
-                PostId,
-                CommentId,
-                AiUserId,
+                It.IsAny<AgentDecision>(),
+                It.IsAny<Guid>(),
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
                 It.IsAny<CancellationToken>()),
-            Times.Once);
+            Times.Never);
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Outcome == DecisionOutcome.LlmFallback)), Times.Once);
     }
 
     [Fact]
@@ -109,6 +126,7 @@ public sealed class AgentEventProcessorTests
         _contextFetcher.Verify(
             f => f.FetchAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
+        _decisionLog.Verify(w => w.TryLog(It.IsAny<DecisionLogEntry>()), Times.Never);
     }
 
     [Fact]
@@ -148,7 +166,183 @@ public sealed class AgentEventProcessorTests
         _chatProvider.Verify(
             p => p.CompleteAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()),
             Times.Never);
+        _decisionLog.Verify(w => w.TryLog(It.IsAny<DecisionLogEntry>()), Times.Never);
     }
+
+    // ── New decision-log tests ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task ProcessSingleAsync_WhenReplyExecuted_ShouldLogExecutedOutcomeOnce()
+    {
+        SetupLlmResponses("""{"action":"reply_comment","content":"Hi!","reasoning":"r"}""");
+        _actionExecutor
+            .Setup(e => e.ExecuteAsync(It.IsAny<AgentDecision>(), PostId, CommentId, AiUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ActionExecutionResult(ActionExecutionOutcome.Executed));
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
+
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Outcome == DecisionOutcome.Executed &&
+            e.Action == "reply_comment" &&
+            e.Reasoning == "r" &&
+            e.AiUserId == AiUserId &&
+            e.PostId == PostId)), Times.Once);
+        _decisionLog.Verify(w => w.TryLog(It.IsAny<DecisionLogEntry>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessSingleAsync_WhenProviderFailsTwice_ShouldLogLlmFailed()
+    {
+        SetupLlmFailures("provider down", "provider down");
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
+
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Outcome == DecisionOutcome.LlmFailed && e.LlmAttempts == 2)), Times.Once);
+        _actionExecutor.Verify(
+            e => e.ExecuteAsync(It.IsAny<AgentDecision>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ProcessSingleAsync_WhenLlmIgnores_ShouldLogIgnoredOutcome()
+    {
+        SetupLlmResponses("""{"action":"ignore","reasoning":"not my thread"}""");
+        _actionExecutor
+            .Setup(e => e.ExecuteAsync(It.IsAny<AgentDecision>(), PostId, CommentId, AiUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ActionExecutionResult(ActionExecutionOutcome.Ignored));
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
+
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Outcome == DecisionOutcome.Ignored && e.Action == "ignore" && e.Reasoning == "not my thread")), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessSingleAsync_WhenActionFails_ShouldLogActionFailedWithDetail()
+    {
+        SetupLlmResponses("""{"action":"reply_comment","content":"Hi!","reasoning":"r"}""");
+        _actionExecutor
+            .Setup(e => e.ExecuteAsync(It.IsAny<AgentDecision>(), PostId, CommentId, AiUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ActionExecutionResult(ActionExecutionOutcome.Failed, "HTTP 500: boom"));
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
+
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Outcome == DecisionOutcome.ActionFailed && e.Action == "reply_comment" && e.Reasoning == "r" && e.ErrorDetail == "HTTP 500: boom")), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessSingleAsync_WhenBothLlmOutputsInvalidJson_ShouldLogLlmFallback()
+    {
+        SetupLlmResponses("not json", "not json");
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
+
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Outcome == DecisionOutcome.LlmFallback && e.LlmAttempts == 2)), Times.Once);
+        _actionExecutor.Verify(
+            e => e.ExecuteAsync(It.IsAny<AgentDecision>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ProcessSingleAsync_WhenAiActorAtSkipDepth_ShouldLogSkippedPriority()
+    {
+        _contextFetcher
+            .Setup(f => f.FetchAsync(PostId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(SampleContext("Ai", "Ai", "Ai", "Ai"));
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Ai), CancellationToken.None);
+
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Outcome == DecisionOutcome.SkippedPriority &&
+            e.Priority == "Skip" &&
+            e.AiUserId == AiUserId)), Times.Once);
+        _decisionLog.Verify(w => w.TryLog(It.IsAny<DecisionLogEntry>()), Times.Once);
+    }
+
+    // ── Persona resolution / decision-log stamping ─────────────────────────
+
+    [Fact]
+    public async Task ProcessSingleAsync_ShouldStampPersonaVersionAndSourceOnDecisionEntry()
+    {
+        var persona = new AgentPersona(["toxic"], "gen-z", "sum", 3);
+        _personaProvider
+            .Setup(p => p.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PersonaResolution(persona, PersonaSource.Api));
+        SetupLlmResponses("""{"action":"reply_comment","content":"Hi!","reasoning":"r"}""");
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
+
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.PersonaVersion == 3 && e.PersonaSource == "api")), Times.Once);
+        _promptComposer.Verify(c => c.Compose(
+            It.Is<AgentPersona?>(p => p != null && p.Version == 3),
+            It.IsAny<CommentCreatedPromptInput>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessSingleAsync_WhenNoPersona_ShouldComposeWithNullAndStampDefaultSource()
+    {
+        // _personaProvider default mock returns PersonaResolution(null, "default")
+        SetupLlmResponses("""{"action":"ignore","reasoning":"n/a"}""");
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
+
+        _promptComposer.Verify(c => c.Compose(
+            (AgentPersona?)null,
+            It.IsAny<CommentCreatedPromptInput>()), Times.Once);
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.PersonaSource == "default" && e.PersonaVersion == null)), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessSingleAsync_WhenPrioritySkipped_ShouldNotResolvePersona()
+    {
+        _contextFetcher
+            .Setup(f => f.FetchAsync(PostId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(SampleContext("Ai", "Ai", "Ai", "Ai"));
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Ai), CancellationToken.None);
+
+        _personaProvider.Verify(
+            p => p.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Outcome == DecisionOutcome.SkippedPriority &&
+            e.PersonaSource == null &&
+            e.PersonaVersion == null)), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessSingleAsync_LogsLlmRequestAndDecision_ToOpsLog()
+    {
+        SetupLlmResponses("""{"action":"reply_comment","content":"Hi!","reasoning":"r"}""");
+        var opsLog = new FakeAgentOpsLogWriter();
+        var processor = CreateProcessor(opsLog);
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
+
+        Assert.Contains(opsLog.Entries, e =>
+            e.Source == AgentOpsLogSource.LlmProvider &&
+            e.Level == AgentOpsLogLevel.Info &&
+            e.Message.StartsWith("Requesting "));
+        Assert.Contains(opsLog.Entries, e =>
+            e.Source == AgentOpsLogSource.Actions &&
+            e.Message.Contains("executed", StringComparison.OrdinalIgnoreCase));
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────
 
     private void SetupLlmResponses(params string[] texts)
     {
@@ -161,18 +355,33 @@ public sealed class AgentEventProcessorTests
         }
     }
 
-    private AgentEventProcessor CreateProcessor()
+    private void SetupLlmFailures(params string[] errorMessages)
+    {
+        var sequence = _chatProvider.SetupSequence(
+            p => p.CompleteAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()));
+        foreach (string message in errorMessages)
+        {
+            sequence = sequence.ReturnsAsync(
+                ChatResult.Fail(new ChatError(message, null, "test")));
+        }
+    }
+
+    private AgentEventProcessor CreateProcessor(FakeAgentOpsLogWriter? opsLog = null)
     {
         var options = Options.Create(new AgentServiceOptions { Model = "test-model" });
         return new AgentEventProcessor(
             new AgentEventQueue(),
             _contextFetcher.Object,
             new PriorityDecayPolicy(options),
+            _personaProvider.Object,
             _promptComposer.Object,
             _chatProvider.Object,
             new DecisionParser(),
             _actionExecutor.Object,
             _sessionLogger.Object,
+            _decisionLog.Object,
+            opsLog ?? new FakeAgentOpsLogWriter(),
+            _llmSettings.Object,
             options,
             NullLogger<AgentEventProcessor>.Instance);
     }

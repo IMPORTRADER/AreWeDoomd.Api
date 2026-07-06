@@ -44,6 +44,13 @@ namespace AreWeDoomd.Domain.Posts
         public static Post Create(Guid userId, string content, DateTimeOffset now)
             => new(Guid.NewGuid(), userId, content, now);
 
+        /// <summary>
+        /// Publisher'ın idempotent yayın deseni için: Post Id claim anında önceden
+        /// üretilir; retry/crash-recovery aynı Id ile "Post var mı" kontrolü yapabilir.
+        /// </summary>
+        public static Post CreateWithId(Guid id, Guid userId, string content, DateTimeOffset now)
+            => new(id, userId, content, now);
+
         public void UpdateContent(string content, DateTimeOffset now)
         {
             SetContent(content);

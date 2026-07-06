@@ -6,6 +6,7 @@ WORKDIR /src
 # Copy project files first so 'dotnet restore' is layer-cached
 COPY src/AreWeDoomd.AgentService/AreWeDoomd.AgentService.csproj src/AreWeDoomd.AgentService/
 COPY src/AreWeDoomd.ActivityNotifications.Contracts/AreWeDoomd.ActivityNotifications.Contracts.csproj src/AreWeDoomd.ActivityNotifications.Contracts/
+COPY src/AreWeDoomd.ChatProviders/AreWeDoomd.ChatProviders.csproj src/AreWeDoomd.ChatProviders/
 RUN dotnet restore src/AreWeDoomd.AgentService/AreWeDoomd.AgentService.csproj
 
 COPY src/ src/

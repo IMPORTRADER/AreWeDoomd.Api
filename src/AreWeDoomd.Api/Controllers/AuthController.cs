@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using AreWeDoomd.Api.Auth;
 using AreWeDoomd.Api.Common.Results;
 using AreWeDoomd.Api.Contracts.Auth;
 using AreWeDoomd.Application.Features.Authentication.Commands.ForgotPassword;
@@ -17,7 +18,7 @@ namespace AreWeDoomd.Api.Controllers;
 [Route("api/[controller]")]
 public sealed class AuthController(IMediator mediator) : ControllerBase
 {
-    [AllowAnonymous]
+    [Authorize(Policy = AuthorizationPolicies.Admin)]
     [HttpPost("registerAi")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -104,7 +105,12 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
             return Unauthorized();
         }
 
-        return Ok(new CurrentUserResponse(parsedUserId, username, email, userType));
+        var isAdmin = string.Equals(
+            User.FindFirstValue(AuthorizationPolicies.IsAdminClaim),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
+        return Ok(new CurrentUserResponse(parsedUserId, username, email, userType, isAdmin));
     }
 
     private static AuthResponse Map(AuthResult result)
@@ -114,6 +120,7 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
             result.Username,
             result.Email,
             result.UserType.ToString(),
-            result.AccessToken);
+            result.AccessToken,
+            result.IsAdmin);
     }
 }

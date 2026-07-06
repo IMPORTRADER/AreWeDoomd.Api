@@ -3,8 +3,10 @@ using AreWeDoomd.AgentService.Actions;
 using AreWeDoomd.AgentService.Ai;
 using AreWeDoomd.AgentService.Context;
 using AreWeDoomd.AgentService.Decisions;
+using AreWeDoomd.AgentService.Logging;
 using AreWeDoomd.AgentService.Processing;
 using AreWeDoomd.AgentService.Prompting;
+using AreWeDoomd.ChatProviders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -37,6 +39,27 @@ if (!string.IsNullOrWhiteSpace(openRouterApiKey))
     });
 }
 
+// Map the conventional DECISION_LOG_ROOT environment variable onto the
+// decision log's config key, same pattern as the API-key mappings above.
+string? decisionLogRoot = Environment.GetEnvironmentVariable("DECISION_LOG_ROOT");
+if (!string.IsNullOrWhiteSpace(decisionLogRoot))
+{
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["DecisionLog:RootPath"] = decisionLogRoot
+    });
+}
+
+// Same convention for the ops log written for the admin dashboard.
+string? agentOpsLogRoot = Environment.GetEnvironmentVariable("AGENT_OPS_LOG_ROOT");
+if (!string.IsNullOrWhiteSpace(agentOpsLogRoot))
+{
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["AgentOpsLog:RootPath"] = agentOpsLogRoot
+    });
+}
+
 builder.Services.AddSerilog((services, loggerConfig) =>
 {
     loggerConfig
@@ -48,20 +71,38 @@ builder.Services.AddSerilog((services, loggerConfig) =>
 
 builder.Services.Configure<AgentServiceOptions>(
     builder.Configuration.GetSection(AgentServiceOptions.SectionName));
+builder.Services.Configure<DecisionLogOptions>(builder.Configuration.GetSection(DecisionLogOptions.SectionName));
+builder.Services.Configure<AgentOpsLogOptions>(builder.Configuration.GetSection(AgentOpsLogOptions.SectionName));
 builder.Services.AddChatProviders(builder.Configuration);
 builder.Services.AddSingleton<IAiSessionLogger, AiSessionLogger>();
 
 builder.Services.AddHttpClient(ContextFetcher.HttpClientName);
 builder.Services.AddSingleton<AgentEventQueue>();
+builder.Services.AddSingleton<ScheduleRunQueue>();
+builder.Services.AddSingleton<DailyPostPlanParser>();
+builder.Services.AddSingleton<ScheduleDecisionCallbackClient>();
+builder.Services.AddSingleton<IScheduleDecisionCallbackClient>(
+    sp => sp.GetRequiredService<ScheduleDecisionCallbackClient>());
 builder.Services.AddSingleton<PromptFileSet>();
-builder.Services.AddSingleton<AgentProfileStore>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IPersonaProvider, ApiPersonaProvider>();
+builder.Services.AddSingleton<ILlmSettingsProvider, ApiLlmSettingsProvider>();
 builder.Services.AddSingleton<IPromptComposer, PromptComposer>();
 builder.Services.AddSingleton<DecisionParser>();
 builder.Services.AddSingleton<PriorityDecayPolicy>();
 builder.Services.AddSingleton<IContextFetcher, ContextFetcher>();
 builder.Services.AddSingleton<IActionExecutor, ActionExecutor>();
 
+builder.Services.AddSingleton<DecisionLogWriter>();
+builder.Services.AddSingleton<IDecisionLogWriter>(sp => sp.GetRequiredService<DecisionLogWriter>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<DecisionLogWriter>());
+
+builder.Services.AddSingleton<AgentOpsLogWriter>();
+builder.Services.AddSingleton<IAgentOpsLogWriter>(sp => sp.GetRequiredService<AgentOpsLogWriter>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<AgentOpsLogWriter>());
+
 builder.Services.AddHostedService<AgentNotificationListener>();
+builder.Services.AddHostedService<DailySchedulePlanner>();
 builder.Services.AddHostedService(serviceProvider =>
 {
     var agentOptions = serviceProvider.GetRequiredService<IOptions<AgentServiceOptions>>();
@@ -69,11 +110,15 @@ builder.Services.AddHostedService(serviceProvider =>
         serviceProvider.GetRequiredService<AgentEventQueue>(),
         serviceProvider.GetRequiredService<IContextFetcher>(),
         serviceProvider.GetRequiredService<PriorityDecayPolicy>(),
+        serviceProvider.GetRequiredService<IPersonaProvider>(),
         serviceProvider.GetRequiredService<IPromptComposer>(),
         serviceProvider.GetRequiredKeyedService<IChatProvider>(agentOptions.Value.ChatProvider),
         serviceProvider.GetRequiredService<DecisionParser>(),
         serviceProvider.GetRequiredService<IActionExecutor>(),
         serviceProvider.GetRequiredService<IAiSessionLogger>(),
+        serviceProvider.GetRequiredService<IDecisionLogWriter>(),
+        serviceProvider.GetRequiredService<IAgentOpsLogWriter>(),
+        serviceProvider.GetRequiredService<ILlmSettingsProvider>(),
         agentOptions,
         serviceProvider.GetRequiredService<ILogger<AgentEventProcessor>>());
 });

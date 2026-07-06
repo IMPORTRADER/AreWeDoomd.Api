@@ -7,5 +7,6 @@ public sealed record AuthResult(
     string Username,
     string Email,
     UserType UserType,
-    string AccessToken);
+    string AccessToken,
+    bool IsAdmin);
 

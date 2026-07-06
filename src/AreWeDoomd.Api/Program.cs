@@ -1,6 +1,7 @@
 using AreWeDoomd.Api.Auth;
 using Microsoft.AspNetCore.Mvc;
 using AreWeDoomd.Api.Common.Errors;
+using AreWeDoomd.Api.Jobs;
 using AreWeDoomd.Api.Notifications;
 using AreWeDoomd.Api.Realtime;
 using AreWeDoomd.Api.Realtime.Options;
@@ -53,8 +54,57 @@ try
     builder.Services.AddExceptionHandler<ApiExceptionHandler>();
     builder.Services.AddOpenApi();
 
+    // Map the conventional GEMINI_API_KEY environment variable onto the provider's
+    // config key. Added last so it takes precedence over appsettings.json (and the
+    // dev user-secret above). Only applied when the variable is actually set.
+    string? geminiApiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+    if (!string.IsNullOrWhiteSpace(geminiApiKey))
+    {
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ChatProviders:Gemini:ApiKey"] = geminiApiKey
+        });
+    }
+
+    // Map the conventional OPENROUTER_API_KEY environment variable onto the
+    // provider's config key, same pattern as GEMINI_API_KEY above.
+    string? openRouterApiKey = Environment.GetEnvironmentVariable("OPENROUTER_API_KEY");
+    if (!string.IsNullOrWhiteSpace(openRouterApiKey))
+    {
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ChatProviders:OpenRouter:ApiKey"] = openRouterApiKey
+        });
+    }
+
+    // Map the conventional DECISION_LOG_ROOT environment variable onto the
+    // decision log's config key, same pattern as the AgentService's env-key mappings.
+    string? decisionLogRoot = Environment.GetEnvironmentVariable("DECISION_LOG_ROOT");
+    if (!string.IsNullOrWhiteSpace(decisionLogRoot))
+    {
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["DecisionLog:RootPath"] = decisionLogRoot
+        });
+    }
+
+    string? agentOpsLogRoot = Environment.GetEnvironmentVariable("AGENT_OPS_LOG_ROOT");
+    if (!string.IsNullOrWhiteSpace(agentOpsLogRoot))
+    {
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["AgentOpsLog:RootPath"] = agentOpsLogRoot
+        });
+    }
+
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
+
+    builder.Services.AddAuthorization(options =>
+    {
+        options.AddPolicy(AuthorizationPolicies.Admin,
+            policy => policy.RequireClaim(AuthorizationPolicies.IsAdminClaim, "true"));
+    });
 
     builder.Services.AddAuthentication()
         .AddScheme<AuthenticationSchemeOptions, AgentSecretAuthenticationHandler>(
@@ -85,6 +135,8 @@ try
         };
     });
 
+    builder.Services.Configure<AdminOptions>(
+        builder.Configuration.GetSection(AdminOptions.SectionName));
     builder.Services.Configure<AgentNotificationsOptions>(
         builder.Configuration.GetSection(AgentNotificationsOptions.SectionName));
     var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
@@ -99,10 +151,23 @@ try
         Log.Information("SignalR running in-memory (no Redis backplane configured).");
     }
     builder.Services.AddSingleton<IAgentHubSender, AgentHubSender>();
+    builder.Services.AddSingleton<IScheduleRunHubSender, ScheduleRunHubSender>();
     builder.Services.AddSingleton<IUserHubSender, UserHubSender>();
     builder.Services.AddSingleton<IActivityNotificationQueue, ChannelActivityNotificationQueue>();
     builder.Services.AddScoped<INotificationDeliveryService, NotificationDeliveryService>();
     builder.Services.AddHostedService<ActivityNotificationPublisherService>();
+
+    // Bulk AI creation job pipeline
+    builder.Services.AddSingleton<BulkCreateJobStore>();
+    builder.Services.AddSingleton<IBulkCreateJobStore>(sp => sp.GetRequiredService<BulkCreateJobStore>());
+    builder.Services.AddSingleton<BulkCreateJobQueue>();
+    builder.Services.AddSingleton<IBulkCreateJobQueue>(sp => sp.GetRequiredService<BulkCreateJobQueue>());
+    builder.Services.AddScoped<BulkCreateJobProcessor>();
+    builder.Services.AddHostedService<BulkCreateJobRunner>();
+
+    builder.Services.AddSingleton<SchedulePublisherWaker>();
+    builder.Services.AddSingleton<ISchedulePublisherWaker>(sp => sp.GetRequiredService<SchedulePublisherWaker>());
+    builder.Services.AddHostedService<ScheduledPostPublisher>();
 
     var app = builder.Build();
 
@@ -114,6 +179,19 @@ try
     {
         throw new InvalidOperationException(
             "AgentNotifications:SharedSecret is not configured. The agent notification hub cannot start.");
+    }
+
+    if (app.Configuration.GetValue("Admin:SeedOnStartup", true))
+    {
+        await AdminSeeder.SeedAsync(app);
+    }
+
+    const string defaultDevSecret = "dev-agent-shared-secret-change-me";
+    if (!builder.Environment.IsDevelopment() &&
+        string.Equals(agentSecret, defaultDevSecret, StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException(
+            "AgentNotifications:SharedSecret still has the shipped development default; refusing to start outside Development.");
     }
 
     if (app.Environment.IsDevelopment())

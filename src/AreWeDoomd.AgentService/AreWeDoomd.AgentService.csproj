@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AreWeDoomd.ActivityNotifications.Contracts\AreWeDoomd.ActivityNotifications.Contracts.csproj" />
+    <ProjectReference Include="..\AreWeDoomd.ChatProviders\AreWeDoomd.ChatProviders.csproj" />
   </ItemGroup>
 
   <ItemGroup>

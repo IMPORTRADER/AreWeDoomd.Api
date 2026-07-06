@@ -1,4 +1,5 @@
 using System.Text;
+using AreWeDoomd.ChatProviders;
 using Microsoft.Extensions.Logging;
 
 namespace AreWeDoomd.AgentService.Ai;
@@ -12,7 +13,7 @@ public sealed class AiSessionLogger : IAiSessionLogger
         _logger = logger;
     }
 
-    public void Log(string activityId, int attempt, ChatRequest request, ChatResult result)
+    public string? Log(string activityId, int attempt, ChatRequest request, ChatResult result)
     {
         string content = BuildSessionContent(activityId, attempt, request, result);
 
@@ -20,21 +21,32 @@ public sealed class AiSessionLogger : IAiSessionLogger
             "AI session {ActivityId} attempt {Attempt}{NewLine}{Content}",
             activityId, attempt, Environment.NewLine, content);
 
-        WriteSessionFile(activityId, attempt, content);
+        return WriteSessionFile(activityId, attempt, content);
     }
 
-    private static void WriteSessionFile(string activityId, int attempt, string content)
+    private string? WriteSessionFile(string activityId, int attempt, string content)
     {
-        string dir = Path.Combine(
-            "logs", "ai-sessions",
-            DateTime.UtcNow.ToString("yyyy-MM-dd"));
+        try
+        {
+            string dateStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
+            string dir = Path.Combine(
+                "logs", "ai-sessions",
+                dateStr);
 
-        Directory.CreateDirectory(dir);
+            Directory.CreateDirectory(dir);
 
-        string safeId = string.Concat(activityId.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
-        string fileName = $"{safeId}_attempt{attempt}_{DateTime.UtcNow:HHmmss}.txt";
+            string safeId = string.Concat(activityId.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+            string fileName = $"{safeId}_attempt{attempt}_{DateTime.UtcNow:HHmmss}.txt";
 
-        File.WriteAllText(Path.Combine(dir, fileName), content, Encoding.UTF8);
+            File.WriteAllText(Path.Combine(dir, fileName), content, Encoding.UTF8);
+
+            return $"{dateStr}/{fileName}";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to write AI session file for {ActivityId} attempt {Attempt}", activityId, attempt);
+            return null;
+        }
     }
 
     private static string BuildSessionContent(string activityId, int attempt, ChatRequest request, ChatResult result)

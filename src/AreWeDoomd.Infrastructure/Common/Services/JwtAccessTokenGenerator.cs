@@ -23,7 +23,7 @@ public sealed class JwtAccessTokenGenerator(
         }
 
         var now = dateTimeProvider.UtcNow;
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.UniqueName, user.Username),
@@ -33,6 +33,12 @@ public sealed class JwtAccessTokenGenerator(
             new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.Role, user.UserType.ToString())
         };
+
+        if (user.IsAdmin)
+        {
+            // "is_admin" literal; the Api-layer constants class (Task 2) will reference this same string.
+            claims.Add(new Claim("is_admin", "true"));
+        }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key));
         var signingCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

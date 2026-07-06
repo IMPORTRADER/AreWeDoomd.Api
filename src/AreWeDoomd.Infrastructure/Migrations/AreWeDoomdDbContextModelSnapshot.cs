@@ -22,6 +22,45 @@ namespace AreWeDoomd.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("AreWeDoomd.Domain.Ai.LlmSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("CompositionTokensPerPost")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("PersonaTokensPerPersona")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ReplyMaxTokens")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ScoringModel")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ScoringTokensPerAccount")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("ThinkingEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LlmSettings", (string)null);
+                });
+
             modelBuilder.Entity("AreWeDoomd.Domain.Comments.Comment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -202,6 +241,228 @@ namespace AreWeDoomd.Infrastructure.Migrations
                     b.ToTable("PostLikes", (string)null);
                 });
 
+            modelBuilder.Entity("AreWeDoomd.Domain.Scheduling.ScheduleRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("MaxPostsSnapshot")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PostLengthGuideSnapshot")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("RunDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StrategySnapshot")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ThresholdSnapshot")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TriggeredByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunDate");
+
+                    b.ToTable("ScheduleRuns", (string)null);
+                });
+
+            modelBuilder.Entity("AreWeDoomd.Domain.Scheduling.ScheduleRunItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AiUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("DesireScore")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DroppedPostCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ErrorDetail")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset>("LastPushedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ModelUsed")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("PushCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reasoning")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("RequestedPostCount")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateOnly>("RunDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("ScheduleRunId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScheduleRunId");
+
+                    b.HasIndex("AiUserId", "RunDate")
+                        .IsUnique()
+                        .HasFilter("[Status] <> 4");
+
+                    b.HasIndex("Status", "LastPushedAtUtc");
+
+                    b.ToTable("ScheduleRunItems", (string)null);
+                });
+
+            modelBuilder.Entity("AreWeDoomd.Domain.Scheduling.ScheduledPost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AiUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("ClaimToken")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(10000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset?>("PublishedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("PublishedPostId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ScheduleRunItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ScheduledAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("WasTimeAdjusted")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AiUserId");
+
+                    b.HasIndex("ScheduleRunItemId");
+
+                    b.HasIndex("Status", "ScheduledAtUtc")
+                        .HasFilter("[Status] = 0");
+
+                    b.ToTable("ScheduledPosts", (string)null);
+                });
+
+            modelBuilder.Entity("AreWeDoomd.Domain.Scheduling.SchedulingSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("DesireThreshold")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LateGraceHours")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LatePolicy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MaxPostsPerDay")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PostLengthGuide")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Strategy")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SchedulingSettings", (string)null);
+                });
+
+            modelBuilder.Entity("AreWeDoomd.Domain.Users.BulkCreationRecord", b =>
+                {
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.HasKey("JobId", "UserId");
+
+                    b.HasIndex("JobId");
+
+                    b.ToTable("BulkCreationRecords", (string)null);
+                });
+
             modelBuilder.Entity("AreWeDoomd.Domain.Users.PasswordResetRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -248,6 +509,11 @@ namespace AreWeDoomd.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(254)
                         .HasColumnType("nvarchar(254)");
+
+                    b.Property<bool>("IsAdmin")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -333,6 +599,23 @@ namespace AreWeDoomd.Infrastructure.Migrations
                     b.Navigation("Post");
                 });
 
+            modelBuilder.Entity("AreWeDoomd.Domain.Scheduling.ScheduleRunItem", b =>
+                {
+                    b.HasOne("AreWeDoomd.Domain.Scheduling.ScheduleRun", null)
+                        .WithMany("Items")
+                        .HasForeignKey("ScheduleRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AreWeDoomd.Domain.Scheduling.ScheduledPost", b =>
+                {
+                    b.HasOne("AreWeDoomd.Domain.Scheduling.ScheduleRunItem", null)
+                        .WithMany()
+                        .HasForeignKey("ScheduleRunItemId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
             modelBuilder.Entity("AreWeDoomd.Domain.Users.PasswordResetRequest", b =>
                 {
                     b.HasOne("AreWeDoomd.Domain.Users.User", "User")
@@ -346,6 +629,45 @@ namespace AreWeDoomd.Infrastructure.Migrations
 
             modelBuilder.Entity("AreWeDoomd.Domain.Users.User", b =>
                 {
+                    b.OwnsOne("AreWeDoomd.Domain.Users.AiPersonality", "AiPersonality", b1 =>
+                        {
+                            b1.Property<Guid>("UserId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<string>("SchedulePrefsJson")
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.Property<string>("Summary")
+                                .IsRequired()
+                                .HasMaxLength(1000)
+                                .HasColumnType("nvarchar(1000)");
+
+                            b1.Property<string>("TraitsJson")
+                                .IsRequired()
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.Property<string>("TrendPrefsJson")
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.Property<string>("TypingStyle")
+                                .IsRequired()
+                                .HasMaxLength(500)
+                                .HasColumnType("nvarchar(500)");
+
+                            b1.Property<DateTimeOffset>("UpdatedAt")
+                                .HasColumnType("datetimeoffset");
+
+                            b1.Property<int>("Version")
+                                .HasColumnType("int");
+
+                            b1.HasKey("UserId");
+
+                            b1.ToTable("AiPersonalities", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("UserId");
+                        });
+
                     b.OwnsOne("AreWeDoomd.Domain.Users.UserProfile", "Profile", b1 =>
                         {
                             b1.Property<Guid>("UserId")
@@ -370,6 +692,8 @@ namespace AreWeDoomd.Infrastructure.Migrations
                                 .HasForeignKey("UserId");
                         });
 
+                    b.Navigation("AiPersonality");
+
                     b.Navigation("Profile")
                         .IsRequired();
                 });
@@ -384,6 +708,11 @@ namespace AreWeDoomd.Infrastructure.Migrations
                     b.Navigation("Comments");
 
                     b.Navigation("Likes");
+                });
+
+            modelBuilder.Entity("AreWeDoomd.Domain.Scheduling.ScheduleRun", b =>
+                {
+                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }
