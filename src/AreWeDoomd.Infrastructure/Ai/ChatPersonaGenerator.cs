@@ -5,6 +5,7 @@ using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Common.Models;
 using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.ChatProviders;
+using AreWeDoomd.Domain.Ai;
 using AreWeDoomd.Infrastructure.Common.Options;
 using Microsoft.Extensions.Logging;
 
@@ -33,6 +34,8 @@ public sealed class ChatPersonaGenerator : IPersonaGenerator
 
     private readonly IChatProvider _provider;
     private readonly PersonaGenerationOptions _options;
+    private readonly ILlmSettingsRepository _llmSettings;
+    private readonly IDateTimeProvider _dateTimeProvider;
     private readonly ILogger<ChatPersonaGenerator> _logger;
 
     public bool IsConfigured { get; }
@@ -40,11 +43,15 @@ public sealed class ChatPersonaGenerator : IPersonaGenerator
     public ChatPersonaGenerator(
         IChatProvider provider,
         PersonaGenerationOptions options,
+        ILlmSettingsRepository llmSettings,
+        IDateTimeProvider dateTimeProvider,
         ILogger<ChatPersonaGenerator> logger,
         bool isConfigured)
     {
         _provider = provider;
         _options = options;
+        _llmSettings = llmSettings;
+        _dateTimeProvider = dateTimeProvider;
         _logger = logger;
         IsConfigured = isConfigured;
     }
@@ -60,12 +67,17 @@ public sealed class ChatPersonaGenerator : IPersonaGenerator
                 "The persona generator is not configured: the selected provider has no API key.");
         }
 
+        var settings = await _llmSettings.GetAsync(ct)
+            ?? LlmSettings.CreateDefault(_dateTimeProvider.UtcNow);
+
         var request = new ChatRequest(
-            Model: _options.Model,
+            Model: settings.Model,
             Messages: [new ChatMessage(BuildUserPrompt(count))],
             System: BuildSystemPrompt(),
+            MaxTokens: settings.PersonaTokensPerPersona * count,
             Temperature: 1.0,
-            JsonResponseSchema: PersonaBatchSchema.Json);
+            JsonResponseSchema: PersonaBatchSchema.Json,
+            ReasoningEnabled: settings.ThinkingEnabled);
 
         var chatResult = await _provider.CompleteAsync(request, ct);
 

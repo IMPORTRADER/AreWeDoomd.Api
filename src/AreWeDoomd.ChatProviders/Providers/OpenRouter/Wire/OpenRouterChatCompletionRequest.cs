@@ -22,4 +22,7 @@ internal sealed record OpenRouterChatCompletionRequest
 
     [JsonPropertyName("response_format")]
     public OpenRouterResponseFormat? ResponseFormat { get; init; }
+
+    [JsonPropertyName("reasoning")]
+    public OpenRouterReasoning? Reasoning { get; init; }
 }

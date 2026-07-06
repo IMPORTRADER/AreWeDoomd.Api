@@ -19,7 +19,9 @@ public sealed class AgentNotificationListenerTests
         var listener = new AgentNotificationListener(
             Options.Create(new AgentServiceOptions()),
             queue,
+            new ScheduleRunQueue(),
             decisionLog.Object,
+            new FakeAgentOpsLogWriter(),
             NullLogger<AgentNotificationListener>.Instance);
         for (int i = 0; i < 100; i++) { queue.TryEnqueue(SampleAgentEvent($"fill-{i}")); }
 
@@ -37,8 +39,8 @@ public sealed class AgentNotificationListenerTests
         var queue = new AgentEventQueue();
         var decisionLog = new Mock<IDecisionLogWriter>();
         var listener = new AgentNotificationListener(
-            Options.Create(new AgentServiceOptions()), queue, decisionLog.Object,
-            NullLogger<AgentNotificationListener>.Instance);
+            Options.Create(new AgentServiceOptions()), queue, new ScheduleRunQueue(), decisionLog.Object,
+            new FakeAgentOpsLogWriter(), NullLogger<AgentNotificationListener>.Instance);
 
         listener.HandleNotification(SampleNotification("ok-1"));
 

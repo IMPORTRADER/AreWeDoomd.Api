@@ -25,4 +25,13 @@ public sealed class AgentServiceOptions
 
     /// <summary>AI↔AI reply-chain depth at which the LLM is no longer called.</summary>
     public int DecaySkipDepth { get; set; } = 4;
+
+    /// <summary>Model id used for batch scoring. Empty = provider DefaultModel.</summary>
+    public string ScoringModel { get; set; } = "";
+
+    /// <summary>Number of accounts scored in a single LLM call.</summary>
+    public int ScoringBatchSize { get; set; } = 8;
+
+    /// <summary>Maximum number of compose calls executed in parallel.</summary>
+    public int MaxParallelCompositions { get; set; } = 3;
 }

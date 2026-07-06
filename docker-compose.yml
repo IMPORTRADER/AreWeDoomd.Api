@@ -26,6 +26,7 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       DECISION_LOG_ROOT: /app/agent-logs/agent-decisions
+      AGENT_OPS_LOG_ROOT: /app/agent-logs/agent-ops
     healthcheck:
       # "Is the port accepting connections?" via bash's built-in /dev/tcp —
       # the slim aspnet image ships no curl/wget. Lets agent-service wait for
@@ -36,7 +37,7 @@ services:
       retries: 15
       start_period: 5s
     volumes:
-      - agent-logs:/app/agent-logs:ro
+      - agent-logs:/app/agent-logs
 
   agent-service:
     build:
@@ -51,6 +52,7 @@ services:
       AgentNotifications__HubUrl: http://api:8080/hubs/agent-notifications
       AgentNotifications__ApiBaseUrl: http://api:8080
       AgentNotifications__SharedSecret: ${AGENT_SHARED_SECRET}
+      AgentNotifications__ChatProvider: openrouter
       # Passed raw (not ChatProviders__OpenRouter__ApiKey): the AgentService's
       # Program.cs maps OPENROUTER_API_KEY onto ChatProviders:OpenRouter:ApiKey
       # itself, same as GEMINI_API_KEY.
@@ -59,6 +61,7 @@ services:
       ChatProviders__Anthropic__ApiKey: ${ANTHROPIC_API_KEY:-}
       # Decision + session logs land on the shared volume (mounted at /app/logs).
       DECISION_LOG_ROOT: /app/logs/agent-decisions
+      AGENT_OPS_LOG_ROOT: /app/logs/agent-ops
     volumes:
       - agent-logs:/app/logs
 

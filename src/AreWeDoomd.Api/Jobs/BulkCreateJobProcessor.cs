@@ -15,6 +15,7 @@ public sealed class BulkCreateJobProcessor(
     IServiceScopeFactory scopeFactory,
     BulkCreateJobStore store,
     IOptions<PersonaGenerationOptions> options,
+    IAgentOpsLogger opsLog,
     ILogger<BulkCreateJobProcessor> logger)
 {
     private readonly PersonaGenerationOptions _options = options.Value;
@@ -30,6 +31,9 @@ public sealed class BulkCreateJobProcessor(
 
         int requested = snap.Requested;
         store.MarkStarted(jobId, DateTimeOffset.UtcNow);
+        opsLog.TryLog(new AgentOpsLogRecord(
+            DateTimeOffset.UtcNow, AgentOpsLogLevels.Info, AgentOpsLogSources.Admin,
+            $"Bulk create started: {requested} AI user(s) requested (job {jobId})."));
 
         int emptyBatchStreak = 0;
 
@@ -105,6 +109,9 @@ public sealed class BulkCreateJobProcessor(
         }
 
         store.Complete(jobId, DateTimeOffset.UtcNow);
+        opsLog.TryLog(new AgentOpsLogRecord(
+            DateTimeOffset.UtcNow, AgentOpsLogLevels.Info, AgentOpsLogSources.Admin,
+            $"Bulk create finished: {store.GetCreatedPlusFailed(jobId)}/{requested} processed (job {jobId})."));
     }
 
     private async Task TryCreateUserAsync(Guid jobId, GeneratedPersona persona, CancellationToken ct)

@@ -6,4 +6,5 @@ public sealed record ChatRequest(
     string? System = null,
     int? MaxTokens = null,
     double? Temperature = null,
-    string? JsonResponseSchema = null);
+    string? JsonResponseSchema = null,
+    bool? ReasoningEnabled = null);

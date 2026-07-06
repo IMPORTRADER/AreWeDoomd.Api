@@ -133,7 +133,10 @@ public sealed class GeminiProvider : IChatProvider
                 MaxOutputTokens = maxTokens,
                 Temperature = request.Temperature,
                 ResponseMimeType = responseMimeType,
-                ResponseSchema = responseSchema
+                ResponseSchema = responseSchema,
+                ThinkingConfig = request.ReasoningEnabled == false
+                    ? new GeminiThinkingConfig(ThinkingBudget: 0)
+                    : null
             }
         };
 
@@ -188,9 +191,23 @@ public sealed class GeminiProvider : IChatProvider
         // not an Ok carrying empty text.
         if (string.IsNullOrWhiteSpace(text))
         {
-            string message = finish == FinishReason.ContentFilter
-                ? "Gemini stopped on a safety / content filter and returned no text."
-                : "Gemini returned no usable text content.";
+            string message;
+            if (finish == FinishReason.ContentFilter)
+            {
+                message = "Gemini stopped on a safety / content filter and returned no text.";
+            }
+            else if (finish == FinishReason.MaxTokens)
+            {
+                int thinking = parsed?.UsageMetadata?.ThoughtsTokenCount ?? 0;
+                int output = parsed?.UsageMetadata?.CandidatesTokenCount ?? 0;
+                message = $"Token budget exhausted before any usable text was produced " +
+                          $"(thinking={thinking}, output={output}). " +
+                          $"Increase the token budget or disable thinking in LLM settings.";
+            }
+            else
+            {
+                message = "Gemini returned no usable text content.";
+            }
             return ChatResult.Fail(new ChatError(message, statusCode, ProviderName));
         }
 

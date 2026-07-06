@@ -21,6 +21,8 @@ public sealed class PromptComposerTests : IDisposable
             Path.Combine(_root, "20-tasks", "comment-created.md"),
             "actor={{actor_name}} post={{post_content}} comments={{comments}} " +
             "incoming={{incoming_comment}} prio={{priority_instruction}}");
+        File.WriteAllText(Path.Combine(_root, "20-tasks", "daily-post-score.md"), "DAILY-POST-SCORE");
+        File.WriteAllText(Path.Combine(_root, "20-tasks", "daily-post-compose.md"), "DAILY-POST-COMPOSE");
         File.WriteAllText(
             Path.Combine(_root, "30-priority-instructions", "high.md"), "PRIO-HIGH");
         File.WriteAllText(

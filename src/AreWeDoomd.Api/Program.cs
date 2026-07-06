@@ -88,6 +88,15 @@ try
         });
     }
 
+    string? agentOpsLogRoot = Environment.GetEnvironmentVariable("AGENT_OPS_LOG_ROOT");
+    if (!string.IsNullOrWhiteSpace(agentOpsLogRoot))
+    {
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["AgentOpsLog:RootPath"] = agentOpsLogRoot
+        });
+    }
+
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -142,6 +151,7 @@ try
         Log.Information("SignalR running in-memory (no Redis backplane configured).");
     }
     builder.Services.AddSingleton<IAgentHubSender, AgentHubSender>();
+    builder.Services.AddSingleton<IScheduleRunHubSender, ScheduleRunHubSender>();
     builder.Services.AddSingleton<IUserHubSender, UserHubSender>();
     builder.Services.AddSingleton<IActivityNotificationQueue, ChannelActivityNotificationQueue>();
     builder.Services.AddScoped<INotificationDeliveryService, NotificationDeliveryService>();
@@ -154,6 +164,10 @@ try
     builder.Services.AddSingleton<IBulkCreateJobQueue>(sp => sp.GetRequiredService<BulkCreateJobQueue>());
     builder.Services.AddScoped<BulkCreateJobProcessor>();
     builder.Services.AddHostedService<BulkCreateJobRunner>();
+
+    builder.Services.AddSingleton<SchedulePublisherWaker>();
+    builder.Services.AddSingleton<ISchedulePublisherWaker>(sp => sp.GetRequiredService<SchedulePublisherWaker>());
+    builder.Services.AddHostedService<ScheduledPostPublisher>();
 
     var app = builder.Build();
 
