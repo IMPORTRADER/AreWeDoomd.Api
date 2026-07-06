@@ -23,6 +23,7 @@ public sealed class DailySchedulePlannerTests
     private readonly Mock<IPersonaProvider> _personas = new();
     private readonly Mock<IScheduleDecisionCallbackClient> _callback = new();
     private readonly List<ScheduleDecisionCallbackClient.CallbackPayload> _submitted = [];
+    private readonly FakeAgentOpsLogWriter _opsLog = new();
     private readonly DailySchedulePlanner _planner;
 
     public DailySchedulePlannerTests()
@@ -44,7 +45,7 @@ public sealed class DailySchedulePlannerTests
         _planner = new DailySchedulePlanner(
             new ScheduleRunQueue(), new PromptFileSet(), new DailyPostPlanParser(),
             _personas.Object, _callback.Object, services.BuildServiceProvider(),
-            options, new FakeTimeProvider(Now), new FakeAgentOpsLogWriter(),
+            options, new FakeTimeProvider(Now), _opsLog,
             NullLogger<DailySchedulePlanner>.Instance);
     }
 
@@ -96,5 +97,27 @@ public sealed class DailySchedulePlannerTests
         _submitted[0].ErrorDetail.ShouldNotBeNull();
         _submitted[0].ErrorDetail!.ShouldStartWith("Scoring failed:");
         _submitted[0].ErrorDetail.ShouldContain("Token budget exhausted");
+    }
+
+    [Fact]
+    public async Task ProcessRunAsync_StagedRun_ShouldWritePerAccountOpsLogEntriesWithAgentIdentity()
+    {
+        var runItemId = Guid.NewGuid();
+        var item = Item(runItemId);
+        // Score below threshold (60) so the below-loop per-account log fires without needing composition.
+        var scoringJson = $$"""{"accounts":[{"runItemId":"{{runItemId}}","reasoning":"not in the mood","desireScore":20,"hypotheticalPostCount":1}]}""";
+        _chat.Setup(c => c.CompleteAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ChatResult.Ok(scoringJson, new TokenUsage(10, 10), FinishReason.Stop));
+
+        await _planner.ProcessRunAsync(Run(item), CancellationToken.None);
+
+        var perAccountEntries = _opsLog.Entries
+            .Where(e => e.Source == AreWeDoomd.AgentService.Logging.AgentOpsLogSource.Scheduling
+                        && e.AiUserId != null && e.AiUsername != null)
+            .ToList();
+
+        perAccountEntries.ShouldNotBeEmpty();
+        perAccountEntries.ShouldContain(e =>
+            e.AiUserId == item.AiUserId.ToString() && e.AiUsername == item.Username);
     }
 }
