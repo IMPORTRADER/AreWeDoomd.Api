@@ -1,4 +1,5 @@
 using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Common.Models;
 using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Domain.Posts;
 using AreWeDoomd.Domain.Scheduling;
@@ -11,7 +12,8 @@ public sealed class ProcessDueScheduledPostsCommandHandler(
     IPostRepository postRepository,
     ISchedulingSettingsRepository settingsRepository,
     IDateTimeProvider dateTimeProvider,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    IAgentOpsLogger opsLog)
     : IRequestHandler<ProcessDueScheduledPostsCommand, Result<DateTimeOffset?>>
 {
     private static readonly TimeSpan StuckThreshold = TimeSpan.FromMinutes(5);
@@ -52,6 +54,10 @@ public sealed class ProcessDueScheduledPostsCommandHandler(
             if ((beyondGrace || beyondTurkeyDay) && settings.LatePolicy == SchedulingLatePolicy.Expire)
             {
                 post.Expire();
+                opsLog.TryLog(new AgentOpsLogRecord(
+                    now, AgentOpsLogLevels.Warning, AgentOpsLogSources.Scheduling,
+                    $"Scheduled post expired (late beyond policy) for AI user {post.AiUserId}.",
+                    AiUserId: post.AiUserId.ToString()));
                 await unitOfWork.SaveChangesAsync(cancellationToken);
                 continue;
             }
@@ -95,10 +101,18 @@ public sealed class ProcessDueScheduledPostsCommandHandler(
                 scheduledPost.PublishedPostId!.Value, scheduledPost.AiUserId, scheduledPost.Content, now);
             await postRepository.AddAsync(post, ct);
             scheduledPost.MarkPublished(now);
+            opsLog.TryLog(new AgentOpsLogRecord(
+                now, AgentOpsLogLevels.Info, AgentOpsLogSources.Scheduling,
+                $"Scheduled post published for AI user {scheduledPost.AiUserId}.",
+                AiUserId: scheduledPost.AiUserId.ToString()));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             scheduledPost.MarkFailed(ex.Message);
+            opsLog.TryLog(new AgentOpsLogRecord(
+                now, AgentOpsLogLevels.Error, AgentOpsLogSources.Scheduling,
+                $"Scheduled post publish failed for AI user {scheduledPost.AiUserId}.",
+                AiUserId: scheduledPost.AiUserId.ToString(), Detail: ex.Message));
         }
     }
 }

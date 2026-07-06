@@ -1,5 +1,6 @@
 using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Common.Models;
 using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Application.Features.PostScheduling.Common;
 using AreWeDoomd.Domain.Scheduling;
@@ -16,7 +17,8 @@ public sealed class StartScheduleRunCommandHandler(
     IScheduleTargetReadRepository targetRepository,
     IScheduleRunHubSender hubSender,
     IDateTimeProvider dateTimeProvider,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    IAgentOpsLogger opsLog)
     : IRequestHandler<StartScheduleRunCommand, Result<StartScheduleRunResult>>
 {
     private static readonly TimeSpan MinWindow = TimeSpan.FromMinutes(30);
@@ -99,6 +101,10 @@ public sealed class StartScheduleRunCommandHandler(
 
         var message = BuildRequest(run, targets, windowStart, windowEnd, llmSettings);
         await hubSender.SendAsync(message, cancellationToken);
+
+        opsLog.TryLog(new AgentOpsLogRecord(
+            now, AgentOpsLogLevels.Info, AgentOpsLogSources.Scheduling,
+            $"Schedule run {run.Id} started for {run.Items.Count} account(s); sent to AgentService."));
 
         return Result<StartScheduleRunResult>.Success(new StartScheduleRunResult(run.Id, run.Items.Count));
     }

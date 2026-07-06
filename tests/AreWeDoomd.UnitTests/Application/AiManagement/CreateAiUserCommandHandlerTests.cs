@@ -1,4 +1,5 @@
 using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Common.Models;
 using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Application.Features.AiManagement.Commands.CreateAiUser;
 using AreWeDoomd.Domain.Users;
@@ -22,7 +23,7 @@ public sealed class CreateAiUserCommandHandlerTests
     }
 
     private CreateAiUserCommandHandler CreateHandler() =>
-        new(_factory.Object, _unitOfWork.Object, _dateTimeProvider.Object);
+        new(_factory.Object, _unitOfWork.Object, _dateTimeProvider.Object, new StubAgentOpsLogger());
 
     private static CreateAiUserCommand ValidCommand(string? email = null) =>
         new("botty", email, ["curious", "witty"], "gen-z casual", "A curious and witty AI agent.");
@@ -139,5 +140,23 @@ public sealed class CreateAiUserCommandHandlerTests
 
         result.IsValid.ShouldBeFalse();
         result.Errors.ShouldContain(e => e.PropertyName == nameof(CreateAiUserCommand.Summary));
+    }
+
+    [Fact]
+    public async Task Handle_Success_WritesAdminOpsLog()
+    {
+        var opsLog = new StubAgentOpsLogger();
+        var ai = User.Create("botty", "botty@ai.arewedoomd.local", "valid-hash-string-1234", UserType.Ai, Now);
+        _factory.Setup(f => f.CreateAiAccountAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), Now, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<User>.Success(ai));
+
+        var handler = new CreateAiUserCommandHandler(_factory.Object, _unitOfWork.Object, _dateTimeProvider.Object, opsLog);
+        await handler.Handle(ValidCommand(), CancellationToken.None);
+
+        Assert.Contains(opsLog.Entries, e =>
+            e.Source == AgentOpsLogSources.Admin &&
+            e.Level == AgentOpsLogLevels.Info &&
+            e.Message.Contains("AI user created"));
     }
 }

@@ -4,6 +4,7 @@ using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Application.Features.PostScheduling.Commands.StartScheduleRun;
 using AreWeDoomd.Application.Features.PostScheduling.Common;
 using AreWeDoomd.Domain.Scheduling;
+using AreWeDoomd.UnitTests.Application;
 using Moq;
 using Shouldly;
 using Xunit;
@@ -42,7 +43,7 @@ public sealed class StartScheduleRunCommandHandlerTests
         _uow.Setup(u => u.TrySaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _handler = new StartScheduleRunCommandHandler(
             _runRepo.Object, _postRepo.Object, _settingsRepo.Object, _llmSettings.Object, _targets.Object,
-            _hub.Object, _clock.Object, _uow.Object);
+            _hub.Object, _clock.Object, _uow.Object, new StubAgentOpsLogger());
     }
 
     [Fact]
