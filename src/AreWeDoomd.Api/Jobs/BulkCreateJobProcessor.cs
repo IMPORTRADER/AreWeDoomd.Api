@@ -50,6 +50,10 @@ public sealed class BulkCreateJobProcessor(
                 logger.LogWarning(
                     "Persona generator failed for job {JobId}: {Error}. Recording remaining as failed.",
                     jobId, genResult.Error!.Message);
+                opsLog.TryLog(new AgentOpsLogRecord(
+                    DateTimeOffset.UtcNow, AgentOpsLogLevels.Warning, AgentOpsLogSources.Admin,
+                    $"Persona generation failed for bulk job {jobId}; remaining slots recorded as failed.",
+                    Detail: genResult.Error.Message));
 
                 int rem = requested - store.GetCreatedPlusFailed(jobId);
                 for (int i = 0; i < rem; i++)
@@ -109,9 +113,14 @@ public sealed class BulkCreateJobProcessor(
         }
 
         store.Complete(jobId, DateTimeOffset.UtcNow);
+        var finalSnap = store.TryGetSnapshot(jobId);
+        int createdCount = finalSnap?.Created ?? 0;
+        int failedCount = finalSnap?.Failed.Count ?? 0;
         opsLog.TryLog(new AgentOpsLogRecord(
-            DateTimeOffset.UtcNow, AgentOpsLogLevels.Info, AgentOpsLogSources.Admin,
-            $"Bulk create finished: {store.GetCreatedPlusFailed(jobId)}/{requested} processed (job {jobId})."));
+            DateTimeOffset.UtcNow,
+            failedCount > 0 ? AgentOpsLogLevels.Warning : AgentOpsLogLevels.Info,
+            AgentOpsLogSources.Admin,
+            $"Bulk create finished: {createdCount} created, {failedCount} failed of {requested} requested (job {jobId})."));
     }
 
     private async Task TryCreateUserAsync(Guid jobId, GeneratedPersona persona, CancellationToken ct)
