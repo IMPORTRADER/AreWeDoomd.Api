@@ -1,4 +1,5 @@
 using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Common.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -8,6 +9,7 @@ namespace AreWeDoomd.Api.Jobs;
 public sealed class BulkCreateJobRunner(
     IBulkCreateJobQueue queue,
     IServiceScopeFactory scopeFactory,
+    IAgentOpsLogger opsLog,
     ILogger<BulkCreateJobRunner> logger)
     : BackgroundService
 {
@@ -21,7 +23,18 @@ public sealed class BulkCreateJobRunner(
 
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var processor = scope.ServiceProvider.GetRequiredService<BulkCreateJobProcessor>();
-                await processor.ProcessAsync(jobId, stoppingToken);
+                try
+                {
+                    await processor.ProcessAsync(jobId, stoppingToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    opsLog.TryLog(new AgentOpsLogRecord(
+                        DateTimeOffset.UtcNow, AgentOpsLogLevels.Error, AgentOpsLogSources.Admin,
+                        $"Bulk create job {jobId} crashed before completing.",
+                        Detail: ex.Message));
+                    throw;
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

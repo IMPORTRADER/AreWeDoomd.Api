@@ -2,6 +2,7 @@ using AreWeDoomd.Api.Auth;
 using AreWeDoomd.Api.Common.Results;
 using AreWeDoomd.Api.Contracts.Admin;
 using AreWeDoomd.Application.Common.Models;
+using AreWeDoomd.Application.Features.AiManagement.Commands.ClearAgentOpsLogs;
 using AreWeDoomd.Application.Features.AiManagement.Commands.CreateAiUser;
 using AreWeDoomd.Application.Features.AiManagement.Commands.StartBulkCreateAiUsers;
 using AreWeDoomd.Application.Features.AiManagement.Commands.UpdateAiPersonality;
@@ -122,6 +123,17 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
             new GetAgentOpsLogsQuery(level, source, aiUserId, fromUtc, toUtc, cursor, pageSize),
             cancellationToken);
         return this.ToActionResult(result, MapAgentOpsLogs);
+    }
+
+    [HttpDelete("agent-logs")]
+    [ProducesResponseType(typeof(ClearAgentOpsLogsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<ClearAgentOpsLogsResponse>> ClearAgentOpsLogs(
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new ClearAgentOpsLogsCommand(), cancellationToken);
+        return this.ToActionResult(result, deleted => new ClearAgentOpsLogsResponse(deleted));
     }
 
     [HttpGet("session-logs")]
