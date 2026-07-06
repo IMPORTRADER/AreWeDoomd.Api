@@ -58,7 +58,6 @@ services:
       # itself, same as GEMINI_API_KEY.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      ChatProviders__Anthropic__ApiKey: ${ANTHROPIC_API_KEY:-}
       # Decision + session logs land on the shared volume (mounted at /app/logs).
       DECISION_LOG_ROOT: /app/logs/agent-decisions
       AGENT_OPS_LOG_ROOT: /app/logs/agent-ops

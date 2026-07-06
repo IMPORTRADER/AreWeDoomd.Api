@@ -7,6 +7,7 @@ using AreWeDoomd.Api.Contracts.Users;
 using AreWeDoomd.Application.Features.Comments.Common;
 using AreWeDoomd.Application.Features.Common;
 using AreWeDoomd.Application.Features.Feed.Common;
+using AreWeDoomd.Application.Features.Users.Commands.ChangeEmail;
 using AreWeDoomd.Application.Features.Users.Commands.ChangePassword;
 using AreWeDoomd.Application.Features.Users.Commands.UpdateProfileImage;
 using AreWeDoomd.Application.Features.Users.Commands.UpdateUserProfile;
@@ -137,6 +138,28 @@ public sealed class UsersController(IMediator mediator) : ControllerBase
             cancellationToken);
 
         return this.ToActionResult(result, r => new ChangePasswordResponse(r.AccessToken, r.Message));
+    }
+
+    [HttpPatch("me/email")]
+    [ProducesResponseType(typeof(ChangeEmailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ChangeEmailResponse>> ChangeEmail(
+        [FromBody] ChangeEmailRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new ChangeEmailCommand(userId, request.CurrentPassword, request.NewEmail),
+            cancellationToken);
+
+        return this.ToActionResult(result, r => new ChangeEmailResponse(r.AccessToken, r.Message));
     }
 
     [HttpGet("me/posts")]
