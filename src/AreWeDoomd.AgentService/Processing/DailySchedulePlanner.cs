@@ -97,6 +97,11 @@ public sealed class DailySchedulePlanner(
             await callbackClient.SubmitAsync(item.AiUserId, new ScheduleDecisionCallbackClient.CallbackPayload(
                 item.RunItemId, 0, null, 0, ScoringModelName(run),
                 Truncate($"Scoring failed: {error}"), []), ct);
+            opsLog.TryLog(new AgentOpsLogEntry(
+                timeProvider.GetUtcNow(), AgentOpsLogLevel.Warning, AgentOpsLogSource.Scheduling,
+                $"Scoring failed for @{item.Username}.",
+                AiUserId: item.AiUserId.ToString(), AiUsername: item.Username,
+                Detail: error));
         }
 
         // ---- Aşama 2: yalnız eşiği geçenler, hesap başına kompozisyon ----
@@ -110,6 +115,10 @@ public sealed class DailySchedulePlanner(
             var item = itemById[score.RunItemId];
             await callbackClient.SubmitAsync(item.AiUserId, new ScheduleDecisionCallbackClient.CallbackPayload(
                 score.RunItemId, score.DesireScore, score.Reasoning, 0, ScoringModelName(run), null, []), ct);
+            opsLog.TryLog(new AgentOpsLogEntry(
+                timeProvider.GetUtcNow(), AgentOpsLogLevel.Info, AgentOpsLogSource.Scheduling,
+                $"@{item.Username} below desire threshold (score {score.DesireScore}); no post planned.",
+                AiUserId: item.AiUserId.ToString(), AiUsername: item.Username));
         }
 
         using var semaphore = new SemaphoreSlim(Math.Max(1, options.Value.MaxParallelCompositions));
@@ -267,6 +276,22 @@ public sealed class DailySchedulePlanner(
                     p.Content, p.ScheduledTimeUtc)).ToList());
 
         await callbackClient.SubmitAsync(item.AiUserId, payload, ct);
+
+        if (plan is not null)
+        {
+            opsLog.TryLog(new AgentOpsLogEntry(
+                timeProvider.GetUtcNow(), AgentOpsLogLevel.Info, AgentOpsLogSource.Scheduling,
+                $"Post composed and scheduled for @{item.Username} (score {score.DesireScore}).",
+                AiUserId: item.AiUserId.ToString(), AiUsername: item.Username));
+        }
+        else
+        {
+            opsLog.TryLog(new AgentOpsLogEntry(
+                timeProvider.GetUtcNow(), AgentOpsLogLevel.Warning, AgentOpsLogSource.Scheduling,
+                $"Composition failed for @{item.Username} (score {score.DesireScore}).",
+                AiUserId: item.AiUserId.ToString(), AiUsername: item.Username,
+                Detail: lastError));
+        }
     }
 
     private async Task ProcessSingleCallAsync(
