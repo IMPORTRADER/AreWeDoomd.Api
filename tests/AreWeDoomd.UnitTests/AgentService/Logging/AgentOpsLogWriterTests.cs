@@ -49,6 +49,23 @@ public sealed class AgentOpsLogWriterTests : IDisposable
         Assert.False(accepted);
     }
 
+    [Fact]
+    public void CleanupOldFiles_DeletesOnlyOwnProcessFiles()
+    {
+        Directory.CreateDirectory(_tempDir);
+        string oldOwn = Path.Combine(_tempDir, "agent-logs-agentservice-2020-01-01.jsonl");
+        string oldOther = Path.Combine(_tempDir, "agent-logs-api-2020-01-01.jsonl");
+        File.WriteAllText(oldOwn, "{}");
+        File.WriteAllText(oldOther, "{}");
+
+        var appender = new AgentOpsLogFileAppender(_tempDir, "agentservice");
+        int deleted = appender.CleanupOldFiles(retentionDays: 14);
+
+        Assert.Equal(1, deleted);
+        Assert.False(File.Exists(oldOwn));
+        Assert.True(File.Exists(oldOther));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDir))

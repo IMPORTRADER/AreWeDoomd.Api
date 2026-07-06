@@ -45,7 +45,7 @@ public sealed class AgentOpsLogFileAppender
         DateTime cutoff = DateTime.UtcNow.Date.AddDays(-retentionDays);
         int deleted = 0;
 
-        foreach (string file in Directory.EnumerateFiles(_rootPath, $"{FilePrefix}*{FileSuffix}"))
+        foreach (string file in Directory.EnumerateFiles(_rootPath, $"{FilePrefix}{_processName}-*{FileSuffix}"))
         {
             string stem = Path.GetFileName(file)[FilePrefix.Length..^FileSuffix.Length];
             if (stem.Length < 10)
