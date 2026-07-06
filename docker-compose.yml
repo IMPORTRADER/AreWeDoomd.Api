@@ -35,7 +35,11 @@ services:
       interval: 2s
       timeout: 2s
       retries: 15
-      start_period: 5s
+      # The database preflight blocks Kestrel for up to ~5 minutes while an
+      # Azure SQL serverless cold start resumes; the grace period must cover
+      # that window or agent-service (service_healthy) never starts. A probe
+      # that succeeds sooner still marks the container healthy immediately.
+      start_period: 6m
     volumes:
       - agent-logs:/app/agent-logs
 
