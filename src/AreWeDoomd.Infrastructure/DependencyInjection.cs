@@ -89,6 +89,7 @@ public static class DependencyInjection
         services.AddSingleton<IDecisionLogReader, FileDecisionLogReader>();
         services.AddSingleton<ISessionLogReader, FileSessionLogReader>();
         services.AddSingleton<IAgentOpsLogReader, FileAgentOpsLogReader>();
+        services.AddSingleton<IAgentOpsLogCleaner, FileAgentOpsLogCleaner>();
         services.AddSingleton<ApiAgentOpsLogWriter>();
         services.AddSingleton<IAgentOpsLogger>(sp => sp.GetRequiredService<ApiAgentOpsLogWriter>());
         services.AddHostedService(sp => sp.GetRequiredService<ApiAgentOpsLogWriter>());
