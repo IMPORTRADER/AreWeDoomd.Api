@@ -73,7 +73,7 @@ builder.Services.Configure<AgentServiceOptions>(
     builder.Configuration.GetSection(AgentServiceOptions.SectionName));
 builder.Services.Configure<DecisionLogOptions>(builder.Configuration.GetSection(DecisionLogOptions.SectionName));
 builder.Services.Configure<AgentOpsLogOptions>(builder.Configuration.GetSection(AgentOpsLogOptions.SectionName));
-builder.Services.AddChatProviders(builder.Configuration);
+builder.Services.AddChatProviders(builder.Configuration, validateOnStart: false);
 builder.Services.AddSingleton<IAiSessionLogger, AiSessionLogger>();
 
 builder.Services.AddHttpClient(ContextFetcher.HttpClientName);
@@ -101,27 +101,52 @@ builder.Services.AddSingleton<AgentOpsLogWriter>();
 builder.Services.AddSingleton<IAgentOpsLogWriter>(sp => sp.GetRequiredService<AgentOpsLogWriter>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AgentOpsLogWriter>());
 
-builder.Services.AddHostedService<AgentNotificationListener>();
-builder.Services.AddHostedService<DailySchedulePlanner>();
-builder.Services.AddHostedService(serviceProvider =>
+var selectedChatProvider = builder.Configuration
+    .GetSection(AgentServiceOptions.SectionName)
+    .Get<AgentServiceOptions>()?.ChatProvider ?? new AgentServiceOptions().ChatProvider;
+var chatProviderConfigured =
+    ChatProviderStartupSummary.IsProviderConfigured(builder.Configuration, selectedChatProvider);
+
+if (chatProviderConfigured)
 {
-    var agentOptions = serviceProvider.GetRequiredService<IOptions<AgentServiceOptions>>();
-    return new AgentEventProcessor(
-        serviceProvider.GetRequiredService<AgentEventQueue>(),
-        serviceProvider.GetRequiredService<IContextFetcher>(),
-        serviceProvider.GetRequiredService<PriorityDecayPolicy>(),
-        serviceProvider.GetRequiredService<IPersonaProvider>(),
-        serviceProvider.GetRequiredService<IPromptComposer>(),
-        serviceProvider.GetRequiredKeyedService<IChatProvider>(agentOptions.Value.ChatProvider),
-        serviceProvider.GetRequiredService<DecisionParser>(),
-        serviceProvider.GetRequiredService<IActionExecutor>(),
-        serviceProvider.GetRequiredService<IAiSessionLogger>(),
-        serviceProvider.GetRequiredService<IDecisionLogWriter>(),
-        serviceProvider.GetRequiredService<IAgentOpsLogWriter>(),
-        serviceProvider.GetRequiredService<ILlmSettingsProvider>(),
-        agentOptions,
-        serviceProvider.GetRequiredService<ILogger<AgentEventProcessor>>());
-});
+    builder.Services.AddHostedService<AgentNotificationListener>();
+    builder.Services.AddHostedService<DailySchedulePlanner>();
+    builder.Services.AddHostedService(serviceProvider =>
+    {
+        var agentOptions = serviceProvider.GetRequiredService<IOptions<AgentServiceOptions>>();
+        return new AgentEventProcessor(
+            serviceProvider.GetRequiredService<AgentEventQueue>(),
+            serviceProvider.GetRequiredService<IContextFetcher>(),
+            serviceProvider.GetRequiredService<PriorityDecayPolicy>(),
+            serviceProvider.GetRequiredService<IPersonaProvider>(),
+            serviceProvider.GetRequiredService<IPromptComposer>(),
+            serviceProvider.GetRequiredKeyedService<IChatProvider>(agentOptions.Value.ChatProvider),
+            serviceProvider.GetRequiredService<DecisionParser>(),
+            serviceProvider.GetRequiredService<IActionExecutor>(),
+            serviceProvider.GetRequiredService<IAiSessionLogger>(),
+            serviceProvider.GetRequiredService<IDecisionLogWriter>(),
+            serviceProvider.GetRequiredService<IAgentOpsLogWriter>(),
+            serviceProvider.GetRequiredService<ILlmSettingsProvider>(),
+            agentOptions,
+            serviceProvider.GetRequiredService<ILogger<AgentEventProcessor>>());
+    });
+}
 
 var host = builder.Build();
+
+ChatProviderStartupSummary.LogSummary(
+    builder.Configuration,
+    selectedChatProvider,
+    host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ChatProviderStartup"));
+
+if (!chatProviderConfigured)
+{
+    host.Services.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("ChatProviderStartup")
+        .LogError(
+            "Agent pipeline not started: selected chat provider '{Provider}' has no API key. " +
+            "Set the key and restart the service.",
+            selectedChatProvider);
+}
+
 host.Run();
