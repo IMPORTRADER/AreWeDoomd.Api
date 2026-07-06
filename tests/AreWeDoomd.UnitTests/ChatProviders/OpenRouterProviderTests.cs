@@ -189,6 +189,74 @@ public sealed class OpenRouterProviderTests
         requestBody.ShouldNotContain("response_format");
     }
 
+    [Fact]
+    public async Task CompleteAsync_WhenReasoningDisabled_ShouldSendReasoningEnabledFalse()
+    {
+        string? capturedBody = null;
+        var provider = CreateProvider(
+            StubHttpMessageHandler.AlwaysRespondWith(request =>
+            {
+                capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""
+                    {"choices":[{"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],
+                     "usage":{"prompt_tokens":10,"completion_tokens":2}}
+                    """)
+                };
+            }),
+            maxRetries: 0);
+
+        await provider.CompleteAsync(SampleRequest with { ReasoningEnabled = false }, CancellationToken.None);
+
+        capturedBody.ShouldNotBeNull();
+        capturedBody.ShouldContain("\"reasoning\":{\"enabled\":false}");
+    }
+
+    [Fact]
+    public async Task CompleteAsync_WhenReasoningNull_ShouldNotSendReasoningField()
+    {
+        string? capturedBody = null;
+        var provider = CreateProvider(
+            StubHttpMessageHandler.AlwaysRespondWith(request =>
+            {
+                capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""
+                    {"choices":[{"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],
+                     "usage":{"prompt_tokens":10,"completion_tokens":2}}
+                    """)
+                };
+            }),
+            maxRetries: 0);
+
+        await provider.CompleteAsync(SampleRequest, CancellationToken.None);
+
+        capturedBody.ShouldNotBeNull();
+        capturedBody.ShouldNotContain("\"reasoning\"");
+    }
+
+    [Fact]
+    public async Task CompleteAsync_WhenFinishLengthAndNoText_ShouldReportTokenBudgetExhausted()
+    {
+        const string body = """
+        {"choices":[{"message":{"role":"assistant","content":""},"finish_reason":"length"}],
+         "usage":{"prompt_tokens":100,"completion_tokens":150}}
+        """;
+        var provider = CreateProvider(
+            StubHttpMessageHandler.AlwaysRespondWith(() => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(body)
+            }),
+            maxRetries: 0);
+
+        var result = await provider.CompleteAsync(SampleRequest, CancellationToken.None);
+
+        result.IsSuccess.ShouldBeFalse();
+        result.Error!.Message.ShouldStartWith("Token budget exhausted");
+    }
+
     private static OpenRouterProvider CreateProvider(
         HttpMessageHandler handler,
         int maxRetries = 3,

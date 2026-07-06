@@ -22,6 +22,45 @@ namespace AreWeDoomd.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("AreWeDoomd.Domain.Ai.LlmSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("CompositionTokensPerPost")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("PersonaTokensPerPersona")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ReplyMaxTokens")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ScoringModel")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ScoringTokensPerAccount")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("ThinkingEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LlmSettings", (string)null);
+                });
+
             modelBuilder.Entity("AreWeDoomd.Domain.Comments.Comment", b =>
                 {
                     b.Property<Guid>("Id")

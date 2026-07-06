@@ -4,9 +4,11 @@ using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Application.Features.PostScheduling.Commands.StartScheduleRun;
 using AreWeDoomd.Application.Features.PostScheduling.Common;
 using AreWeDoomd.Domain.Scheduling;
+using AreWeDoomd.UnitTests.Application;
 using Moq;
 using Shouldly;
 using Xunit;
+using DomainLlmSettings = AreWeDoomd.Domain.Ai.LlmSettings;
 
 namespace AreWeDoomd.UnitTests.Features.PostScheduling.Commands.StartScheduleRun;
 
@@ -20,6 +22,7 @@ public sealed class StartScheduleRunCommandHandlerTests
     private readonly Mock<IScheduleRunRepository> _runRepo = new();
     private readonly Mock<IScheduledPostRepository> _postRepo = new();
     private readonly Mock<ISchedulingSettingsRepository> _settingsRepo = new();
+    private readonly Mock<ILlmSettingsRepository> _llmSettings = new();
     private readonly Mock<IScheduleTargetReadRepository> _targets = new();
     private readonly Mock<IScheduleRunHubSender> _hub = new();
     private readonly Mock<IDateTimeProvider> _clock = new();
@@ -31,14 +34,16 @@ public sealed class StartScheduleRunCommandHandlerTests
         _clock.Setup(c => c.UtcNow).Returns(Now);
         _settingsRepo.Setup(s => s.GetAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(SchedulingSettings.CreateDefault(Now));
+        _llmSettings.Setup(s => s.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DomainLlmSettings?)null);
         _targets.Setup(t => t.GetTargetsAsync(It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new ScheduleTarget(Ai1, "ai-1", "özet", 2, Now.AddDays(-1))]);
         _runRepo.Setup(r => r.GetActiveItemsForDateAsync(It.IsAny<DateOnly>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
         _uow.Setup(u => u.TrySaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _handler = new StartScheduleRunCommandHandler(
-            _runRepo.Object, _postRepo.Object, _settingsRepo.Object, _targets.Object,
-            _hub.Object, _clock.Object, _uow.Object);
+            _runRepo.Object, _postRepo.Object, _settingsRepo.Object, _llmSettings.Object, _targets.Object,
+            _hub.Object, _clock.Object, _uow.Object, new StubAgentOpsLogger());
     }
 
     [Fact]
@@ -121,5 +126,42 @@ public sealed class StartScheduleRunCommandHandlerTests
         result.IsSuccess.ShouldBeFalse();
         result.ErrorType.ShouldBe(ErrorType.Conflict);
         _hub.Verify(h => h.SendAsync(It.IsAny<ScheduleRunRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldSnapshotLlmSettingsIntoHubMessage()
+    {
+        var llm = DomainLlmSettings.CreateDefault(Now);
+        llm.Update("openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free",
+            thinkingEnabled: true, scoringTokensPerAccount: 256, compositionTokensPerPost: 900,
+            personaTokensPerPersona: 700, replyMaxTokens: 1024, now: Now);
+        _llmSettings.Setup(s => s.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(llm);
+
+        var result = await _handler.Handle(new StartScheduleRunCommand(Admin, null, false), CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        _hub.Verify(h => h.SendAsync(
+            It.Is<ScheduleRunRequest>(m =>
+                m.Model == "openai/gpt-oss-120b:free" &&
+                m.ScoringModel == "meta-llama/llama-3.3-70b-instruct:free" &&
+                m.ThinkingEnabled &&
+                m.ScoringTokensPerAccount == 256 &&
+                m.CompositionTokensPerPost == 900),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WhenAllConflictingItemsFailed_ShouldReturnFailedPlanConflictMessage()
+    {
+        var existing = ScheduleRunItem.Create(Guid.NewGuid(), Ai1, new DateOnly(2026, 7, 5), Now);
+        existing.MarkFailed("LLM scoring failed", Now);
+        _runRepo.Setup(r => r.GetActiveItemsForDateAsync(It.IsAny<DateOnly>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([existing]);
+
+        var result = await _handler.Handle(new StartScheduleRunCommand(Admin, null, false), CancellationToken.None);
+
+        result.ErrorType.ShouldBe(ErrorType.Conflict);
+        result.Error!.Message.ShouldContain("başarısız olmuştu");
+        result.Error!.Message.ShouldContain("Üzerine yazarak yeniden deneyebilirsiniz");
     }
 }

@@ -4,6 +4,7 @@ using AreWeDoomd.Application.Common.Models;
 using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Domain.Users;
 using AreWeDoomd.Infrastructure.Common.Options;
+using AreWeDoomd.UnitTests.Application;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -61,6 +62,7 @@ public sealed class BulkCreateJobProcessorTests
             BuildScopeFactory(),
             store,
             Options.Create(opts ?? DefaultOptions),
+            new StubAgentOpsLogger(),
             NullLogger<BulkCreateJobProcessor>.Instance);
     }
 

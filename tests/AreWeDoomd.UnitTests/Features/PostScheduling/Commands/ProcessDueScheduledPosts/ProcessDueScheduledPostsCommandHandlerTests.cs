@@ -2,6 +2,7 @@ using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Features.PostScheduling.Commands.ProcessDueScheduledPosts;
 using AreWeDoomd.Domain.Posts;
 using AreWeDoomd.Domain.Scheduling;
+using AreWeDoomd.UnitTests.Application;
 using Moq;
 using Shouldly;
 using Xunit;
@@ -34,7 +35,7 @@ public sealed class ProcessDueScheduledPostsCommandHandlerTests
         _postRepo.Setup(p => p.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Post?)null);
         _handler = new ProcessDueScheduledPostsCommandHandler(
-            _spRepo.Object, _postRepo.Object, _settingsRepo.Object, _clock.Object, _uow.Object);
+            _spRepo.Object, _postRepo.Object, _settingsRepo.Object, _clock.Object, _uow.Object, new StubAgentOpsLogger());
     }
 
     private static ScheduledPost DuePost(DateTimeOffset scheduledAt)

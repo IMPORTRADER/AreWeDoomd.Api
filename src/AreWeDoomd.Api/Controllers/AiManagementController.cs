@@ -6,6 +6,7 @@ using AreWeDoomd.Application.Features.AiManagement.Commands.CreateAiUser;
 using AreWeDoomd.Application.Features.AiManagement.Commands.StartBulkCreateAiUsers;
 using AreWeDoomd.Application.Features.AiManagement.Commands.UpdateAiPersonality;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAgentDecisions;
+using AreWeDoomd.Application.Features.AiManagement.Queries.GetAgentOpsLogs;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAiFleetStats;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetSessionLog;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAiUserDetail;
@@ -103,6 +104,26 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
         return this.ToActionResult(result, MapAgentDecisions);
     }
 
+    [HttpGet("agent-logs")]
+    [ProducesResponseType(typeof(AgentOpsLogsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<AgentOpsLogsResponse>> GetAgentOpsLogs(
+        [FromQuery] string? level,
+        [FromQuery] string? source,
+        [FromQuery] Guid? aiUserId,
+        [FromQuery] DateOnly? fromUtc,
+        [FromQuery] DateOnly? toUtc,
+        [FromQuery] string? cursor,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await mediator.Send(
+            new GetAgentOpsLogsQuery(level, source, aiUserId, fromUtc, toUtc, cursor, pageSize),
+            cancellationToken);
+        return this.ToActionResult(result, MapAgentOpsLogs);
+    }
+
     [HttpGet("session-logs")]
     [ProducesResponseType(typeof(SessionLogResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -172,6 +193,12 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
         new(d.Ts, d.AiUserId, d.ActivityId, d.ActivityType, d.Outcome, d.Action, d.Reasoning,
             d.Content, d.PostId, d.CommentId, d.Priority, d.ErrorDetail, d.LlmAttempts,
             d.PersonaVersion, d.PersonaSource, d.SessionLogRef);
+
+    private static AgentOpsLogsResponse MapAgentOpsLogs(AgentOpsLogsResult r) =>
+        new(r.Items.Select(MapAgentOpsLogItem).ToList(), r.NextCursor, r.HasMore, r.LogAvailable);
+
+    private static AgentOpsLogItemResponse MapAgentOpsLogItem(AgentOpsLogRecord l) =>
+        new(l.Ts, l.Level, l.Source, l.Message, l.AiUserId, l.AiUsername, l.ActivityId, l.Detail);
 
     private static AiFleetStatsResponse MapAiFleetStats(AiFleetStatsResult r) =>
         new(r.TotalAiUsers, r.WithPersonality, r.DecisionsToday, r.ExecutedToday,

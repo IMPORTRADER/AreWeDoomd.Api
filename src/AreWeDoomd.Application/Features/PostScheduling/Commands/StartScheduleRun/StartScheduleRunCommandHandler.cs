@@ -1,9 +1,11 @@
 using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Common.Models;
 using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Application.Features.PostScheduling.Common;
 using AreWeDoomd.Domain.Scheduling;
 using MediatR;
+using DomainLlmSettings = AreWeDoomd.Domain.Ai.LlmSettings;
 
 namespace AreWeDoomd.Application.Features.PostScheduling.Commands.StartScheduleRun;
 
@@ -11,10 +13,12 @@ public sealed class StartScheduleRunCommandHandler(
     IScheduleRunRepository runRepository,
     IScheduledPostRepository scheduledPostRepository,
     ISchedulingSettingsRepository settingsRepository,
+    ILlmSettingsRepository llmSettingsRepository,
     IScheduleTargetReadRepository targetRepository,
     IScheduleRunHubSender hubSender,
     IDateTimeProvider dateTimeProvider,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    IAgentOpsLogger opsLog)
     : IRequestHandler<StartScheduleRunCommand, Result<StartScheduleRunResult>>
 {
     private static readonly TimeSpan MinWindow = TimeSpan.FromMinutes(30);
@@ -50,10 +54,14 @@ public sealed class StartScheduleRunCommandHandler(
             {
                 var conflictNames = targets
                     .Where(t => existing.Any(e => e.AiUserId == t.UserId))
-                    .Select(t => t.Username);
-                return Result<StartScheduleRunResult>.Conflict(
-                    "scheduling.already_scheduled",
-                    $"Already scheduled today: {string.Join(", ", conflictNames)}. Use overwriteExisting to replace.");
+                    .Select(t => t.Username)
+                    .ToList();
+                bool allFailed = existing.All(e => e.Status == ScheduleRunItemStatus.Failed);
+                string conflictMessage = allFailed
+                    ? $"Bugünkü önceki plan başarısız olmuştu ({string.Join(", ", conflictNames)}). " +
+                      "Üzerine yazarak yeniden deneyebilirsiniz."
+                    : $"Already scheduled today: {string.Join(", ", conflictNames)}. Use overwriteExisting to replace.";
+                return Result<StartScheduleRunResult>.Conflict("scheduling.already_scheduled", conflictMessage);
             }
 
             foreach (var item in existing)
@@ -71,6 +79,8 @@ public sealed class StartScheduleRunCommandHandler(
 
         var settings = await settingsRepository.GetAsync(cancellationToken)
             ?? SchedulingSettings.CreateDefault(now);
+        var llmSettings = await llmSettingsRepository.GetAsync(cancellationToken)
+            ?? DomainLlmSettings.CreateDefault(now);
 
         var run = ScheduleRun.Create(
             runDate, request.TriggeredByUserId, settings.DesireThreshold,
@@ -89,15 +99,19 @@ public sealed class StartScheduleRunCommandHandler(
                 "Another schedule run for one of these accounts was just created. Retry with overwrite if intended.");
         }
 
-        var message = BuildRequest(run, targets, windowStart, windowEnd);
+        var message = BuildRequest(run, targets, windowStart, windowEnd, llmSettings);
         await hubSender.SendAsync(message, cancellationToken);
+
+        opsLog.TryLog(new AgentOpsLogRecord(
+            now, AgentOpsLogLevels.Info, AgentOpsLogSources.Scheduling,
+            $"Schedule run {run.Id} started for {run.Items.Count} account(s); sent to AgentService."));
 
         return Result<StartScheduleRunResult>.Success(new StartScheduleRunResult(run.Id, run.Items.Count));
     }
 
     private static ScheduleRunRequest BuildRequest(
         ScheduleRun run, IReadOnlyList<ScheduleTarget> targets,
-        DateTimeOffset windowStart, DateTimeOffset windowEnd)
+        DateTimeOffset windowStart, DateTimeOffset windowEnd, DomainLlmSettings llm)
     {
         var targetByUser = targets.ToDictionary(t => t.UserId);
         var items = run.Items
@@ -111,6 +125,8 @@ public sealed class StartScheduleRunCommandHandler(
 
         return new ScheduleRunRequest(
             run.Id, run.ThresholdSnapshot, run.MaxPostsSnapshot, run.PostLengthGuideSnapshot,
-            (int)run.StrategySnapshot, windowStart, windowEnd, items);
+            (int)run.StrategySnapshot, windowStart, windowEnd, items,
+            llm.Model, llm.ScoringModel, llm.ThinkingEnabled,
+            llm.ScoringTokensPerAccount, llm.CompositionTokensPerPost);
     }
 }

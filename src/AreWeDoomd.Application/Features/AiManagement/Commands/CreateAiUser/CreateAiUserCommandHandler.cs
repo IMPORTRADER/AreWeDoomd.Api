@@ -1,4 +1,5 @@
 using AreWeDoomd.Application.Common.Interfaces;
+using AreWeDoomd.Application.Common.Models;
 using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAiUserDetail;
 using MediatR;
@@ -8,7 +9,8 @@ namespace AreWeDoomd.Application.Features.AiManagement.Commands.CreateAiUser;
 public sealed class CreateAiUserCommandHandler(
     IAiAccountFactory aiAccountFactory,
     IUnitOfWork unitOfWork,
-    IDateTimeProvider dateTimeProvider)
+    IDateTimeProvider dateTimeProvider,
+    IAgentOpsLogger opsLog)
     : IRequestHandler<CreateAiUserCommand, Result<AiUserDetailResult>>
 {
     public async Task<Result<AiUserDetailResult>> Handle(
@@ -37,6 +39,11 @@ public sealed class CreateAiUserCommandHandler(
         user.SetAiPersonality(request.Traits, request.TypingStyle, request.Summary, now);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        opsLog.TryLog(new AgentOpsLogRecord(
+            dateTimeProvider.UtcNow, AgentOpsLogLevels.Info, AgentOpsLogSources.Admin,
+            $"AI user created: @{user.Username}.",
+            AiUserId: user.Id.ToString(), AiUsername: user.Username));
 
         bool hasPersonality = user.AiPersonality is not null;
 

@@ -1,5 +1,6 @@
 using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.AgentService;
+using AreWeDoomd.UnitTests.AgentService;
 using AreWeDoomd.AgentService.Actions;
 using AreWeDoomd.AgentService.Ai;
 using AreWeDoomd.AgentService.Context;
@@ -29,6 +30,7 @@ public sealed class AgentEventProcessorTests
     private readonly Mock<IActionExecutor> _actionExecutor = new();
     private readonly Mock<IAiSessionLogger> _sessionLogger = new();
     private readonly Mock<IDecisionLogWriter> _decisionLog = new();
+    private readonly Mock<ILlmSettingsProvider> _llmSettings = new();
 
     public AgentEventProcessorTests()
     {
@@ -44,6 +46,9 @@ public sealed class AgentEventProcessorTests
         _actionExecutor
             .Setup(e => e.ExecuteAsync(It.IsAny<AgentDecision>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ActionExecutionResult(ActionExecutionOutcome.Executed));
+        _llmSettings
+            .Setup(l => l.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LlmRuntimeSettings("test-model", "", false, 512, 800, 700, 1024));
     }
 
     [Fact]
@@ -319,6 +324,24 @@ public sealed class AgentEventProcessorTests
             e.PersonaVersion == null)), Times.Once);
     }
 
+    [Fact]
+    public async Task ProcessSingleAsync_LogsLlmRequestAndDecision_ToOpsLog()
+    {
+        SetupLlmResponses("""{"action":"reply_comment","content":"Hi!","reasoning":"r"}""");
+        var opsLog = new FakeAgentOpsLogWriter();
+        var processor = CreateProcessor(opsLog);
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
+
+        Assert.Contains(opsLog.Entries, e =>
+            e.Source == AgentOpsLogSource.LlmProvider &&
+            e.Level == AgentOpsLogLevel.Info &&
+            e.Message.StartsWith("Requesting "));
+        Assert.Contains(opsLog.Entries, e =>
+            e.Source == AgentOpsLogSource.Actions &&
+            e.Message.Contains("executed", StringComparison.OrdinalIgnoreCase));
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────
 
     private void SetupLlmResponses(params string[] texts)
@@ -343,7 +366,7 @@ public sealed class AgentEventProcessorTests
         }
     }
 
-    private AgentEventProcessor CreateProcessor()
+    private AgentEventProcessor CreateProcessor(FakeAgentOpsLogWriter? opsLog = null)
     {
         var options = Options.Create(new AgentServiceOptions { Model = "test-model" });
         return new AgentEventProcessor(
@@ -357,6 +380,8 @@ public sealed class AgentEventProcessorTests
             _actionExecutor.Object,
             _sessionLogger.Object,
             _decisionLog.Object,
+            opsLog ?? new FakeAgentOpsLogWriter(),
+            _llmSettings.Object,
             options,
             NullLogger<AgentEventProcessor>.Instance);
     }
