@@ -50,6 +50,16 @@ if (!string.IsNullOrWhiteSpace(decisionLogRoot))
     });
 }
 
+// Same convention for the ops log written for the admin dashboard.
+string? agentOpsLogRoot = Environment.GetEnvironmentVariable("AGENT_OPS_LOG_ROOT");
+if (!string.IsNullOrWhiteSpace(agentOpsLogRoot))
+{
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["AgentOpsLog:RootPath"] = agentOpsLogRoot
+    });
+}
+
 builder.Services.AddSerilog((services, loggerConfig) =>
 {
     loggerConfig
@@ -62,6 +72,7 @@ builder.Services.AddSerilog((services, loggerConfig) =>
 builder.Services.Configure<AgentServiceOptions>(
     builder.Configuration.GetSection(AgentServiceOptions.SectionName));
 builder.Services.Configure<DecisionLogOptions>(builder.Configuration.GetSection(DecisionLogOptions.SectionName));
+builder.Services.Configure<AgentOpsLogOptions>(builder.Configuration.GetSection(AgentOpsLogOptions.SectionName));
 builder.Services.AddChatProviders(builder.Configuration);
 builder.Services.AddSingleton<IAiSessionLogger, AiSessionLogger>();
 
@@ -85,6 +96,10 @@ builder.Services.AddSingleton<IActionExecutor, ActionExecutor>();
 builder.Services.AddSingleton<DecisionLogWriter>();
 builder.Services.AddSingleton<IDecisionLogWriter>(sp => sp.GetRequiredService<DecisionLogWriter>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<DecisionLogWriter>());
+
+builder.Services.AddSingleton<AgentOpsLogWriter>();
+builder.Services.AddSingleton<IAgentOpsLogWriter>(sp => sp.GetRequiredService<AgentOpsLogWriter>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<AgentOpsLogWriter>());
 
 builder.Services.AddHostedService<AgentNotificationListener>();
 builder.Services.AddHostedService<DailySchedulePlanner>();
