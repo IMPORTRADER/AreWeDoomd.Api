@@ -88,10 +88,15 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordResetSettings, PasswordResetSettings>();
         services.AddSingleton<IDecisionLogReader, FileDecisionLogReader>();
         services.AddSingleton<ISessionLogReader, FileSessionLogReader>();
+        services.AddSingleton<IAgentOpsLogReader, FileAgentOpsLogReader>();
+        services.AddSingleton<ApiAgentOpsLogWriter>();
+        services.AddSingleton<IAgentOpsLogger>(sp => sp.GetRequiredService<ApiAgentOpsLogWriter>());
+        services.AddHostedService(sp => sp.GetRequiredService<ApiAgentOpsLogWriter>());
 
         services.Configure<PasswordResetOptions>(configuration.GetSection("PasswordReset"));
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
         services.Configure<DecisionLogOptions>(configuration.GetSection(DecisionLogOptions.SectionName));
+        services.Configure<AgentOpsLogOptions>(configuration.GetSection(AgentOpsLogOptions.SectionName));
         services.Configure<PersonaGenerationOptions>(configuration.GetSection(PersonaGenerationOptions.SectionName));
 
         services.AddChatProviders(configuration, validateOnStart: false);

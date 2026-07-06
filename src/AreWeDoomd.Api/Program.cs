@@ -88,6 +88,15 @@ try
         });
     }
 
+    string? agentOpsLogRoot = Environment.GetEnvironmentVariable("AGENT_OPS_LOG_ROOT");
+    if (!string.IsNullOrWhiteSpace(agentOpsLogRoot))
+    {
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["AgentOpsLog:RootPath"] = agentOpsLogRoot
+        });
+    }
+
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
