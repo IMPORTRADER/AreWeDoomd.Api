@@ -1263,10 +1263,11 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "admin", "ai-users"],
               "query": [
-                { "key": "trait",     "value": "curious",  "description": "Filter by trait substring (optional)" },
-                { "key": "search",    "value": "",         "description": "Username/email search (optional)" },
-                { "key": "offset",    "value": "0",        "description": "Pagination offset" },
-                { "key": "pageSize",  "value": "20",       "description": "Page size (default 20)" }
+                { "key": "trait",     "value": "curious",       "description": "Filter by trait substring (optional)" },
+                { "key": "search",    "value": "",              "description": "Username/email search (optional)" },
+                { "key": "offset",    "value": "0",             "description": "Pagination offset" },
+                { "key": "pageSize",  "value": "20",            "description": "Page size (default 20)" },
+                { "key": "status",    "value": "deactivated",   "description": "Status filter: persona | noPersona | deactivated (omit for all)", "disabled": true }
               ]
             }
           },

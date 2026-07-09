@@ -49,11 +49,12 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<AiUserListResponse>> ListAiUsers(
         [FromQuery] string? trait,
         [FromQuery] string? search,
+        [FromQuery] string? status,
         [FromQuery] int offset = 0,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var result = await mediator.Send(new ListAiUsersQuery(trait, search, offset, pageSize), cancellationToken);
+        var result = await mediator.Send(new ListAiUsersQuery(trait, search, status, offset, pageSize), cancellationToken);
         return this.ToActionResult(result, MapAiUserList);
     }
 
@@ -221,7 +222,7 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
         new(r.Items.Select(MapAiUserItem).ToList(), r.TotalCount, r.HasMore);
 
     private static AiUserItemResponse MapAiUserItem(AiUserListItem i) =>
-        new(i.Id, i.Username, i.ProfileImageUrl, i.CreatedAt, i.HasPersonality, i.Traits, i.TypingStyle, i.PersonaVersion);
+        new(i.Id, i.Username, i.ProfileImageUrl, i.CreatedAt, i.HasPersonality, i.Traits, i.TypingStyle, i.PersonaVersion, i.DeactivatedAt);
 
     private static AiUserDetailResponse MapAiUserDetail(AiUserDetailResult r) =>
         new(r.Id, r.Username, r.Email, r.ProfileImageUrl, r.Biography, r.CreatedAt,
@@ -242,7 +243,7 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
         new(l.Ts, l.Level, l.Source, l.Message, l.AiUserId, l.AiUsername, l.ActivityId, l.Detail, l.StatusCode);
 
     private static AiFleetStatsResponse MapAiFleetStats(AiFleetStatsResult r) =>
-        new(r.TotalAiUsers, r.WithPersonality, r.DecisionsToday, r.ExecutedToday,
+        new(r.TotalAiUsers, r.WithPersonality, r.DeactivatedAiUsers, r.DecisionsToday, r.ExecutedToday,
             r.DroppedToday, r.FailedToday, r.ActionsLastHour, r.LogAvailable);
 
     private static BulkCreateJobResponse MapBulkCreateJob(BulkCreateJobSnapshot s) =>

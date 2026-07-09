@@ -15,16 +15,16 @@ public sealed class ListAiUsersQueryHandlerTests
     private ListAiUsersQueryHandler CreateHandler() => new(_repo.Object);
 
     private static AiUserListItem MakeItem(string username) =>
-        new(Guid.NewGuid(), username, null, Now, false, [], null, null);
+        new(Guid.NewGuid(), username, null, Now, false, [], null, null, null);
 
     [Fact]
     public async Task Handle_HappyPath_ReturnsMappedItemsAndCorrectHasMore()
     {
         var items = new List<AiUserListItem> { MakeItem("bot1"), MakeItem("bot2") };
-        _repo.Setup(r => r.ListAsync(null, null, 0, 2, It.IsAny<CancellationToken>()))
+        _repo.Setup(r => r.ListAsync(null, null, null, 0, 2, It.IsAny<CancellationToken>()))
             .ReturnsAsync(((IReadOnlyList<AiUserListItem>)items, 5));
 
-        var result = await CreateHandler().Handle(new ListAiUsersQuery(null, null, 0, 2), default);
+        var result = await CreateHandler().Handle(new ListAiUsersQuery(null, null, null, 0, 2), default);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value!.Items.Count.ShouldBe(2);
@@ -36,10 +36,10 @@ public sealed class ListAiUsersQueryHandlerTests
     public async Task Handle_WhenAllItemsReturned_HasMoreIsFalse()
     {
         var items = new List<AiUserListItem> { MakeItem("bot1"), MakeItem("bot2") };
-        _repo.Setup(r => r.ListAsync(null, null, 0, 2, It.IsAny<CancellationToken>()))
+        _repo.Setup(r => r.ListAsync(null, null, null, 0, 2, It.IsAny<CancellationToken>()))
             .ReturnsAsync(((IReadOnlyList<AiUserListItem>)items, 2));
 
-        var result = await CreateHandler().Handle(new ListAiUsersQuery(null, null, 0, 2), default);
+        var result = await CreateHandler().Handle(new ListAiUsersQuery(null, null, null, 0, 2), default);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value!.HasMore.ShouldBeFalse(); // 0 + 2 == 2, not less
@@ -49,25 +49,25 @@ public sealed class ListAiUsersQueryHandlerTests
     public async Task Handle_WhenPageSizeExceedsMax_ClampsTo100()
     {
         var items = new List<AiUserListItem> { MakeItem("bot1") };
-        _repo.Setup(r => r.ListAsync(null, null, 0, 100, It.IsAny<CancellationToken>()))
+        _repo.Setup(r => r.ListAsync(null, null, null, 0, 100, It.IsAny<CancellationToken>()))
             .ReturnsAsync(((IReadOnlyList<AiUserListItem>)items, 1));
 
-        var result = await CreateHandler().Handle(new ListAiUsersQuery(null, null, 0, 500), default);
+        var result = await CreateHandler().Handle(new ListAiUsersQuery(null, null, null, 0, 500), default);
 
         result.IsSuccess.ShouldBeTrue();
-        _repo.Verify(r => r.ListAsync(null, null, 0, 100, It.IsAny<CancellationToken>()), Times.Once);
+        _repo.Verify(r => r.ListAsync(null, null, null, 0, 100, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task Handle_WhenOffsetNegative_FloorsToZero()
     {
         var items = new List<AiUserListItem> { MakeItem("bot1") };
-        _repo.Setup(r => r.ListAsync(null, null, 0, 10, It.IsAny<CancellationToken>()))
+        _repo.Setup(r => r.ListAsync(null, null, null, 0, 10, It.IsAny<CancellationToken>()))
             .ReturnsAsync(((IReadOnlyList<AiUserListItem>)items, 1));
 
-        var result = await CreateHandler().Handle(new ListAiUsersQuery(null, null, -5, 10), default);
+        var result = await CreateHandler().Handle(new ListAiUsersQuery(null, null, null, -5, 10), default);
 
         result.IsSuccess.ShouldBeTrue();
-        _repo.Verify(r => r.ListAsync(null, null, 0, 10, It.IsAny<CancellationToken>()), Times.Once);
+        _repo.Verify(r => r.ListAsync(null, null, null, 0, 10, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

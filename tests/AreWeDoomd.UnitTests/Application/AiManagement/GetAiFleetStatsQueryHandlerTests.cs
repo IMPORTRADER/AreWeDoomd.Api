@@ -28,7 +28,7 @@ public sealed class GetAiFleetStatsQueryHandlerTests
     public async Task Handle_HappyPath_AggregatesAllStats()
     {
         _repo.Setup(r => r.CountAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Total: 42, WithPersonality: 30));
+            .ReturnsAsync((Total: 42, WithPersonality: 30, Deactivated: 5));
 
         var dailyStats = new DecisionLogDailyStats(Today, 100, 80, 10, 10, 25);
         _reader.Setup(r => r.GetDailyStatsAsync(Today, FixedNow, It.IsAny<CancellationToken>()))
@@ -39,6 +39,7 @@ public sealed class GetAiFleetStatsQueryHandlerTests
         result.IsSuccess.ShouldBeTrue();
         result.Value!.TotalAiUsers.ShouldBe(42);
         result.Value.WithPersonality.ShouldBe(30);
+        result.Value.DeactivatedAiUsers.ShouldBe(5);
         result.Value.DecisionsToday.ShouldBe(100);
         result.Value.ExecutedToday.ShouldBe(80);
         result.Value.DroppedToday.ShouldBe(10);
@@ -51,7 +52,7 @@ public sealed class GetAiFleetStatsQueryHandlerTests
     public async Task Handle_CallsGetDailyStatsWithTodayFromProvider()
     {
         _repo.Setup(r => r.CountAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Total: 5, WithPersonality: 3));
+            .ReturnsAsync((Total: 5, WithPersonality: 3, Deactivated: 1));
 
         _reader.Setup(r => r.GetDailyStatsAsync(Today, FixedNow, It.IsAny<CancellationToken>()))
             .ReturnsAsync((DecisionLogDailyStats?)null);
@@ -65,7 +66,7 @@ public sealed class GetAiFleetStatsQueryHandlerTests
     public async Task Handle_WhenDayStatsNull_ReturnsZeroDecisionCountsWithRealUserCounts()
     {
         _repo.Setup(r => r.CountAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Total: 15, WithPersonality: 8));
+            .ReturnsAsync((Total: 15, WithPersonality: 8, Deactivated: 3));
 
         _reader.Setup(r => r.GetDailyStatsAsync(Today, FixedNow, It.IsAny<CancellationToken>()))
             .ReturnsAsync((DecisionLogDailyStats?)null);
@@ -75,6 +76,7 @@ public sealed class GetAiFleetStatsQueryHandlerTests
         result.IsSuccess.ShouldBeTrue();
         result.Value!.TotalAiUsers.ShouldBe(15);
         result.Value.WithPersonality.ShouldBe(8);
+        result.Value.DeactivatedAiUsers.ShouldBe(3);
         result.Value.DecisionsToday.ShouldBe(0);
         result.Value.ExecutedToday.ShouldBe(0);
         result.Value.DroppedToday.ShouldBe(0);
