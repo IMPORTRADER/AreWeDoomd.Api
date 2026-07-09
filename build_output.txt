@@ -1,0 +1,22 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  AreWeDoomd.Domain -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\src\AreWeDoomd.Domain\bin\Debug\net10.0\AreWeDoomd.Domain.dll
+  AreWeDoomd.ChatProviders -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\src\AreWeDoomd.ChatProviders\bin\Debug\net10.0\AreWeDoomd.ChatProviders.dll
+  AreWeDoomd.ActivityNotifications.Contracts -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\src\AreWeDoomd.ActivityNotifications.Contracts\bin\Debug\net10.0\AreWeDoomd.ActivityNotifications.Contracts.dll
+  AreWeDoomd.Application -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\src\AreWeDoomd.Application\bin\Debug\net10.0\AreWeDoomd.Application.dll
+  AreWeDoomd.AgentService -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\src\AreWeDoomd.AgentService\bin\Debug\net10.0\AreWeDoomd.AgentService.dll
+  AreWeDoomd.Infrastructure -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\src\AreWeDoomd.Infrastructure\bin\Debug\net10.0\AreWeDoomd.Infrastructure.dll
+  AreWeDoomd.Api -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\src\AreWeDoomd.Api\bin\Debug\net10.0\AreWeDoomd.Api.dll
+  AreWeDoomd.IntegrationTests -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\tests\AreWeDoomd.IntegrationTests\bin\Debug\net10.0\AreWeDoomd.IntegrationTests.dll
+C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\tests\AreWeDoomd.UnitTests\AgentService\Logging\DecisionLogWriterTests.cs(51,9): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\tests\AreWeDoomd.UnitTests\AreWeDoomd.UnitTests.csproj]
+C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\tests\AreWeDoomd.UnitTests\AgentService\Processing\DailySchedulePlannerTests.cs(99,9): warning CS8604: Possible null reference argument for parameter 'actual' in 'void ShouldBeStringTestExtensions.ShouldContain(string actual, string expected, Case caseSensitivity = Case.Insensitive, string? customMessage = null)'. [C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\tests\AreWeDoomd.UnitTests\AreWeDoomd.UnitTests.csproj]
+  AreWeDoomd.UnitTests -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\tests\AreWeDoomd.UnitTests\bin\Debug\net10.0\AreWeDoomd.UnitTests.dll
+
+Build succeeded.
+
+C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\tests\AreWeDoomd.UnitTests\AgentService\Logging\DecisionLogWriterTests.cs(51,9): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\tests\AreWeDoomd.UnitTests\AreWeDoomd.UnitTests.csproj]
+C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\tests\AreWeDoomd.UnitTests\AgentService\Processing\DailySchedulePlannerTests.cs(99,9): warning CS8604: Possible null reference argument for parameter 'actual' in 'void ShouldBeStringTestExtensions.ShouldContain(string actual, string expected, Case caseSensitivity = Case.Insensitive, string? customMessage = null)'. [C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\tests\AreWeDoomd.UnitTests\AreWeDoomd.UnitTests.csproj]
+    2 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:03.96

@@ -1,0 +1,14 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  AreWeDoomd.ChatProviders -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\src\AreWeDoomd.ChatProviders\bin\Debug\net10.0\AreWeDoomd.ChatProviders.dll
+  AreWeDoomd.ActivityNotifications.Contracts -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\src\AreWeDoomd.ActivityNotifications.Contracts\bin\Debug\net10.0\AreWeDoomd.ActivityNotifications.Contracts.dll
+  AreWeDoomd.Domain -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\src\AreWeDoomd.Domain\bin\Debug\net10.0\AreWeDoomd.Domain.dll
+  AreWeDoomd.AgentService -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\src\AreWeDoomd.AgentService\bin\Debug\net10.0\AreWeDoomd.AgentService.dll
+  AreWeDoomd.Application -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\src\AreWeDoomd.Application\bin\Debug\net10.0\AreWeDoomd.Application.dll
+  AreWeDoomd.Infrastructure -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\src\AreWeDoomd.Infrastructure\bin\Debug\net10.0\AreWeDoomd.Infrastructure.dll
+  AreWeDoomd.Api -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\src\AreWeDoomd.Api\bin\Debug\net10.0\AreWeDoomd.Api.dll
+  AreWeDoomd.UnitTests -> C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\tests\AreWeDoomd.UnitTests\bin\Debug\net10.0\AreWeDoomd.UnitTests.dll
+Test run for C:\Users\Doga\source\repos\IMPORTRADER\AreWeDoomd\AreWeDoomd.Api\tests\AreWeDoomd.UnitTests\bin\Debug\net10.0\AreWeDoomd.UnitTests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:   453, Skipped:     0, Total:   453, Duration: 906 ms - AreWeDoomd.UnitTests.dll (net10.0)
