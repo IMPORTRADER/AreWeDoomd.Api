@@ -26,6 +26,7 @@ public sealed class UpdateLlmSettingsCommandHandler(
 
         settings.Update(
             request.Model, request.ScoringModel, request.ThinkingEnabled,
+            provider: string.Empty,
             request.ScoringTokensPerAccount, request.CompositionTokensPerPost,
             request.ReplyMaxTokens, now);
 

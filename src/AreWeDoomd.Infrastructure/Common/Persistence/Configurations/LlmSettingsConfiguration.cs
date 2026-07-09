@@ -13,6 +13,7 @@ public sealed class LlmSettingsConfiguration : IEntityTypeConfiguration<LlmSetti
         settings.Property(x => x.Model).IsRequired().HasMaxLength(200);
         settings.Property(x => x.ScoringModel).IsRequired().HasMaxLength(200);
         settings.Property(x => x.ThinkingEnabled).IsRequired();
+        settings.Property(x => x.Provider).HasMaxLength(50).IsRequired();
         settings.Property(x => x.ScoringTokensPerAccount).IsRequired();
         settings.Property(x => x.CompositionTokensPerPost).IsRequired();
         settings.Property(x => x.ReplyMaxTokens).IsRequired();

@@ -38,7 +38,7 @@ public sealed class GetLlmSettingsQueryHandlerTests
     public async Task Handle_WhenRowExists_ShouldMapAllFields()
     {
         var settings = DomainLlmSettings.CreateDefault(Now);
-        settings.Update("anthropic/claude-haiku-4.5", "x", true, 256, 900, 2048, Now);
+        settings.Update("anthropic/claude-haiku-4.5", "x", true, provider: string.Empty, 256, 900, 2048, Now);
         _repo.Setup(r => r.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
 
         var result = await _handler.Handle(new GetLlmSettingsQuery(), CancellationToken.None);
