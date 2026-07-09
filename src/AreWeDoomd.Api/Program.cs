@@ -2,6 +2,7 @@ using AreWeDoomd.Api.Auth;
 using AreWeDoomd.Api.Startup;
 using AreWeDoomd.Infrastructure.Common.Persistence;
 using Microsoft.AspNetCore.Mvc;
+using AreWeDoomd.Api.Common;
 using AreWeDoomd.Api.Common.Errors;
 using AreWeDoomd.Api.Jobs;
 using AreWeDoomd.Api.Notifications;
@@ -132,6 +133,7 @@ try
     {
         Log.Information("SignalR running in-memory (no Redis backplane configured).");
     }
+    builder.Services.AddSingleton<IChatProviderCatalog, ChatProviderCatalog>();
     builder.Services.AddSingleton<IAgentHubSender, AgentHubSender>();
     builder.Services.AddSingleton<IScheduleRunHubSender, ScheduleRunHubSender>();
     builder.Services.AddSingleton<IUserHubSender, UserHubSender>();
