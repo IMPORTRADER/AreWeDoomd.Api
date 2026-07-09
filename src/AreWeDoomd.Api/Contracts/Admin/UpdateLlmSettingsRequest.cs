@@ -6,5 +6,4 @@ public sealed record UpdateLlmSettingsRequest(
     bool ThinkingEnabled,
     int ScoringTokensPerAccount,
     int CompositionTokensPerPost,
-    int PersonaTokensPerPersona,
     int ReplyMaxTokens);

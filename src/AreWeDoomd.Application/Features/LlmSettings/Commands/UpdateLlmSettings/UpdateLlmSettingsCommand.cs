@@ -10,5 +10,4 @@ public sealed record UpdateLlmSettingsCommand(
     bool ThinkingEnabled,
     int ScoringTokensPerAccount,
     int CompositionTokensPerPost,
-    int PersonaTokensPerPersona,
     int ReplyMaxTokens) : IRequest<Result<LlmSettingsResult>>;

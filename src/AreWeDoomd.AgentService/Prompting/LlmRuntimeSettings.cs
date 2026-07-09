@@ -6,5 +6,4 @@ public sealed record LlmRuntimeSettings(
     bool ThinkingEnabled,
     int ScoringTokensPerAccount,
     int CompositionTokensPerPost,
-    int PersonaTokensPerPersona,
     int ReplyMaxTokens);

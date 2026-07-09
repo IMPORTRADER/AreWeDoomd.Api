@@ -15,7 +15,6 @@ public sealed class LlmSettingsConfiguration : IEntityTypeConfiguration<LlmSetti
         settings.Property(x => x.ThinkingEnabled).IsRequired();
         settings.Property(x => x.ScoringTokensPerAccount).IsRequired();
         settings.Property(x => x.CompositionTokensPerPost).IsRequired();
-        settings.Property(x => x.PersonaTokensPerPersona).IsRequired();
         settings.Property(x => x.ReplyMaxTokens).IsRequired();
         settings.Property(x => x.UpdatedAt).IsRequired();
     }

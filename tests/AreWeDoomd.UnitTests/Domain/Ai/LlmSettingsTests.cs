@@ -19,7 +19,6 @@ public sealed class LlmSettingsTests
         settings.ThinkingEnabled.ShouldBeFalse();
         settings.ScoringTokensPerAccount.ShouldBe(512);
         settings.CompositionTokensPerPost.ShouldBe(800);
-        settings.PersonaTokensPerPersona.ShouldBe(700);
         settings.ReplyMaxTokens.ShouldBe(1024);
         settings.UpdatedAt.ShouldBe(Now);
     }
@@ -32,14 +31,13 @@ public sealed class LlmSettingsTests
 
         settings.Update("anthropic/claude-haiku-4.5", "meta-llama/llama-3.3-70b-instruct:free",
             thinkingEnabled: true, scoringTokensPerAccount: 256, compositionTokensPerPost: 1200,
-            personaTokensPerPersona: 900, replyMaxTokens: 2048, now: later);
+            replyMaxTokens: 2048, now: later);
 
         settings.Model.ShouldBe("anthropic/claude-haiku-4.5");
         settings.ScoringModel.ShouldBe("meta-llama/llama-3.3-70b-instruct:free");
         settings.ThinkingEnabled.ShouldBeTrue();
         settings.ScoringTokensPerAccount.ShouldBe(256);
         settings.CompositionTokensPerPost.ShouldBe(1200);
-        settings.PersonaTokensPerPersona.ShouldBe(900);
         settings.ReplyMaxTokens.ShouldBe(2048);
         settings.UpdatedAt.ShouldBe(later);
     }
@@ -52,13 +50,11 @@ public sealed class LlmSettingsTests
         var settings = LlmSettings.CreateDefault(Now);
 
         Should.Throw<ArgumentOutOfRangeException>(() => settings.Update(
-            "m", "", false, budget, 800, 700, 1024, Now));
+            "m", "", false, budget, 800, 1024, Now));
         Should.Throw<ArgumentOutOfRangeException>(() => settings.Update(
-            "m", "", false, 512, budget, 700, 1024, Now));
+            "m", "", false, 512, budget, 1024, Now));
         Should.Throw<ArgumentOutOfRangeException>(() => settings.Update(
-            "m", "", false, 512, 800, budget, 1024, Now));
-        Should.Throw<ArgumentOutOfRangeException>(() => settings.Update(
-            "m", "", false, 512, 800, 700, budget, Now));
+            "m", "", false, 512, 800, budget, Now));
     }
 
     [Fact]
@@ -67,6 +63,6 @@ public sealed class LlmSettingsTests
         var settings = LlmSettings.CreateDefault(Now);
 
         Should.Throw<ArgumentException>(() => settings.Update(
-            "  ", "", false, 512, 800, 700, 1024, Now));
+            "  ", "", false, 512, 800, 1024, Now));
     }
 }

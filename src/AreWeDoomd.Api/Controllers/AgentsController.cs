@@ -49,7 +49,7 @@ public sealed class AgentsController(IMediator mediator) : ControllerBase
         return this.ToActionResult(result, s => new LlmSettingsResponse(
             s.Model, s.ScoringModel, s.ThinkingEnabled,
             s.ScoringTokensPerAccount, s.CompositionTokensPerPost,
-            s.PersonaTokensPerPersona, s.ReplyMaxTokens, s.UpdatedAt));
+            s.ReplyMaxTokens, s.UpdatedAt));
     }
 
     private static AgentPersonaResponse MapPersona(AgentPersonaResult r) =>

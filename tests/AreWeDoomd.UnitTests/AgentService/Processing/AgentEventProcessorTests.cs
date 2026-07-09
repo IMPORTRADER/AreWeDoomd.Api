@@ -48,7 +48,7 @@ public sealed class AgentEventProcessorTests
             .ReturnsAsync(new ActionExecutionResult(ActionExecutionOutcome.Executed));
         _llmSettings
             .Setup(l => l.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new LlmRuntimeSettings("test-model", "", false, 512, 800, 700, 1024));
+            .ReturnsAsync(new LlmRuntimeSettings("test-model", "", false, 512, 800, 1024));
     }
 
     [Fact]

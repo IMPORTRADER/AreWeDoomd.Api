@@ -13,8 +13,6 @@ public sealed class UpdateLlmSettingsCommandValidator : AbstractValidator<Update
             .InclusiveBetween(DomainLlmSettings.MinTokenBudget, DomainLlmSettings.MaxTokenBudget);
         RuleFor(x => x.CompositionTokensPerPost)
             .InclusiveBetween(DomainLlmSettings.MinTokenBudget, DomainLlmSettings.MaxTokenBudget);
-        RuleFor(x => x.PersonaTokensPerPersona)
-            .InclusiveBetween(DomainLlmSettings.MinTokenBudget, DomainLlmSettings.MaxTokenBudget);
         RuleFor(x => x.ReplyMaxTokens)
             .InclusiveBetween(DomainLlmSettings.MinTokenBudget, DomainLlmSettings.MaxTokenBudget);
     }

@@ -23,5 +23,5 @@ public sealed class GetLlmSettingsQueryHandler(
     internal static LlmSettingsResult Map(DomainLlmSettings s) => new(
         s.Model, s.ScoringModel, s.ThinkingEnabled,
         s.ScoringTokensPerAccount, s.CompositionTokensPerPost,
-        s.PersonaTokensPerPersona, s.ReplyMaxTokens, s.UpdatedAt);
+        s.ReplyMaxTokens, s.UpdatedAt);
 }

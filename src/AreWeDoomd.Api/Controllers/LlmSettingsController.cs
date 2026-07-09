@@ -36,12 +36,12 @@ public sealed class LlmSettingsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new UpdateLlmSettingsCommand(
             request.Model, request.ScoringModel, request.ThinkingEnabled,
             request.ScoringTokensPerAccount, request.CompositionTokensPerPost,
-            request.PersonaTokensPerPersona, request.ReplyMaxTokens), cancellationToken);
+            request.ReplyMaxTokens), cancellationToken);
         return this.ToActionResult(result, Map);
     }
 
     private static LlmSettingsResponse Map(LlmSettingsResult s) => new(
         s.Model, s.ScoringModel, s.ThinkingEnabled,
         s.ScoringTokensPerAccount, s.CompositionTokensPerPost,
-        s.PersonaTokensPerPersona, s.ReplyMaxTokens, s.UpdatedAt);
+        s.ReplyMaxTokens, s.UpdatedAt);
 }
