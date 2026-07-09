@@ -115,6 +115,33 @@ public sealed class BulkCreateJobProcessorTests
     }
 
     [Fact]
+    public async Task ProcessAsync_HappyPath_RecordContainsCorrectJobIdAndUsername()
+    {
+        var store = new BulkCreateJobStore();
+        var jobId = Guid.NewGuid();
+        store.Create(jobId, 1);
+
+        _personaFactory.Setup(f => f.CreateRandom()).Returns(MakePersona("trackme"));
+        var user = MakeAiUser("trackme");
+        _factory.Setup(f => f.CreateAiAccountAsync("trackme", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<User>.Success(user));
+
+        BulkCreationRecord? capturedRecord = null;
+        _recordRepo
+            .Setup(r => r.AddAsync(It.IsAny<BulkCreationRecord>(), It.IsAny<CancellationToken>()))
+            .Callback<BulkCreationRecord, CancellationToken>((rec, _) => capturedRecord = rec)
+            .Returns(Task.CompletedTask);
+
+        var processor = CreateProcessor(store);
+        await processor.ProcessAsync(jobId, default);
+
+        capturedRecord.ShouldNotBeNull();
+        capturedRecord!.JobId.ShouldBe(jobId);
+        capturedRecord.UserId.ShouldBe(user.Id);
+        capturedRecord.Username.ShouldBe("trackme");
+    }
+
+    [Fact]
     public async Task ProcessAsync_UsernameTaken_RetriesWithSuffixAndSucceeds()
     {
         var store = new BulkCreateJobStore();
