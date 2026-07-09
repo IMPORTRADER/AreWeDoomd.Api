@@ -101,6 +101,8 @@ public static class DependencyInjection
         services.Configure<PersonaGenerationOptions>(configuration.GetSection(PersonaGenerationOptions.SectionName));
 
         services.AddSingleton<IPersonaCatalog, PersonaCatalog>();
+        services.AddSingleton<IPersonaFactory>(sp =>
+            new RandomPersonaFactory(sp.GetRequiredService<IPersonaCatalog>(), Random.Shared));
         services.AddChatProviders(configuration, validateOnStart: false);
 
         // IPersonaGenerator: factory lambda resolves the configured keyed IChatProvider
