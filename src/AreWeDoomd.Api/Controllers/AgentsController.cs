@@ -47,7 +47,7 @@ public sealed class AgentsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new GetLlmSettingsQuery(), cancellationToken);
         return this.ToActionResult(result, s => new LlmSettingsResponse(
-            s.Model, s.ScoringModel, s.ThinkingEnabled,
+            s.Model, s.ScoringModel, s.ThinkingEnabled, s.Provider,
             s.ScoringTokensPerAccount, s.CompositionTokensPerPost,
             s.ReplyMaxTokens, s.UpdatedAt));
     }

@@ -24,6 +24,7 @@ public sealed class UpdateLlmSettingsCommandHandlerTests
 
     private static UpdateLlmSettingsCommand ValidCommand() => new(
         Model: "openai/gpt-oss-120b:free", ScoringModel: "", ThinkingEnabled: false,
+        Provider: null,
         ScoringTokensPerAccount: 512, CompositionTokensPerPost: 800,
         ReplyMaxTokens: 1024);
 

@@ -1191,6 +1191,45 @@
       ]
     },
     {
+      "name": "LLM Settings",
+      "description": "Admin-only LLM settings endpoints. Requires an admin JWT.",
+      "item": [
+        {
+          "name": "Get LLM Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/llm-settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "llm-settings"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update LLM Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"gemini-2.0-flash\",\n  \"scoringModel\": \"gemini-2.0-flash\",\n  \"thinkingEnabled\": false,\n  \"provider\": \"openrouter\",\n  \"scoringTokensPerAccount\": 512,\n  \"compositionTokensPerPost\": 800,\n  \"replyMaxTokens\": 1024\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/llm-settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "llm-settings"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "AI Management",
       "description": "Admin-only endpoints. Requires an admin JWT — obtain by logging in as a user listed in Admin:Usernames config, then copy the accessToken into the collection Bearer token (or set {{accessToken}}).",
       "item": [

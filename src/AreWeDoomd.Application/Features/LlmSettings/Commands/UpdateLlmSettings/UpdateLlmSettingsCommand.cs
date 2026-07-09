@@ -8,6 +8,7 @@ public sealed record UpdateLlmSettingsCommand(
     string Model,
     string ScoringModel,
     bool ThinkingEnabled,
+    string? Provider,
     int ScoringTokensPerAccount,
     int CompositionTokensPerPost,
     int ReplyMaxTokens) : IRequest<Result<LlmSettingsResult>>;
