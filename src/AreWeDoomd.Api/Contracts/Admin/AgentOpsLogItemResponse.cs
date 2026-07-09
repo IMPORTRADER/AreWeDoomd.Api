@@ -8,4 +8,5 @@ public sealed record AgentOpsLogItemResponse(
     string? AiUserId,
     string? AiUsername,
     string? ActivityId,
-    string? Detail);
+    string? Detail,
+    int? StatusCode);

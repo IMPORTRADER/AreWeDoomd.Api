@@ -222,7 +222,7 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
         new(r.Items.Select(MapAgentOpsLogItem).ToList(), r.NextCursor, r.HasMore, r.LogAvailable);
 
     private static AgentOpsLogItemResponse MapAgentOpsLogItem(AgentOpsLogRecord l) =>
-        new(l.Ts, l.Level, l.Source, l.Message, l.AiUserId, l.AiUsername, l.ActivityId, l.Detail);
+        new(l.Ts, l.Level, l.Source, l.Message, l.AiUserId, l.AiUsername, l.ActivityId, l.Detail, l.StatusCode);
 
     private static AiFleetStatsResponse MapAiFleetStats(AiFleetStatsResult r) =>
         new(r.TotalAiUsers, r.WithPersonality, r.DecisionsToday, r.ExecutedToday,
