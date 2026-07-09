@@ -4,6 +4,7 @@ using AreWeDoomd.Api.Contracts.Admin;
 using AreWeDoomd.Application.Common.Models;
 using AreWeDoomd.Application.Features.AiManagement.Commands.ClearAgentOpsLogs;
 using AreWeDoomd.Application.Features.AiManagement.Commands.CreateAiUser;
+using AreWeDoomd.Application.Features.AiManagement.Commands.BulkDeactivateAiUsers;
 using AreWeDoomd.Application.Features.AiManagement.Commands.StartBulkCreateAiUsers;
 using AreWeDoomd.Application.Features.AiManagement.Commands.UpdateAiPersonality;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAgentDecisions;
@@ -185,6 +186,22 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
             cancellationToken);
         return this.ToActionResult(result, jobId => new StartBulkCreateResponse(jobId),
             StatusCodes.Status202Accepted);
+    }
+
+    [HttpPost("ai-users/bulk-deactivate")]
+    [ProducesResponseType(typeof(BulkDeactivateResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BulkDeactivateResponse>> BulkDeactivate(
+        [FromBody] BulkDeactivateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(
+            new BulkDeactivateAiUsersCommand(request.UserIds, request.Deactivate),
+            cancellationToken);
+        return this.ToActionResult(result, count => new BulkDeactivateResponse(count));
     }
 
     [HttpGet("ai-users/bulk-jobs/{jobId:guid}")]

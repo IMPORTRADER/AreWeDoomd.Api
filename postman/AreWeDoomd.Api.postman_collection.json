@@ -1401,6 +1401,27 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Bulk Deactivate / Reactivate AI Users",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userIds\": [\"00000000-0000-0000-0000-000000000001\", \"00000000-0000-0000-0000-000000000002\"],\n  \"deactivate\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ai-users/bulk-deactivate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "ai-users", "bulk-deactivate"],
+              "description": "Deactivates (deactivate: true) or reactivates (deactivate: false) AI users by id. Returns { updatedCount: N }. Non-AI users or missing ids are rejected."
+            }
+          },
+          "response": []
         }
       ]
     }

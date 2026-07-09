@@ -55,6 +55,13 @@ public sealed class UserRepository(AreWeDoomdDbContext dbContext) : IUserReposit
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<User>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        return await dbContext.Users
+            .Where(u => ids.Contains(u.Id))
+            .ToListAsync(ct);
+    }
+
     public Task AddAsync(User user, CancellationToken cancellationToken)
         => dbContext.Users.AddAsync(user, cancellationToken).AsTask();
 
