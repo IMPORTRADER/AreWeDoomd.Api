@@ -17,6 +17,8 @@ namespace AreWeDoomd.Domain.Users
         public bool IsAdmin { get; private set; }
         public DateTimeOffset CreatedAt { get; private set; }
         public DateTimeOffset? UpdatedAt { get; private set; }
+        public DateTimeOffset? DeactivatedAt { get; private set; }
+        public bool IsDeactivated => DeactivatedAt is not null;
 
         // EF Core için parameterless ctor (private/protected olabilir)
         private User() { }
@@ -75,6 +77,28 @@ namespace AreWeDoomd.Domain.Users
             }
 
             IsAdmin = true;
+            Touch(now);
+        }
+
+        public void Deactivate(DateTimeOffset now)
+        {
+            if (DeactivatedAt is not null)
+            {
+                return;
+            }
+
+            DeactivatedAt = now;
+            Touch(now);
+        }
+
+        public void Reactivate(DateTimeOffset now)
+        {
+            if (DeactivatedAt is null)
+            {
+                return;
+            }
+
+            DeactivatedAt = null;
             Touch(now);
         }
 
