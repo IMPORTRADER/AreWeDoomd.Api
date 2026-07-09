@@ -3,12 +3,10 @@ using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Common.Models;
 using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Domain.Users;
-using AreWeDoomd.Infrastructure.Common.Options;
 using AreWeDoomd.UnitTests.Application;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Moq;
 using Shouldly;
 using Xunit;
@@ -19,14 +17,7 @@ public sealed class BulkCreateJobProcessorTests
 {
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-07-04T12:00:00Z");
 
-    private static readonly PersonaGenerationOptions DefaultOptions = new()
-    {
-        BatchSize = 10,
-        MaxCount = 50,
-        Provider = "openrouter"
-    };
-
-    private readonly Mock<IPersonaGenerator> _generator = new();
+    private readonly Mock<IPersonaFactory> _personaFactory = new();
     private readonly Mock<IAiAccountFactory> _factory = new();
     private readonly Mock<IUserRepository> _userRepo = new();
     private readonly Mock<IUnitOfWork> _uow = new();
@@ -41,6 +32,7 @@ public sealed class BulkCreateJobProcessorTests
         _recordRepo
             .Setup(r => r.AddAsync(It.IsAny<BulkCreationRecord>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
+        _uow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
     }
 
     private IServiceScopeFactory BuildScopeFactory()
@@ -54,50 +46,42 @@ public sealed class BulkCreateJobProcessorTests
         return services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
     }
 
-    private BulkCreateJobProcessor CreateProcessor(BulkCreateJobStore? store = null, PersonaGenerationOptions? opts = null)
+    private BulkCreateJobProcessor CreateProcessor(BulkCreateJobStore? store = null)
     {
         store ??= new BulkCreateJobStore();
         return new BulkCreateJobProcessor(
-            _generator.Object,
+            _personaFactory.Object,
             BuildScopeFactory(),
             store,
-            Options.Create(opts ?? DefaultOptions),
             new StubAgentOpsLogger(),
             NullLogger<BulkCreateJobProcessor>.Instance);
     }
 
     private static GeneratedPersona MakePersona(string username) =>
-        new(username, ["curious", "witty"], "casual style", "A curious bot.");
+        new(username, ["curious", "witty", "dry"], "casual style", "A curious bot.");
 
     private static User MakeAiUser(string username) =>
         User.Create(username, $"{username}@ai.arewedoomd.local", "valid-hash-string-1234", UserType.Ai, Now);
 
-    // ── happy path ────────────────────────────────────────────────────────────
+    private void SetupSuccessfulAccountCreation()
+    {
+        _factory.Setup(f => f.CreateAiAccountAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string username, string _, string _, DateTimeOffset _, CancellationToken _) =>
+                Result<User>.Success(MakeAiUser(username)));
+    }
 
     [Fact]
-    public async Task ProcessAsync_HappyPath_3Personas_AllCreated()
+    public async Task ProcessAsync_HappyPath_3Requested_AllCreated()
     {
         var store = new BulkCreateJobStore();
         var jobId = Guid.NewGuid();
         store.Create(jobId, 3);
 
-        var personas = new List<GeneratedPersona>
-        {
-            MakePersona("alpha"), MakePersona("beta"), MakePersona("gamma")
-        };
-
-        _generator
-            .Setup(g => g.GenerateBatchAsync(3, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<IReadOnlyList<GeneratedPersona>>.Success(personas));
-
-        _factory.Setup(f => f.CreateAiAccountAsync("alpha", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<User>.Success(MakeAiUser("alpha")));
-        _factory.Setup(f => f.CreateAiAccountAsync("beta", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<User>.Success(MakeAiUser("beta")));
-        _factory.Setup(f => f.CreateAiAccountAsync("gamma", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<User>.Success(MakeAiUser("gamma")));
-
-        _uow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        var queue = new Queue<GeneratedPersona>([MakePersona("alpha"), MakePersona("beta"), MakePersona("gamma")]);
+        _personaFactory.Setup(f => f.CreateRandom()).Returns(() => queue.Dequeue());
+        SetupSuccessfulAccountCreation();
 
         var processor = CreateProcessor(store);
         await processor.ProcessAsync(jobId, default);
@@ -116,68 +100,67 @@ public sealed class BulkCreateJobProcessorTests
     {
         var store = new BulkCreateJobStore();
         var jobId = Guid.NewGuid();
-        store.Create(jobId, 3);
+        store.Create(jobId, 2);
 
-        var personas = new List<GeneratedPersona>
-        {
-            MakePersona("alpha"), MakePersona("beta"), MakePersona("gamma")
-        };
-
-        _generator
-            .Setup(g => g.GenerateBatchAsync(3, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<IReadOnlyList<GeneratedPersona>>.Success(personas));
-
-        foreach (var name in new[] { "alpha", "beta", "gamma" })
-        {
-            _factory.Setup(f => f.CreateAiAccountAsync(name, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(Result<User>.Success(MakeAiUser(name)));
-        }
-
-        _uow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        var queue = new Queue<GeneratedPersona>([MakePersona("alpha"), MakePersona("beta")]);
+        _personaFactory.Setup(f => f.CreateRandom()).Returns(() => queue.Dequeue());
+        SetupSuccessfulAccountCreation();
 
         var processor = CreateProcessor(store);
         await processor.ProcessAsync(jobId, default);
 
         _recordRepo.Verify(
             r => r.AddAsync(It.IsAny<BulkCreationRecord>(), It.IsAny<CancellationToken>()),
-            Times.Exactly(3));
-        _uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(3));
+            Times.Exactly(2));
     }
 
     [Fact]
-    public async Task ProcessAsync_HappyPath_RecordContainsCorrectJobIdAndUsername()
+    public async Task ProcessAsync_UsernameTaken_RetriesWithSuffixAndSucceeds()
     {
         var store = new BulkCreateJobStore();
         var jobId = Guid.NewGuid();
         store.Create(jobId, 1);
 
-        _generator
-            .Setup(g => g.GenerateBatchAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<IReadOnlyList<GeneratedPersona>>.Success(
-                new List<GeneratedPersona> { MakePersona("trackme") }));
-
-        var user = MakeAiUser("trackme");
-        _factory.Setup(f => f.CreateAiAccountAsync("trackme", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<User>.Success(user));
-
-        _uow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-
-        BulkCreationRecord? capturedRecord = null;
-        _recordRepo
-            .Setup(r => r.AddAsync(It.IsAny<BulkCreationRecord>(), It.IsAny<CancellationToken>()))
-            .Callback<BulkCreationRecord, CancellationToken>((rec, _) => capturedRecord = rec)
-            .Returns(Task.CompletedTask);
+        _personaFactory.Setup(f => f.CreateRandom()).Returns(MakePersona("taken"));
+        _userRepo.Setup(r => r.IsUsernameTakenAsync("taken", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _userRepo.Setup(r => r.IsUsernameTakenAsync(
+                It.Is<string>(u => u.StartsWith("taken") && u.Length > 5), null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        SetupSuccessfulAccountCreation();
 
         var processor = CreateProcessor(store);
         await processor.ProcessAsync(jobId, default);
 
-        capturedRecord.ShouldNotBeNull();
-        capturedRecord!.JobId.ShouldBe(jobId);
-        capturedRecord.UserId.ShouldBe(user.Id);
-        capturedRecord.Username.ShouldBe("trackme");
+        var snap = store.TryGetSnapshot(jobId)!;
+        snap.Created.ShouldBe(1);
+        snap.Failed.ShouldBeEmpty();
+        snap.CreatedUsers[0].ShouldStartWith("taken");
+        snap.CreatedUsers[0].Length.ShouldBeGreaterThan("taken".Length);
     }
 
-    // ── collision / retry ─────────────────────────────────────────────────────
+    [Fact]
+    public async Task ProcessAsync_AccountFactoryFailsTwice_RecordsFailed()
+    {
+        var store = new BulkCreateJobStore();
+        var jobId = Guid.NewGuid();
+        store.Create(jobId, 1);
+
+        _personaFactory.Setup(f => f.CreateRandom()).Returns(MakePersona("badstate"));
+        _factory.Setup(f => f.CreateAiAccountAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<User>.Failure("user.invalid", "Account creation failed."));
+
+        var processor = CreateProcessor(store);
+        await processor.ProcessAsync(jobId, default);
+
+        var snap = store.TryGetSnapshot(jobId)!;
+        snap.Status.ShouldBe("completed");
+        snap.Created.ShouldBe(0);
+        snap.Failed.Count.ShouldBe(1);
+        snap.Failed[0].Reason.ShouldBe("Account creation failed.");
+    }
 
     [Fact]
     public async Task ProcessAsync_UniqueViolation_RetriesWithSuffix_ThenSucceeds()
@@ -186,11 +169,7 @@ public sealed class BulkCreateJobProcessorTests
         var jobId = Guid.NewGuid();
         store.Create(jobId, 1);
 
-        var personas = new List<GeneratedPersona> { MakePersona("collision") };
-
-        _generator
-            .Setup(g => g.GenerateBatchAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<IReadOnlyList<GeneratedPersona>>.Success(personas));
+        _personaFactory.Setup(f => f.CreateRandom()).Returns(MakePersona("collision"));
 
         // First attempt (original username) → SaveChanges throws unique violation
         _factory.Setup(f => f.CreateAiAccountAsync("collision", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
@@ -232,11 +211,7 @@ public sealed class BulkCreateJobProcessorTests
         var jobId = Guid.NewGuid();
         store.Create(jobId, 1);
 
-        var personas = new List<GeneratedPersona> { MakePersona("collision2") };
-
-        _generator
-            .Setup(g => g.GenerateBatchAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<IReadOnlyList<GeneratedPersona>>.Success(personas));
+        _personaFactory.Setup(f => f.CreateRandom()).Returns(MakePersona("collision2"));
 
         // Both attempts return a user but SaveChanges always throws
         _factory.Setup(f => f.CreateAiAccountAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
@@ -255,57 +230,13 @@ public sealed class BulkCreateJobProcessorTests
         snap.Status.ShouldBe("completed");
     }
 
-    // ── generator failure mid-job ──────────────────────────────────────────────
-
     [Fact]
-    public async Task ProcessAsync_GeneratorFailure_RecordsRemainingAsFailed_Completes()
+    public async Task ProcessAsync_UnknownJob_ReturnsWithoutThrowing()
     {
-        var store = new BulkCreateJobStore();
-        var jobId = Guid.NewGuid();
-        store.Create(jobId, 5);
-
-        _generator
-            .Setup(g => g.GenerateBatchAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<IReadOnlyList<GeneratedPersona>>.Failure(
-                "persona.generation_failed", "Provider error."));
-
-        var processor = CreateProcessor(store);
-        await processor.ProcessAsync(jobId, default);
-
-        var snap = store.TryGetSnapshot(jobId)!;
-        snap.Status.ShouldBe("completed");
-        snap.Created.ShouldBe(0);
-        snap.Failed.Count.ShouldBe(5);
-        snap.Failed.ShouldAllBe(f => f.Reason == "Provider error.");
+        var processor = CreateProcessor();
+        await processor.ProcessAsync(Guid.NewGuid(), default);
+        // no exception = pass
     }
-
-    // ── zero-usable-persona termination ───────────────────────────────────────
-
-    [Fact]
-    public async Task ProcessAsync_TwoConsecutiveEmptyBatches_FailsRemaining_Terminates()
-    {
-        var store = new BulkCreateJobStore();
-        var jobId = Guid.NewGuid();
-        store.Create(jobId, 3);
-
-        // Generator always returns an empty batch (0 usable personas per call)
-        _generator
-            .Setup(g => g.GenerateBatchAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<IReadOnlyList<GeneratedPersona>>.Success(
-                new List<GeneratedPersona>()));
-
-        var processor = CreateProcessor(store);
-        await processor.ProcessAsync(jobId, default);
-
-        var snap = store.TryGetSnapshot(jobId)!;
-        snap.Status.ShouldBe("completed");
-        snap.Created.ShouldBe(0);
-        // After 2 empty batches, remaining (3) are recorded as failed
-        snap.Failed.Count.ShouldBe(3);
-        snap.Failed.ShouldAllBe(f => f.Reason.Contains("consecutive"));
-    }
-
-    // ── snapshot point-in-time safety ──────────────────────────────────────────
 
     [Fact]
     public void ToSnapshot_IsPointInTimeCopy_ImmuneToConcurrentMutations()

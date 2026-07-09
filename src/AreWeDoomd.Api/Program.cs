@@ -1,7 +1,5 @@
 using AreWeDoomd.Api.Auth;
 using AreWeDoomd.Api.Startup;
-using AreWeDoomd.ChatProviders;
-using AreWeDoomd.Infrastructure.Common.Options;
 using AreWeDoomd.Infrastructure.Common.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using AreWeDoomd.Api.Common.Errors;
@@ -179,14 +177,6 @@ try
     var app = builder.Build();
 
     await DatabasePreflight.RunAsync(app);
-
-    var personaProvider = app.Configuration
-        .GetSection(PersonaGenerationOptions.SectionName)
-        .Get<PersonaGenerationOptions>()?.Provider ?? new PersonaGenerationOptions().Provider;
-    ChatProviderStartupSummary.LogSummary(
-        app.Configuration,
-        personaProvider,
-        app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ChatProviderStartup"));
 
     var agentSecret = app.Configuration
         .GetSection(AgentNotificationsOptions.SectionName)

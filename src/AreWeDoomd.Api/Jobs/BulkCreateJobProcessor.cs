@@ -2,24 +2,19 @@ using System.Security.Cryptography;
 using AreWeDoomd.Application.Common.Interfaces;
 using AreWeDoomd.Application.Common.Models;
 using AreWeDoomd.Domain.Users;
-using AreWeDoomd.Infrastructure.Common.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace AreWeDoomd.Api.Jobs;
 
 public sealed class BulkCreateJobProcessor(
-    IPersonaGenerator generator,
+    IPersonaFactory personaFactory,
     IServiceScopeFactory scopeFactory,
     BulkCreateJobStore store,
-    IOptions<PersonaGenerationOptions> options,
     IAgentOpsLogger opsLog,
     ILogger<BulkCreateJobProcessor> logger)
 {
-    private readonly PersonaGenerationOptions _options = options.Value;
-
     public async Task ProcessAsync(Guid jobId, CancellationToken ct)
     {
         var snap = store.TryGetSnapshot(jobId);
@@ -35,81 +30,13 @@ public sealed class BulkCreateJobProcessor(
             DateTimeOffset.UtcNow, AgentOpsLogLevels.Info, AgentOpsLogSources.Admin,
             $"Bulk create started: {requested} AI user(s) requested (job {jobId})."));
 
-        int emptyBatchStreak = 0;
+        store.SetStatus(jobId, "creating");
 
         while (store.GetCreatedPlusFailed(jobId) < requested)
         {
-            int remaining = requested - store.GetCreatedPlusFailed(jobId);
-            int toGenerate = Math.Min(_options.BatchSize, remaining);
-
-            store.SetStatus(jobId, "generating");
-            var genResult = await generator.GenerateBatchAsync(toGenerate, ct);
-
-            if (!genResult.IsSuccess)
-            {
-                logger.LogWarning(
-                    "Persona generator failed for job {JobId}: {Error}. Recording remaining as failed.",
-                    jobId, genResult.Error!.Message);
-                opsLog.TryLog(new AgentOpsLogRecord(
-                    DateTimeOffset.UtcNow, AgentOpsLogLevels.Warning, AgentOpsLogSources.Admin,
-                    $"Persona generation failed for bulk job {jobId}; remaining slots recorded as failed.",
-                    Detail: genResult.Error.Message));
-
-                int rem = requested - store.GetCreatedPlusFailed(jobId);
-                for (int i = 0; i < rem; i++)
-                {
-                    store.RecordFailed(jobId, null, genResult.Error.Message);
-                }
-
-                break;
-            }
-
-            store.SetStatus(jobId, "creating");
-            var personas = genResult.Value!;
-            store.IncrementGenerated(jobId, personas.Count);
-
-            var batchSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            int usedInBatch = 0;
-
-            foreach (var persona in personas)
-            {
-                if (store.GetCreatedPlusFailed(jobId) >= requested)
-                {
-                    break;
-                }
-
-                if (!batchSeen.Add(persona.Username))
-                {
-                    continue; // batch-level dedupe
-                }
-
-                usedInBatch++;
-                await TryCreateUserAsync(jobId, persona, ct);
-            }
-
-            if (usedInBatch == 0)
-            {
-                emptyBatchStreak++;
-                if (emptyBatchStreak >= 2)
-                {
-                    logger.LogWarning(
-                        "Job {JobId}: two consecutive batches yielded 0 usable personas. Failing remaining.",
-                        jobId);
-
-                    int rem = requested - store.GetCreatedPlusFailed(jobId);
-                    for (int i = 0; i < rem; i++)
-                    {
-                        store.RecordFailed(jobId, null,
-                            "No usable personas produced in two consecutive batches.");
-                    }
-
-                    break;
-                }
-            }
-            else
-            {
-                emptyBatchStreak = 0;
-            }
+            var persona = personaFactory.CreateRandom();
+            store.IncrementGenerated(jobId, 1);
+            await TryCreateUserAsync(jobId, persona, ct);
         }
 
         store.Complete(jobId, DateTimeOffset.UtcNow);
