@@ -100,6 +100,7 @@ public static class DependencyInjection
         services.Configure<AgentOpsLogOptions>(configuration.GetSection(AgentOpsLogOptions.SectionName));
         services.Configure<PersonaGenerationOptions>(configuration.GetSection(PersonaGenerationOptions.SectionName));
 
+        services.AddSingleton<IPersonaCatalog, PersonaCatalog>();
         services.AddChatProviders(configuration, validateOnStart: false);
 
         // IPersonaGenerator: factory lambda resolves the configured keyed IChatProvider
