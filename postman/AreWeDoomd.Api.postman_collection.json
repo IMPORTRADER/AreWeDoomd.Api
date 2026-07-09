@@ -1349,6 +1349,19 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Get Persona Catalog",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ai-users/persona-catalog",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "ai-users", "persona-catalog"]
+            }
+          },
+          "response": []
         }
       ]
     }

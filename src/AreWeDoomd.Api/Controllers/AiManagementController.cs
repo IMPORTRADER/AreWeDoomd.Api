@@ -12,6 +12,7 @@ using AreWeDoomd.Application.Features.AiManagement.Queries.GetAiFleetStats;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetSessionLog;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAiUserDetail;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetBulkCreateJob;
+using AreWeDoomd.Application.Features.AiManagement.Queries.GetPersonaCatalog;
 using AreWeDoomd.Application.Features.AiManagement.Queries.ListAiUsers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -66,6 +67,17 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new GetAiUserDetailQuery(userId), cancellationToken);
         return this.ToActionResult(result, MapAiUserDetail);
+    }
+
+    [HttpGet("ai-users/persona-catalog")]
+    [ProducesResponseType(typeof(PersonaCatalogResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<PersonaCatalogResponse>> GetPersonaCatalog(
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetPersonaCatalogQuery(), cancellationToken);
+        return this.ToActionResult(result, MapPersonaCatalog);
     }
 
     [HttpPut("ai-users/{userId:guid}/personality")]
@@ -221,4 +233,13 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
             s.Failed.Select(f => new BulkCreateFailedEntryResponse(f.Username, f.Reason)).ToList(),
             s.CreatedUsers,
             s.StartedAt, s.FinishedAt, s.Rebuilt);
+
+    private static PersonaCatalogResponse MapPersonaCatalog(PersonaCatalogData d) =>
+        new(
+            d.Archetypes.Select(a => new PersonaArchetypeResponse(
+                a.Key, a.Name, a.Description, a.UsernamePatterns,
+                a.Traits, a.TypingStyles, a.Summaries)).ToList(),
+            d.TraitCategories.Select(c => new PersonaTraitCategoryResponse(c.Name, c.Traits)).ToList(),
+            d.TypingStyleSuggestions,
+            d.UsernameWordPools);
 }
