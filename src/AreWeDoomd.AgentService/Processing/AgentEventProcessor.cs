@@ -324,7 +324,8 @@ public sealed class AgentEventProcessor : BackgroundService
                     DateTimeOffset.UtcNow, AgentOpsLogLevel.Error, AgentOpsLogSource.LlmProvider,
                     $"{_chatProvider.Name} call failed on attempt {attempt} after {sw.ElapsedMilliseconds} ms.",
                     AiUserId: aiUserId.ToString(), ActivityId: activityId,
-                    Detail: result.Error?.Message));
+                    Detail: result.Error?.Message,
+                    StatusCode: result.Error?.StatusCode));
                 continue;
             }
 
