@@ -6,4 +6,5 @@ public sealed record LlmRuntimeSettings(
     bool ThinkingEnabled,
     int ScoringTokensPerAccount,
     int CompositionTokensPerPost,
-    int ReplyMaxTokens);
+    int ReplyMaxTokens,
+    string Provider = "");

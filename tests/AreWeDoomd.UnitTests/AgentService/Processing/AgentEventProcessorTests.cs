@@ -27,6 +27,7 @@ public sealed class AgentEventProcessorTests
     private readonly Mock<IPersonaProvider> _personaProvider = new();
     private readonly Mock<IPromptComposer> _promptComposer = new();
     private readonly Mock<IChatProvider> _chatProvider = new();
+    private readonly Mock<IChatProviderResolver> _chatProviderResolver = new();
     private readonly Mock<IActionExecutor> _actionExecutor = new();
     private readonly Mock<IAiSessionLogger> _sessionLogger = new();
     private readonly Mock<IDecisionLogWriter> _decisionLog = new();
@@ -49,6 +50,9 @@ public sealed class AgentEventProcessorTests
         _llmSettings
             .Setup(l => l.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new LlmRuntimeSettings("test-model", "", false, 512, 800, 1024));
+        _chatProviderResolver
+            .Setup(r => r.Resolve(It.IsAny<string?>()))
+            .Returns(_chatProvider.Object);
     }
 
     [Fact]
@@ -375,7 +379,7 @@ public sealed class AgentEventProcessorTests
             new PriorityDecayPolicy(options),
             _personaProvider.Object,
             _promptComposer.Object,
-            _chatProvider.Object,
+            _chatProviderResolver.Object,
             new DecisionParser(),
             _actionExecutor.Object,
             _sessionLogger.Object,

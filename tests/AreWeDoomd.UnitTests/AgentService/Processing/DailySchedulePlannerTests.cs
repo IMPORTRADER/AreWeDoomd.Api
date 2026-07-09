@@ -6,7 +6,6 @@ using AreWeDoomd.AgentService.Processing;
 using AreWeDoomd.AgentService.Prompting;
 using AreWeDoomd.ChatProviders;
 using AreWeDoomd.UnitTests.AgentService;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -38,13 +37,18 @@ public sealed class DailySchedulePlannerTests
                 (_, p, _) => _submitted.Add(p))
             .ReturnsAsync(true);
 
-        var services = new ServiceCollection();
-        services.AddKeyedSingleton<IChatProvider>("test", (_, _) => _chat.Object);
         var options = Options.Create(new AgentServiceOptions { ChatProvider = "test", ScoringBatchSize = 8 });
+
+        var chatProviderResolver = new Mock<IChatProviderResolver>();
+        chatProviderResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(_chat.Object);
+
+        var llmSettings = new Mock<ILlmSettingsProvider>();
+        llmSettings.Setup(l => l.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LlmRuntimeSettings("test-model", "", false, 512, 800, 1024));
 
         _planner = new DailySchedulePlanner(
             new ScheduleRunQueue(), new PromptFileSet(), new DailyPostPlanParser(),
-            _personas.Object, _callback.Object, services.BuildServiceProvider(),
+            _personas.Object, _callback.Object, chatProviderResolver.Object, llmSettings.Object,
             options, new FakeTimeProvider(Now), _opsLog,
             NullLogger<DailySchedulePlanner>.Instance);
     }
