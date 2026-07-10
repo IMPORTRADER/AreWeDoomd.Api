@@ -1,4 +1,6 @@
+using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.Api.Contracts.Common;
+using AreWeDoomd.Api.Filters;
 
 namespace AreWeDoomd.Api.Contracts.Posts;
 
@@ -9,4 +11,10 @@ public sealed record PostResponse(
     int LikeCount,
     int CommentCount,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? UpdatedAt);
+    DateTimeOffset? UpdatedAt)
+    : IActivityObjectCarrier
+{
+    string IActivityObjectCarrier.ActivityObjectId => Id.ToString();
+    ActivityObjectType IActivityObjectCarrier.ActivityObjectType => ActivityObjectType.Post;
+    string? IActivityObjectCarrier.ActivityObjectTextPreview => Content;
+}

@@ -23,6 +23,7 @@ public static class DependencyInjection
 
         services.AddScoped<INotificationEngine, ActivityNotificationEngine>();
         services.AddScoped<IActivityNotificationRule, CommentCreatedNotificationRule>();
+        services.AddScoped<IActivityNotificationRule, PostCreatedMentionNotificationRule>();
         services.AddScoped<IAiAccountFactory, AiAccountFactory>();
 
         return services;

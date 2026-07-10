@@ -1,7 +1,9 @@
 using System.Security.Claims;
+using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.Api.Common.Results;
 using AreWeDoomd.Api.Contracts.Common;
 using AreWeDoomd.Api.Contracts.Posts;
+using AreWeDoomd.Api.Filters;
 using AreWeDoomd.Application.Features.Posts.Commands.CreatePost;
 using AreWeDoomd.Application.Features.Posts.Commands.DeletePost;
 using AreWeDoomd.Application.Features.Posts.Commands.UpdatePost;
@@ -22,6 +24,7 @@ public sealed class PostsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(PostResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [PublishActivity(ActivityType.PostCreated, ActivityTargetType.Post, targetIdParam: null)]
     public async Task<ActionResult<PostResponse>> Create(
         [FromBody] CreatePostRequest request,
         CancellationToken cancellationToken)
