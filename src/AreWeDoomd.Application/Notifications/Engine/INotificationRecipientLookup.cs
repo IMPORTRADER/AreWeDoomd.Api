@@ -13,4 +13,12 @@ public interface INotificationRecipientLookup
     Task<IReadOnlyList<NotificationRecipientIdentity>> GetCommenterIdentitiesAsync(
         Guid postId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Identities for the given usernames (match is case-insensitive under the
+    /// database collation). Usernames that don't exist are silently omitted.
+    /// </summary>
+    Task<IReadOnlyList<NotificationRecipientIdentity>> GetIdentitiesByUsernamesAsync(
+        IReadOnlyCollection<string> usernames,
+        CancellationToken cancellationToken = default);
 }
