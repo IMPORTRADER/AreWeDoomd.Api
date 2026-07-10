@@ -190,8 +190,12 @@ public sealed class OpenRouterProviderTests
     }
 
     [Fact]
-    public async Task CompleteAsync_WhenReasoningDisabled_ShouldSendReasoningEnabledFalse()
+    public async Task CompleteAsync_WhenReasoningDisabled_ShouldNotSendReasoningField()
     {
+        // Explicit {"enabled":false} is rejected with 400 by reasoning-mandatory
+        // endpoints (e.g. openai/gpt-oss-120b): "Reasoning is mandatory for this
+        // endpoint and cannot be disabled." Omitting the field means "model
+        // default", which is off where optional and on where mandatory.
         string? capturedBody = null;
         var provider = CreateProvider(
             StubHttpMessageHandler.AlwaysRespondWith(request =>
@@ -210,7 +214,31 @@ public sealed class OpenRouterProviderTests
         await provider.CompleteAsync(SampleRequest with { ReasoningEnabled = false }, CancellationToken.None);
 
         capturedBody.ShouldNotBeNull();
-        capturedBody.ShouldContain("\"reasoning\":{\"enabled\":false}");
+        capturedBody.ShouldNotContain("\"reasoning\"");
+    }
+
+    [Fact]
+    public async Task CompleteAsync_WhenReasoningEnabled_ShouldSendReasoningEnabledTrue()
+    {
+        string? capturedBody = null;
+        var provider = CreateProvider(
+            StubHttpMessageHandler.AlwaysRespondWith(request =>
+            {
+                capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""
+                    {"choices":[{"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],
+                     "usage":{"prompt_tokens":10,"completion_tokens":2}}
+                    """)
+                };
+            }),
+            maxRetries: 0);
+
+        await provider.CompleteAsync(SampleRequest with { ReasoningEnabled = true }, CancellationToken.None);
+
+        capturedBody.ShouldNotBeNull();
+        capturedBody.ShouldContain("\"reasoning\":{\"enabled\":true}");
     }
 
     [Fact]

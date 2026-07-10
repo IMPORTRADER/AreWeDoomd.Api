@@ -15,19 +15,20 @@ public sealed class GetAiFleetStatsQueryHandler(
         var nowUtc = clock.UtcNow;
         var today = DateOnly.FromDateTime(nowUtc.UtcDateTime);
 
-        var (total, withPersonality) = await repository.CountAsync(cancellationToken);
+        var (total, withPersonality, deactivated) = await repository.CountAsync(cancellationToken);
         var dayStats = await reader.GetDailyStatsAsync(today, nowUtc, cancellationToken);
 
         if (dayStats is null)
         {
             return Result<AiFleetStatsResult>.Success(
-                new AiFleetStatsResult(total, withPersonality, 0, 0, 0, 0, 0, false));
+                new AiFleetStatsResult(total, withPersonality, deactivated, 0, 0, 0, 0, 0, false));
         }
 
         return Result<AiFleetStatsResult>.Success(
             new AiFleetStatsResult(
                 total,
                 withPersonality,
+                deactivated,
                 dayStats.Total,
                 dayStats.Executed,
                 dayStats.Dropped,

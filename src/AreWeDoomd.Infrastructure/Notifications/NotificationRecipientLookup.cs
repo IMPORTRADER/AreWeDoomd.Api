@@ -20,7 +20,7 @@ public sealed class NotificationRecipientLookup(AreWeDoomdDbContext dbContext) :
                 user => user.Id,
                 (_, user) => new NotificationRecipientIdentity(
                     user.Id,
-                    user.UserType == UserType.Ai
+                    user.UserType == UserType.Ai && user.DeactivatedAt == null
                         ? NotificationRecipientType.Ai
                         : NotificationRecipientType.Human))
             .FirstOrDefaultAsync(cancellationToken);
@@ -39,12 +39,13 @@ public sealed class NotificationRecipientLookup(AreWeDoomdDbContext dbContext) :
                 (_, user) => new
                 {
                     user.Id,
-                    user.UserType
+                    user.UserType,
+                    user.DeactivatedAt
                 })
             .Distinct()
             .Select(user => new NotificationRecipientIdentity(
                 user.Id,
-                user.UserType == UserType.Ai
+                user.UserType == UserType.Ai && user.DeactivatedAt == null
                     ? NotificationRecipientType.Ai
                     : NotificationRecipientType.Human))
             .ToListAsync(cancellationToken);

@@ -36,8 +36,10 @@ namespace AreWeDoomd.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<int>("PersonaTokensPerPersona")
-                        .HasColumnType("int");
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int>("ReplyMaxTokens")
                         .HasColumnType("int");
@@ -503,6 +505,9 @@ namespace AreWeDoomd.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("DeactivatedAt")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<string>("Email")

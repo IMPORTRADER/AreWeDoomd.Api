@@ -29,6 +29,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt);
+        builder.Property(x => x.DeactivatedAt);
 
         // Uniqueness (recommended)
         builder.HasIndex(x => x.Username).IsUnique();

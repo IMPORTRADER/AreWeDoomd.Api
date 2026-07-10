@@ -24,6 +24,14 @@ public static class ChatProviderStartupSummary
             && !string.IsNullOrWhiteSpace(configuration[$"{section}:ApiKey"]);
     }
 
+    /// <summary>Registered provider names with whether an API key is configured.</summary>
+    public static IReadOnlyList<(string Name, bool IsConfigured)> ListProviders(IConfiguration configuration)
+    {
+        return ProviderSections.Keys
+            .Select(name => (name, IsProviderConfigured(configuration, name)))
+            .ToList();
+    }
+
     /// <summary>
     /// Logs one line per registered provider (Information when its key is present,
     /// Warning when missing), an Error when no provider has a key, and an Error when

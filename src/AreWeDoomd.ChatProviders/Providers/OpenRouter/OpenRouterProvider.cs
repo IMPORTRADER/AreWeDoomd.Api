@@ -140,8 +140,11 @@ public sealed class OpenRouterProvider : IChatProvider
             MaxTokens = maxTokens,
             Temperature = request.Temperature,
             ResponseFormat = responseFormat,
-            Reasoning = request.ReasoningEnabled is { } enabled
-                ? new OpenRouterReasoning(enabled)
+            // Never send {"enabled":false}: reasoning-mandatory endpoints
+            // (e.g. openai/gpt-oss-120b) reject it with 400. Omitting the field
+            // leaves the model default — off where optional, on where mandatory.
+            Reasoning = request.ReasoningEnabled == true
+                ? new OpenRouterReasoning(true)
                 : null
         };
 

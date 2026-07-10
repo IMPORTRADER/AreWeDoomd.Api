@@ -4,7 +4,6 @@ using AreWeDoomd.AgentService.Decisions;
 using AreWeDoomd.AgentService.Logging;
 using AreWeDoomd.AgentService.Prompting;
 using AreWeDoomd.ChatProviders;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -17,7 +16,8 @@ public sealed class DailySchedulePlanner(
     DailyPostPlanParser parser,
     IPersonaProvider personaProvider,
     IScheduleDecisionCallbackClient callbackClient,
-    IServiceProvider serviceProvider,
+    IChatProviderResolver chatProviderResolver,
+    ILlmSettingsProvider llmSettingsProvider,
     IOptions<AgentServiceOptions> options,
     TimeProvider timeProvider,
     IAgentOpsLogWriter opsLog,
@@ -58,7 +58,9 @@ public sealed class DailySchedulePlanner(
 
     public async Task ProcessRunAsync(ScheduleRunRequest run, CancellationToken ct)
     {
-        var chatProvider = serviceProvider.GetRequiredKeyedService<IChatProvider>(options.Value.ChatProvider);
+        var actingId = run.Items.Count > 0 ? run.Items[0].AiUserId : Guid.Empty;
+        var llm = await llmSettingsProvider.GetAsync(actingId, ct);
+        var chatProvider = chatProviderResolver.Resolve(llm.Provider);
         opsLog.TryLog(new AgentOpsLogEntry(
             timeProvider.GetUtcNow(), AgentOpsLogLevel.Info, AgentOpsLogSource.Scheduling,
             $"Schedule run {run.RunId}: planning posts for {run.Items.Count} account(s) with {chatProvider.Name}."));

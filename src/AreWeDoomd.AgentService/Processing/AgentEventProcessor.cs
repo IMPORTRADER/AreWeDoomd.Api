@@ -21,7 +21,7 @@ public sealed class AgentEventProcessor : BackgroundService
     private readonly PriorityDecayPolicy _decayPolicy;
     private readonly IPersonaProvider _personaProvider;
     private readonly IPromptComposer _promptComposer;
-    private readonly IChatProvider _chatProvider;
+    private readonly IChatProviderResolver _chatProviderResolver;
     private readonly DecisionParser _decisionParser;
     private readonly IActionExecutor _actionExecutor;
     private readonly IAiSessionLogger _sessionLogger;
@@ -37,7 +37,7 @@ public sealed class AgentEventProcessor : BackgroundService
         PriorityDecayPolicy decayPolicy,
         IPersonaProvider personaProvider,
         IPromptComposer promptComposer,
-        IChatProvider chatProvider,
+        IChatProviderResolver chatProviderResolver,
         DecisionParser decisionParser,
         IActionExecutor actionExecutor,
         IAiSessionLogger sessionLogger,
@@ -52,7 +52,7 @@ public sealed class AgentEventProcessor : BackgroundService
         _decayPolicy = decayPolicy;
         _personaProvider = personaProvider;
         _promptComposer = promptComposer;
-        _chatProvider = chatProvider;
+        _chatProviderResolver = chatProviderResolver;
         _decisionParser = decisionParser;
         _actionExecutor = actionExecutor;
         _sessionLogger = sessionLogger;
@@ -286,6 +286,7 @@ public sealed class AgentEventProcessor : BackgroundService
         LlmDecisionSource lastSource = LlmDecisionSource.InvalidJson;
 
         var llm = await _llmSettings.GetAsync(aiUserId, ct);
+        var chatProvider = _chatProviderResolver.Resolve(llm.Provider);
 
         for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
@@ -299,11 +300,11 @@ public sealed class AgentEventProcessor : BackgroundService
 
             _opsLog.TryLog(new AgentOpsLogEntry(
                 DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.LlmProvider,
-                $"Requesting {_chatProvider.Name} ({llm.Model}), attempt {attempt}/{maxAttempts}.",
+                $"Requesting {chatProvider.Name} ({llm.Model}), attempt {attempt}/{maxAttempts}.",
                 AiUserId: aiUserId.ToString(), ActivityId: activityId));
 
             var sw = Stopwatch.StartNew();
-            var result = await _chatProvider.CompleteAsync(request, ct);
+            var result = await chatProvider.CompleteAsync(request, ct);
             sw.Stop();
 
             var sessionRef = _sessionLogger.Log(activityId, attempt, request, result);
@@ -322,9 +323,10 @@ public sealed class AgentEventProcessor : BackgroundService
                     result.Error?.Message);
                 _opsLog.TryLog(new AgentOpsLogEntry(
                     DateTimeOffset.UtcNow, AgentOpsLogLevel.Error, AgentOpsLogSource.LlmProvider,
-                    $"{_chatProvider.Name} call failed on attempt {attempt} after {sw.ElapsedMilliseconds} ms.",
+                    $"{chatProvider.Name} call failed on attempt {attempt} after {sw.ElapsedMilliseconds} ms.",
                     AiUserId: aiUserId.ToString(), ActivityId: activityId,
-                    Detail: result.Error?.Message));
+                    Detail: result.Error?.Message,
+                    StatusCode: result.Error?.StatusCode));
                 continue;
             }
 
@@ -338,7 +340,7 @@ public sealed class AgentEventProcessor : BackgroundService
                     decision.Reasoning);
                 _opsLog.TryLog(new AgentOpsLogEntry(
                     DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.LlmProvider,
-                    $"{_chatProvider.Name} responded in {sw.ElapsedMilliseconds} ms; decision: {decision.Action}.",
+                    $"{chatProvider.Name} responded in {sw.ElapsedMilliseconds} ms; decision: {decision.Action}.",
                     AiUserId: aiUserId.ToString(), ActivityId: activityId));
                 return new LlmDecisionResult(decision, attempt, LlmDecisionSource.Parsed, null, lastSessionRef);
             }
@@ -349,7 +351,7 @@ public sealed class AgentEventProcessor : BackgroundService
                 result.Text);
             _opsLog.TryLog(new AgentOpsLogEntry(
                 DateTimeOffset.UtcNow, AgentOpsLogLevel.Warning, AgentOpsLogSource.LlmProvider,
-                $"{_chatProvider.Name} returned malformed decision JSON on attempt {attempt}.",
+                $"{chatProvider.Name} returned malformed decision JSON on attempt {attempt}.",
                 AiUserId: aiUserId.ToString(), ActivityId: activityId,
                 Detail: result.Text is { Length: > 500 } ? result.Text[..500] : result.Text));
         }

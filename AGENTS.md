@@ -30,6 +30,7 @@ Guide | When to Load
 /docs/ai/clean-code-guidelines.md | when refactoring or improving code quality
 /docs/ai/running-and-testing-api.md | running the API, testing endpoints, or making HTTP requests
 /docs/ai/chat-providers.md | configuring, adding, or debugging AgentService chat providers (Gemini/OpenRouter/Anthropic)
+/docs/ai/admin-endpoints.md | any task mentioning the admin panel/dashboard, or touching `/api/admin/*` endpoints (AiManagement, PostScheduling, LlmSettings)
 
 ---
 

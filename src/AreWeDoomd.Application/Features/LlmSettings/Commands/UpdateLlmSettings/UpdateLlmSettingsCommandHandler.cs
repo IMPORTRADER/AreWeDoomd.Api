@@ -26,8 +26,9 @@ public sealed class UpdateLlmSettingsCommandHandler(
 
         settings.Update(
             request.Model, request.ScoringModel, request.ThinkingEnabled,
+            request.Provider ?? string.Empty,
             request.ScoringTokensPerAccount, request.CompositionTokensPerPost,
-            request.PersonaTokensPerPersona, request.ReplyMaxTokens, now);
+            request.ReplyMaxTokens, now);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

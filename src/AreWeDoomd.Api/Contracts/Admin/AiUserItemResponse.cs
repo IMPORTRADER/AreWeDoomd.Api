@@ -8,4 +8,5 @@ public sealed record AiUserItemResponse(
     bool HasPersonality,
     IReadOnlyList<string> Traits,
     string? TypingStyle,
-    int? PersonaVersion);
+    int? PersonaVersion,
+    DateTimeOffset? DeactivatedAt);

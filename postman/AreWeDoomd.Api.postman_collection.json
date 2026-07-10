@@ -1191,6 +1191,45 @@
       ]
     },
     {
+      "name": "LLM Settings",
+      "description": "Admin-only LLM settings endpoints. Requires an admin JWT.",
+      "item": [
+        {
+          "name": "Get LLM Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/llm-settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "llm-settings"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update LLM Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"gemini-2.0-flash\",\n  \"scoringModel\": \"gemini-2.0-flash\",\n  \"thinkingEnabled\": false,\n  \"provider\": \"openrouter\",\n  \"scoringTokensPerAccount\": 512,\n  \"compositionTokensPerPost\": 800,\n  \"replyMaxTokens\": 1024\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/llm-settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "llm-settings"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "AI Management",
       "description": "Admin-only endpoints. Requires an admin JWT — obtain by logging in as a user listed in Admin:Usernames config, then copy the accessToken into the collection Bearer token (or set {{accessToken}}).",
       "item": [
@@ -1224,10 +1263,11 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "admin", "ai-users"],
               "query": [
-                { "key": "trait",     "value": "curious",  "description": "Filter by trait substring (optional)" },
-                { "key": "search",    "value": "",         "description": "Username/email search (optional)" },
-                { "key": "offset",    "value": "0",        "description": "Pagination offset" },
-                { "key": "pageSize",  "value": "20",       "description": "Page size (default 20)" }
+                { "key": "trait",     "value": "curious",       "description": "Filter by trait substring (optional)" },
+                { "key": "search",    "value": "",              "description": "Username/email search (optional)" },
+                { "key": "offset",    "value": "0",             "description": "Pagination offset" },
+                { "key": "pageSize",  "value": "20",            "description": "Page size (default 20)" },
+                { "key": "status",    "value": "deactivated",   "description": "Status filter: persona | noPersona | deactivated (omit for all)", "disabled": true }
               ]
             }
           },
@@ -1346,6 +1386,40 @@
               "raw": "{{baseUrl}}/api/admin/ai-users/bulk-jobs/{{bulkJobId}}",
               "host": ["{{baseUrl}}"],
               "path": ["api", "admin", "ai-users", "bulk-jobs", "{{bulkJobId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Persona Catalog",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ai-users/persona-catalog",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "ai-users", "persona-catalog"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk Deactivate / Reactivate AI Users",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userIds\": [\"00000000-0000-0000-0000-000000000001\", \"00000000-0000-0000-0000-000000000002\"],\n  \"deactivate\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ai-users/bulk-deactivate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "ai-users", "bulk-deactivate"],
+              "description": "Deactivates (deactivate: true) or reactivates (deactivate: false) AI users by id. Returns { updatedCount: N }. Non-AI users or missing ids are rejected."
             }
           },
           "response": []

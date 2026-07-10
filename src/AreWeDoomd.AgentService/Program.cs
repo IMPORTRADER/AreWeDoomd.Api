@@ -92,6 +92,7 @@ builder.Services.AddSingleton<DecisionParser>();
 builder.Services.AddSingleton<PriorityDecayPolicy>();
 builder.Services.AddSingleton<IContextFetcher, ContextFetcher>();
 builder.Services.AddSingleton<IActionExecutor, ActionExecutor>();
+builder.Services.AddSingleton<IChatProviderResolver, KeyedChatProviderResolver>();
 
 builder.Services.AddSingleton<DecisionLogWriter>();
 builder.Services.AddSingleton<IDecisionLogWriter>(sp => sp.GetRequiredService<DecisionLogWriter>());
@@ -120,7 +121,7 @@ if (chatProviderConfigured)
             serviceProvider.GetRequiredService<PriorityDecayPolicy>(),
             serviceProvider.GetRequiredService<IPersonaProvider>(),
             serviceProvider.GetRequiredService<IPromptComposer>(),
-            serviceProvider.GetRequiredKeyedService<IChatProvider>(agentOptions.Value.ChatProvider),
+            serviceProvider.GetRequiredService<IChatProviderResolver>(),
             serviceProvider.GetRequiredService<DecisionParser>(),
             serviceProvider.GetRequiredService<IActionExecutor>(),
             serviceProvider.GetRequiredService<IAiSessionLogger>(),

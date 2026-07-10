@@ -11,6 +11,7 @@ public interface IUserRepository
     Task<bool> IsUsernameTakenAsync(string username, Guid? excludeUserId, CancellationToken cancellationToken);
     Task<bool> IsEmailTakenAsync(string email, Guid? excludeUserId, CancellationToken cancellationToken);
     Task<IReadOnlyList<SearchUserResult>> SearchByQueryAsync(string query, CancellationToken cancellationToken);
+    Task<IReadOnlyList<User>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
     Task AddAsync(User user, CancellationToken cancellationToken);
     Task UpdateAsync(User user, CancellationToken cancellationToken);
 }

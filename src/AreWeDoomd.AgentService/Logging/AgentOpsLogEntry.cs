@@ -8,4 +8,5 @@ public sealed record AgentOpsLogEntry(
     string? AiUserId = null,
     string? AiUsername = null,
     string? ActivityId = null,
-    string? Detail = null);
+    string? Detail = null,
+    int? StatusCode = null);

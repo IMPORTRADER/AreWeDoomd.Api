@@ -13,7 +13,7 @@ public sealed class ScheduleTargetReadRepository(AreWeDoomdDbContext dbContext) 
     {
         var threeDaysAgo = DateTimeOffset.UtcNow.AddDays(-3);
 
-        var query = dbContext.Users.Where(u => u.UserType == UserType.Ai);
+        var query = dbContext.Users.Where(u => u.UserType == UserType.Ai && u.DeactivatedAt == null);
         if (aiUserIds is not null)
         {
             query = query.Where(u => aiUserIds.Contains(u.Id));

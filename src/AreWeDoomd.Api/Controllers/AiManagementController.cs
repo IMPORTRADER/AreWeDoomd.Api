@@ -4,6 +4,7 @@ using AreWeDoomd.Api.Contracts.Admin;
 using AreWeDoomd.Application.Common.Models;
 using AreWeDoomd.Application.Features.AiManagement.Commands.ClearAgentOpsLogs;
 using AreWeDoomd.Application.Features.AiManagement.Commands.CreateAiUser;
+using AreWeDoomd.Application.Features.AiManagement.Commands.BulkDeactivateAiUsers;
 using AreWeDoomd.Application.Features.AiManagement.Commands.StartBulkCreateAiUsers;
 using AreWeDoomd.Application.Features.AiManagement.Commands.UpdateAiPersonality;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAgentDecisions;
@@ -12,6 +13,7 @@ using AreWeDoomd.Application.Features.AiManagement.Queries.GetAiFleetStats;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetSessionLog;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetAiUserDetail;
 using AreWeDoomd.Application.Features.AiManagement.Queries.GetBulkCreateJob;
+using AreWeDoomd.Application.Features.AiManagement.Queries.GetPersonaCatalog;
 using AreWeDoomd.Application.Features.AiManagement.Queries.ListAiUsers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -47,11 +49,12 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<AiUserListResponse>> ListAiUsers(
         [FromQuery] string? trait,
         [FromQuery] string? search,
+        [FromQuery] string? status,
         [FromQuery] int offset = 0,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var result = await mediator.Send(new ListAiUsersQuery(trait, search, offset, pageSize), cancellationToken);
+        var result = await mediator.Send(new ListAiUsersQuery(trait, search, status, offset, pageSize), cancellationToken);
         return this.ToActionResult(result, MapAiUserList);
     }
 
@@ -66,6 +69,17 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new GetAiUserDetailQuery(userId), cancellationToken);
         return this.ToActionResult(result, MapAiUserDetail);
+    }
+
+    [HttpGet("ai-users/persona-catalog")]
+    [ProducesResponseType(typeof(PersonaCatalogResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<PersonaCatalogResponse>> GetPersonaCatalog(
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetPersonaCatalogQuery(), cancellationToken);
+        return this.ToActionResult(result, MapPersonaCatalog);
     }
 
     [HttpPut("ai-users/{userId:guid}/personality")]
@@ -175,6 +189,22 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
             StatusCodes.Status202Accepted);
     }
 
+    [HttpPost("ai-users/bulk-deactivate")]
+    [ProducesResponseType(typeof(BulkDeactivateResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BulkDeactivateResponse>> BulkDeactivate(
+        [FromBody] BulkDeactivateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(
+            new BulkDeactivateAiUsersCommand(request.UserIds, request.Deactivate),
+            cancellationToken);
+        return this.ToActionResult(result, count => new BulkDeactivateResponse(count));
+    }
+
     [HttpGet("ai-users/bulk-jobs/{jobId:guid}")]
     [ProducesResponseType(typeof(BulkCreateJobResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -192,7 +222,7 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
         new(r.Items.Select(MapAiUserItem).ToList(), r.TotalCount, r.HasMore);
 
     private static AiUserItemResponse MapAiUserItem(AiUserListItem i) =>
-        new(i.Id, i.Username, i.ProfileImageUrl, i.CreatedAt, i.HasPersonality, i.Traits, i.TypingStyle, i.PersonaVersion);
+        new(i.Id, i.Username, i.ProfileImageUrl, i.CreatedAt, i.HasPersonality, i.Traits, i.TypingStyle, i.PersonaVersion, i.DeactivatedAt);
 
     private static AiUserDetailResponse MapAiUserDetail(AiUserDetailResult r) =>
         new(r.Id, r.Username, r.Email, r.ProfileImageUrl, r.Biography, r.CreatedAt,
@@ -210,10 +240,10 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
         new(r.Items.Select(MapAgentOpsLogItem).ToList(), r.NextCursor, r.HasMore, r.LogAvailable);
 
     private static AgentOpsLogItemResponse MapAgentOpsLogItem(AgentOpsLogRecord l) =>
-        new(l.Ts, l.Level, l.Source, l.Message, l.AiUserId, l.AiUsername, l.ActivityId, l.Detail);
+        new(l.Ts, l.Level, l.Source, l.Message, l.AiUserId, l.AiUsername, l.ActivityId, l.Detail, l.StatusCode);
 
     private static AiFleetStatsResponse MapAiFleetStats(AiFleetStatsResult r) =>
-        new(r.TotalAiUsers, r.WithPersonality, r.DecisionsToday, r.ExecutedToday,
+        new(r.TotalAiUsers, r.WithPersonality, r.DeactivatedAiUsers, r.DecisionsToday, r.ExecutedToday,
             r.DroppedToday, r.FailedToday, r.ActionsLastHour, r.LogAvailable);
 
     private static BulkCreateJobResponse MapBulkCreateJob(BulkCreateJobSnapshot s) =>
@@ -221,4 +251,13 @@ public sealed class AiManagementController(IMediator mediator) : ControllerBase
             s.Failed.Select(f => new BulkCreateFailedEntryResponse(f.Username, f.Reason)).ToList(),
             s.CreatedUsers,
             s.StartedAt, s.FinishedAt, s.Rebuilt);
+
+    private static PersonaCatalogResponse MapPersonaCatalog(PersonaCatalogData d) =>
+        new(
+            d.Archetypes.Select(a => new PersonaArchetypeResponse(
+                a.Key, a.Name, a.Description, a.UsernamePatterns,
+                a.Traits, a.TypingStyles, a.Summaries)).ToList(),
+            d.TraitCategories.Select(c => new PersonaTraitCategoryResponse(c.Name, c.Traits)).ToList(),
+            d.TypingStyleSuggestions,
+            d.UsernameWordPools);
 }

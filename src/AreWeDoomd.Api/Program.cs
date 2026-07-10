@@ -1,9 +1,8 @@
 using AreWeDoomd.Api.Auth;
 using AreWeDoomd.Api.Startup;
-using AreWeDoomd.ChatProviders;
-using AreWeDoomd.Infrastructure.Common.Options;
 using AreWeDoomd.Infrastructure.Common.Persistence;
 using Microsoft.AspNetCore.Mvc;
+using AreWeDoomd.Api.Common;
 using AreWeDoomd.Api.Common.Errors;
 using AreWeDoomd.Api.Jobs;
 using AreWeDoomd.Api.Notifications;
@@ -59,8 +58,9 @@ try
     builder.Services.AddOpenApi();
 
     // Map the conventional GEMINI_API_KEY environment variable onto the provider's
-    // config key. Added last so it takes precedence over appsettings.json (and the
-    // dev user-secret above). Only applied when the variable is actually set.
+    // config key, same pattern as AreWeDoomd.AgentService/Program.cs. Without this,
+    // the Api project (and thus the admin LLM-settings screen) never sees a key
+    // that was only supplied via the raw env var name.
     string? geminiApiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
     if (!string.IsNullOrWhiteSpace(geminiApiKey))
     {
@@ -157,6 +157,7 @@ try
     {
         Log.Information("SignalR running in-memory (no Redis backplane configured).");
     }
+    builder.Services.AddSingleton<IChatProviderCatalog, ChatProviderCatalog>();
     builder.Services.AddSingleton<IAgentHubSender, AgentHubSender>();
     builder.Services.AddSingleton<IScheduleRunHubSender, ScheduleRunHubSender>();
     builder.Services.AddSingleton<IUserHubSender, UserHubSender>();
@@ -179,14 +180,6 @@ try
     var app = builder.Build();
 
     await DatabasePreflight.RunAsync(app);
-
-    var personaProvider = app.Configuration
-        .GetSection(PersonaGenerationOptions.SectionName)
-        .Get<PersonaGenerationOptions>()?.Provider ?? new PersonaGenerationOptions().Provider;
-    ChatProviderStartupSummary.LogSummary(
-        app.Configuration,
-        personaProvider,
-        app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ChatProviderStartup"));
 
     var agentSecret = app.Configuration
         .GetSection(AgentNotificationsOptions.SectionName)

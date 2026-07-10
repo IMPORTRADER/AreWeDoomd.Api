@@ -81,7 +81,7 @@ public sealed class SweepStaleScheduleRunsCommandHandlerTests
     public async Task Handle_WhenItemStaleWithSinglePush_ShouldRepushWithConfiguredLlmSettings()
     {
         var llm = DomainLlmSettings.CreateDefault(Now);
-        llm.Update("custom/model", "", false, 256, 800, 700, 1024, Now);
+        llm.Update("custom/model", "", false, provider: string.Empty, 256, 800, 1024, Now);
         _llmSettings.Setup(s => s.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(llm);
 
         await _handler.Handle(new SweepStaleScheduleRunsCommand(), CancellationToken.None);

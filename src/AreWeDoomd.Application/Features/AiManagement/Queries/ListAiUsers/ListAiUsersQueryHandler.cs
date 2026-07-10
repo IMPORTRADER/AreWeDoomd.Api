@@ -13,7 +13,7 @@ public sealed class ListAiUsersQueryHandler(IAiUserReadRepository repository)
         int pageSize = Math.Clamp(request.PageSize, 1, 100);
 
         var (items, totalCount) = await repository.ListAsync(
-            request.Trait, request.Search, offset, pageSize, cancellationToken);
+            request.Trait, request.Search, request.Status, offset, pageSize, cancellationToken);
 
         bool hasMore = offset + items.Count < totalCount;
 

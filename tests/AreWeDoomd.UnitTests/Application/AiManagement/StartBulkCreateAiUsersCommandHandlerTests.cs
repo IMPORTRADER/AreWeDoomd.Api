@@ -1,6 +1,4 @@
 using AreWeDoomd.Application.Common.Interfaces;
-using AreWeDoomd.Application.Common.Models;
-using AreWeDoomd.Application.Common.Results;
 using AreWeDoomd.Application.Features.AiManagement.Commands.StartBulkCreateAiUsers;
 using Moq;
 using Shouldly;
@@ -10,31 +8,15 @@ namespace AreWeDoomd.UnitTests.Application.AiManagement;
 
 public sealed class StartBulkCreateAiUsersCommandHandlerTests
 {
-    private readonly Mock<IPersonaGenerator> _generator = new();
     private readonly Mock<IBulkCreateJobQueue> _queue = new();
     private readonly Mock<IBulkCreateJobStore> _store = new();
 
     private StartBulkCreateAiUsersCommandHandler CreateHandler() =>
-        new(_generator.Object, _queue.Object, _store.Object);
-
-    [Fact]
-    public async Task Handle_WhenGeneratorNotConfigured_ReturnsFailure()
-    {
-        _generator.Setup(g => g.IsConfigured).Returns(false);
-
-        var result = await CreateHandler().Handle(new StartBulkCreateAiUsersCommand(10), default);
-
-        result.IsSuccess.ShouldBeFalse();
-        result.ErrorType.ShouldBe(ErrorType.Failure);
-        result.Error!.Code.ShouldBe("persona.generator_unconfigured");
-        _store.Verify(s => s.Create(It.IsAny<Guid>(), It.IsAny<int>()), Times.Never);
-        _queue.Verify(q => q.EnqueueAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
+        new(_queue.Object, _store.Object);
 
     [Fact]
     public async Task Handle_WhenConfigured_ReturnsJobId_AndCreatesStoreEntry()
     {
-        _generator.Setup(g => g.IsConfigured).Returns(true);
         _queue.Setup(q => q.EnqueueAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .Returns(ValueTask.CompletedTask);
 

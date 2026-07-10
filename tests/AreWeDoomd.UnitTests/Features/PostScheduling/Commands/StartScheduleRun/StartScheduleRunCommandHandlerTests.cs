@@ -133,8 +133,8 @@ public sealed class StartScheduleRunCommandHandlerTests
     {
         var llm = DomainLlmSettings.CreateDefault(Now);
         llm.Update("openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free",
-            thinkingEnabled: true, scoringTokensPerAccount: 256, compositionTokensPerPost: 900,
-            personaTokensPerPersona: 700, replyMaxTokens: 1024, now: Now);
+            thinkingEnabled: true, provider: string.Empty, scoringTokensPerAccount: 256,
+            compositionTokensPerPost: 900, replyMaxTokens: 1024, now: Now);
         _llmSettings.Setup(s => s.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(llm);
 
         var result = await _handler.Handle(new StartScheduleRunCommand(Admin, null, false), CancellationToken.None);

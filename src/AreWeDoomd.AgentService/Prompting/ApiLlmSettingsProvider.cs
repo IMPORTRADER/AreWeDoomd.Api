@@ -57,7 +57,7 @@ public sealed class ApiLlmSettingsProvider : ILlmSettingsProvider
                     var settings = new LlmRuntimeSettings(
                         dto.Model, dto.ScoringModel ?? string.Empty, dto.ThinkingEnabled,
                         dto.ScoringTokensPerAccount, dto.CompositionTokensPerPost,
-                        dto.PersonaTokensPerPersona, dto.ReplyMaxTokens);
+                        dto.ReplyMaxTokens, dto.Provider ?? string.Empty);
                     _cache = (settings, _timeProvider.GetUtcNow());
                     return settings;
                 }
@@ -81,10 +81,10 @@ public sealed class ApiLlmSettingsProvider : ILlmSettingsProvider
     private LlmRuntimeSettings Fallback() => new(
         Model: _options.Model, ScoringModel: string.Empty, ThinkingEnabled: false,
         ScoringTokensPerAccount: 512, CompositionTokensPerPost: 800,
-        PersonaTokensPerPersona: 700, ReplyMaxTokens: 1024);
+        ReplyMaxTokens: 1024);
 
     private sealed record LlmSettingsWireDto(
         string? Model, string? ScoringModel, bool ThinkingEnabled,
         int ScoringTokensPerAccount, int CompositionTokensPerPost,
-        int PersonaTokensPerPersona, int ReplyMaxTokens);
+        int ReplyMaxTokens, string? Provider);
 }

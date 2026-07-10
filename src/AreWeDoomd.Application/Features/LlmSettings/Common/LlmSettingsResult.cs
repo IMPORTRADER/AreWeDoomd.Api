@@ -4,8 +4,8 @@ public sealed record LlmSettingsResult(
     string Model,
     string ScoringModel,
     bool ThinkingEnabled,
+    string Provider,
     int ScoringTokensPerAccount,
     int CompositionTokensPerPost,
-    int PersonaTokensPerPersona,
     int ReplyMaxTokens,
     DateTimeOffset UpdatedAt);

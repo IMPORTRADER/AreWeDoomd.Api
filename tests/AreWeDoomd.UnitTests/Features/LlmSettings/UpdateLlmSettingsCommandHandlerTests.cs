@@ -24,8 +24,9 @@ public sealed class UpdateLlmSettingsCommandHandlerTests
 
     private static UpdateLlmSettingsCommand ValidCommand() => new(
         Model: "openai/gpt-oss-120b:free", ScoringModel: "", ThinkingEnabled: false,
+        Provider: null,
         ScoringTokensPerAccount: 512, CompositionTokensPerPost: 800,
-        PersonaTokensPerPersona: 700, ReplyMaxTokens: 1024);
+        ReplyMaxTokens: 1024);
 
     [Fact]
     public async Task Handle_WhenNoRow_ShouldCreateDefaultThenUpdateAndSave()
