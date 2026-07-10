@@ -798,4 +798,3 @@ fabric.properties
 
 # Local container environment values (secrets) — see .env.example
 .env
-/docs/superpowers

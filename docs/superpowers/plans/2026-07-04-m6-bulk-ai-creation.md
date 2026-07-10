@@ -1,0 +1,60 @@
+# M6: Bulk AI Creation — Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** "Create 30 AIs" from the dashboard: an LLM invents diverse personas in batches of 10 via the shared provider-agnostic ChatProviders library, a background job registers them through `IAiAccountFactory` with live progress, and BulkCreateModal shows "12/30" with per-user results + retry-failed (spec §6.3).
+
+**Architecture:** Backend: Infrastructure gains a `AreWeDoomd.ChatProviders` reference; `ChatPersonaGenerator : IPersonaGenerator` calls the config-selected `IChatProvider` (keyed DI — NEVER provider-specific) with a structured-output JSON schema producing 10 personas per call. `StartBulkCreateAiUsersCommand` → 202 `{jobId}`; `BulkCreateJobRunner` (BackgroundService + bounded channel) drains jobs: per persona → sanitize → factory → `SetAiPersonality` → per-user SaveChanges (partial progress durable; unique-index race → one suffix retry). Durability: new nullable `Users.CreatedByBulkJobId` column (additive migration) lets `GetBulkCreateJobQuery` rebuild state from the DB when the in-memory store lost it (restart). UI: BulkCreateModal + `useBulkCreate` (start + 1.5 s poll to terminal state).
+
+## Global Constraints
+
+- Backend: repo `AreWeDoomd.Api`, EXISTING branch `feature/m3-admin-read`. **`src/AreWeDoomd.Api/appsettings.json` carries the operator's uncommitted local edit — NEVER touch/stage it; NO new keys go into it (all new options ship with code defaults); stage with explicit paths only, never `git add -A`.** Frontend: repo `AreWeDoomd.UI`, app `arewedoomd-admin/`, branch `doga/ai-dashboard`.
+- Commits plain, NO trailer; hook-blocked bash commit → PowerShell tool.
+- Provider-agnostic invariant: no Gemini/OpenRouter type appears outside `AreWeDoomd.ChatProviders`; the generator consumes `IChatProvider` + `ChatRequest.JsonResponseSchema` only. Provider chosen by `PersonaGenerationOptions.Provider` (default `"openrouter"`), model by `.Model` (empty = provider default), `BatchSize` default 10, `MaxCount` 50.
+- Missing/blank provider API key must fail the job START with a clear error (`Result.Failure("persona.generator_unconfigured", ...)`) — never a mid-job 500. (Detect: resolve provider + check its options' ApiKey at start time — the generator exposes `bool IsConfigured` or start-command checks via a small `IPersonaGeneratorHealth` — implementer picks the cleanest, states it.)
+- Bulk semantics (spec §6.3): count 1–50 (validator); per-user failures recorded with reasons, job NEVER aborts wholesale; usernames sanitized to `[a-zA-Z0-9_]{3,24}` BEFORE factory; batch-internal dedupe; synthetic emails `{username}@ai.arewedoomd.local`; random 64-hex passwords (M5 pattern); persona traits sanitized to the domain caps (drop/trim invalid traits; if a persona ends up with 0 valid traits → record as failed, don't crash).
+- Job states: `queued | generating | creating | completed | failed`; progress fields `{ jobId, status, requested, generated, created, failed: [{username?, reason}], createdUsers: [usernames], startedAt, finishedAt? }`. DB-rebuilt fallback (store miss): status `completed`, `createdUsers` from `CreatedByBulkJobId`, failures unknown → `failed: []` + flag `rebuilt: true`.
+- Seeder hardening (deferred from M5 review): new config flag `Admin:SeedOnStartup` (code default `true`); Program.cs skips seeding when false; both integration factories set it `"false"` (replaces nothing — the index-0 neutralization stays as belt).
+- docker-compose.yml (in the API repo): pass `GEMINI_API_KEY`/`OPENROUTER_API_KEY` to the **api** service too (same `${VAR:-}` pattern as agent-service); Api `Program.cs` maps them onto `ChatProviders:*:ApiKey` exactly like the AgentService Program.cs does.
+- Backend verify per task: build + `dotnet test tests/AreWeDoomd.UnitTests` green (292 at start). UI verify: lint 0 + test green (63 at start) from `arewedoomd-admin/`.
+
+---
+
+### Task 1 (API): ChatProviders plumbing + PersonaGenerationOptions + seeder flag
+
+**Files:** Infrastructure csproj gains `<ProjectReference>` to `..\AreWeDoomd.ChatProviders\AreWeDoomd.ChatProviders.csproj`; Infrastructure DI calls `services.AddChatProviders(configuration)`; new `src/AreWeDoomd.Infrastructure/Common/Options/PersonaGenerationOptions.cs` (SectionName `"PersonaGeneration"`, Provider/Model/BatchSize/MaxCount defaults above) bound in DI; Api `Program.cs`: GEMINI/OPENROUTER env→config mappings (copy the AgentService block) + `Admin:SeedOnStartup` gate around `AdminSeeder.SeedAsync`; docker-compose api service env; both integration factories add `UseSetting("Admin:SeedOnStartup", "false")`.
+- [ ] Implement; build green; full unit suite green; integration suite still 15/1-known (factories re-verified). Commit (explicit paths): `feat: wire chat providers into the Api for persona generation`
+
+### Task 2 (API): IPersonaGenerator + ChatPersonaGenerator (TDD)
+
+**Files:** `Application/Common/Interfaces/IPersonaGenerator.cs` + `Application/Common/Models/GeneratedPersona.cs` (`string Username, IReadOnlyList<string> Traits, string TypingStyle, string Summary`); `Infrastructure/Ai/ChatPersonaGenerator.cs`; `Infrastructure/Ai/PersonaBatchSchema.cs` (const JSON schema: object `{ personas: [{ username, traits[], typingStyle, summary }] }`, additionalProperties false); DI: factory lambda resolving `GetRequiredKeyedService<IChatProvider>(options.Provider)`; tests `ChatPersonaGeneratorTests` with a stub IChatProvider (ctor takes IChatProvider directly).
+
+```csharp
+public interface IPersonaGenerator
+{
+    bool IsConfigured { get; }   // provider resolvable + non-blank ApiKey
+    Task<Result<IReadOnlyList<GeneratedPersona>>> GenerateBatchAsync(int count, CancellationToken ct);
+}
+```
+
+Contract: prompt asks for `count` DIVERSE social-media AI personas (traits free-form incl. toxic/flirty/activist variety, typing styles varied, one-paragraph summaries; usernames lowercase alphanumeric/underscore 3–24, memorable); sends `ChatRequest(Model: options.Model, JsonResponseSchema: PersonaBatchSchema.Json, Temperature: 1.0)`; parse via Web JSON; sanitize each persona (username regex-strip + clamp 3–24, pad/reject; traits trim/clamp 2–60 drop invalid, cap 10; typingStyle/summary trim + truncate to 500/1000; drop persona entirely if username unsalvageable or 0 traits or blank typing/summary — dropped ones just reduce the batch, caller compensates); provider Fail → `Result.Failure("persona.generation_failed", providerMessage)`. Tests: happy parse+sanitize; dirty payload (bad username chars, 70-char trait, blank summary → drops/clamps as specified); provider failure passthrough; unparseable JSON → failure; IsConfigured false when ApiKey blank.
+- [ ] RED → implement → GREEN + full suite. Commit: `feat: add provider-agnostic LLM persona generator`
+
+### Task 3 (API): migration + job store/runner + commands + endpoints (TDD)
+
+**Files:** Domain `User`: `public Guid? CreatedByBulkJobId { get; private set; }` + `internal/public void TagBulkJob(Guid jobId)` called ONLY at creation flow (or factory overload param — implementer picks cleanest, states it); UserConfiguration + additive migration `AddBulkJobTracking` (nullable guid column + index); `IAiUserReadRepository` gains `Task<IReadOnlyList<string>> ListUsernamesByBulkJobAsync(Guid jobId, CancellationToken ct)`; Application feature `Features/AiManagement/Commands/StartBulkCreateAiUsers/` (command `int Count` → `Result<Guid>` jobId; validator 1–50; handler: IsConfigured check → enqueue job into `IBulkCreateJobQueue` + create store entry `queued`) + `Features/AiManagement/Queries/GetBulkCreateJob/` (store hit → snapshot; miss → DB rebuild via repo, `rebuilt:true`; unknown jobId AND no DB rows → NotFound); Api-hosted `Infrastructure or Api? → Api/Jobs/BulkCreateJobRunner.cs` (BackgroundService, bounded channel; per job: loop `while created+failedCount < requested`: `GenerateBatchAsync(min(BatchSize, remaining))` → per persona: batch-dedupe + `IsUsernameTakenAsync` pre-check → factory → `TagBulkJob` → `SetAiPersonality` → SaveChanges per user inside a scope (`IServiceScopeFactory` — runner is singleton, deps are scoped) → progress update after each; `DbUpdateException` unique-violation → one `-suffix` retry (random 4 hex) then record failure; generator failure mid-job → record remaining as failed with the reason, finish job (status `completed` with failures — never crash); store = `BulkCreateJobStore` singleton ConcurrentDictionary) ; controller: `POST api/admin/ai-users/bulk` → 202 `{ jobId }`, `GET api/admin/ai-users/bulk-jobs/{jobId}`; DTOs in Contracts/Admin; postman. Tests: store snapshot logic; start-command (unconfigured → failure, valid → jobId + queued entry); job query rebuild path (mock repo); runner core — extract the per-job processing into a testable `BulkCreateJobProcessor` class (runner = thin channel pump) and unit-test the processor with mocked generator/factory/repo/UoW: happy 3-persona job, username-collision suffix retry, generator-failure records remaining as failed, zero-valid-persona batch handling.
+- [ ] RED → implement (+migration generated & inspected additive-only) → GREEN + full suite. Commit: `feat: add bulk AI creation job pipeline`
+
+### Task 4 (UI): BulkCreateModal + polling hook
+
+**Files (arewedoomd-admin/src/features/ai-management/):** service adds `startBulkCreate({ count })` + `getBulkJob(jobId)`; `hooks/useBulkCreate.js` — `{ start, job, starting, polling, error, reset }`: start → POST → poll GET every 1500 ms until status completed/failed (or unmount; visibility-pause like the feed); `components/BulkCreateModal.jsx` — count input (1–50, default 10) → Start; then live: progress bar (`created+failed / requested`, token gradient), createdUsers tick list (animate-pop-in), failures list with reasons, terminal state summary, "Retry failed (N)" button = `start({ count: N })` (new job), Close (disabled only while starting, NOT during polling — job continues server-side; reopening with a running job is out of scope v1, noted); `AiUserTable` headerRight gains "Bulk create" button (or a split next to New AI — match existing style); DashboardPage wiring: on terminal job with created>0 → refresh users list. Tests: hook with fake timers (start→poll→terminal stops polling); modal renders progress from mocked hook states + retry button count.
+- [ ] RED → implement → lint+test green. Commit: `feat: add bulk create modal with live job progress`
+
+### Task 5: Final sweep
+
+- [ ] API: build --no-incremental 0 errors; `dotnet test` both (only the 1 known IntegrationTests failure); provider-agnostic grep: `git grep -n "Gemini\|OpenRouter" -- src/AreWeDoomd.Application src/AreWeDoomd.Api src/AreWeDoomd.Infrastructure` → hits ONLY in DI/options defaults + Program env mapping (config strings), ZERO type references outside ChatProviders; password grep on new files clean; `git status --short` → only the operator's appsettings edit. UI: lint/test/build green. Manual acceptance note: with OPENROUTER_API_KEY set for the Api → Bulk create 5 → watch progress → new AIs in table with varied traits; kill Api mid-job → GET job → rebuilt:true with created list. Commit stragglers: `chore: finish M6 verification`
+
+## Self-Review Notes
+- Spec §6.3 full coverage: batch-of-10 LLM calls ✓ provider-agnostic keyed resolution ✓ 202+poll ✓ per-user failure isolation ✓ suffix retry on unique race ✓ jobId tagging for restart rebuild ✓ fail-fast unconfigured key ✓ compose keys to api ✓ synthetic emails/passwords (M5 parity) ✓ validator ≤50 ✓.
+- Deliberate: per-user SaveChanges (progress durability + race isolation) over one mega-transaction; retry-failed = fresh job (simple, spec-blessed); appsettings untouched (code defaults); seeder env-flag hardening folded in (M5 review follow-up).
+- Type consistency: GeneratedPersona fields = schema fields = modal expectations; job snapshot fields listed once in Global Constraints and reused by store/query/DTO/UI.
