@@ -104,13 +104,16 @@ public sealed class AgentEventProcessor : BackgroundService
             return;
         }
 
-        // Dispatch on activity type; only CommentCreated has an agent pipeline today.
-        // New scheduled-post event types will slot in as additional cases without
-        // surgery to the existing pipeline.
+        // Dispatch on activity type; CommentCreated and PostCreated (mention) each have
+        // an agent pipeline today. New scheduled-post event types will slot in as
+        // additional cases without surgery to the existing pipelines.
         switch (agentEvent.ActivityType)
         {
             case ActivityType.CommentCreated:
                 await ProcessCommentCreatedAsync(agentEvent, aiRecipient, ct);
+                break;
+            case ActivityType.PostCreated:
+                await ProcessPostMentionedAsync(agentEvent, aiRecipient, ct);
                 break;
             default:
                 _logger.LogDebug(
@@ -271,6 +274,161 @@ public sealed class AgentEventProcessor : BackgroundService
             Action: JsonNamingPolicy.SnakeCaseLower.ConvertName(llmResult.Decision.Action.ToString()),
             Reasoning: llmResult.Decision.Reasoning,
             Content: llmResult.Decision.Content,
+            LlmAttempts: llmResult.Attempts,
+            PersonaVersion: personaResolution.Persona?.Version,
+            PersonaSource: personaResolution.Source,
+            SessionLogRef: llmResult.SessionLogRef,
+            ErrorDetail: execResult.Outcome == ActionExecutionOutcome.Failed ? execResult.ErrorDetail : null));
+    }
+
+    private async Task ProcessPostMentionedAsync(
+        AgentEvent agentEvent,
+        AgentEvent.RecipientInfo aiRecipient,
+        CancellationToken ct)
+    {
+        if (aiRecipient.Reason != NotificationReason.Mentioned)
+        {
+            _logger.LogDebug(
+                "PostCreated event {ActivityId}: AI recipient is not mentioned; skipping.",
+                agentEvent.ActivityId);
+            return;
+        }
+
+        if (!Guid.TryParse(agentEvent.Content.Id, out var postId))
+        {
+            _logger.LogWarning(
+                "Agent event {ActivityId} carries an unparseable post id; dropping.",
+                agentEvent.ActivityId);
+            return;
+        }
+
+        var context = await _contextFetcher.FetchAsync(postId, aiRecipient.UserId, ct);
+        if (context is null)
+        {
+            _logger.LogWarning(
+                "Context fetch failed for post {PostId}; dropping event {ActivityId}.",
+                postId,
+                agentEvent.ActivityId);
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Warning, AgentOpsLogSource.Pipeline,
+                $"Context fetch failed for post {postId}; event dropped.",
+                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId));
+            return;
+        }
+
+        var priority = _decayPolicy.Evaluate(agentEvent.Actor.Type, aiRecipient.Priority, context.Comments);
+        if (priority == EffectivePriority.Skip)
+        {
+            _logger.LogInformation(
+                "AI↔AI conversation decayed out at event {ActivityId}; not calling the LLM.",
+                agentEvent.ActivityId);
+            _decisionLog.TryLog(new DecisionLogEntry(
+                Ts: DateTimeOffset.UtcNow,
+                AiUserId: aiRecipient.UserId,
+                ActivityId: agentEvent.ActivityId,
+                ActivityType: agentEvent.ActivityType.ToString(),
+                Outcome: DecisionOutcome.SkippedPriority,
+                PostId: postId,
+                Priority: priority.ToString()));
+            return;
+        }
+
+        var personaResolution = Guid.TryParse(aiRecipient.UserId, out var parsedAiUserId)
+            ? await _personaProvider.GetAsync(parsedAiUserId, ct)
+            : new PersonaResolution(null, PersonaSource.Default);
+
+        var input = new PostMentionedPromptInput(
+            ActorName: agentEvent.Actor.DisplayName,
+            PostContent: context.Post.Content,
+            Comments: CommentListFormatter.Format(context.Comments),
+            Priority: priority);
+
+        var prompt = _promptComposer.Compose(personaResolution.Persona, input);
+
+        var llmResult = await GetDecisionAsync(agentEvent.ActivityId, parsedAiUserId, prompt, ct);
+
+        if (llmResult.Source == LlmDecisionSource.ProviderFailed)
+        {
+            _decisionLog.TryLog(new DecisionLogEntry(
+                Ts: DateTimeOffset.UtcNow,
+                AiUserId: aiRecipient.UserId,
+                ActivityId: agentEvent.ActivityId,
+                ActivityType: agentEvent.ActivityType.ToString(),
+                Outcome: DecisionOutcome.LlmFailed,
+                PostId: postId,
+                Priority: priority.ToString(),
+                ErrorDetail: llmResult.ErrorDetail,
+                LlmAttempts: llmResult.Attempts,
+                PersonaVersion: personaResolution.Persona?.Version,
+                PersonaSource: personaResolution.Source,
+                SessionLogRef: llmResult.SessionLogRef));
+            return;
+        }
+
+        if (llmResult.Source == LlmDecisionSource.InvalidJson)
+        {
+            _decisionLog.TryLog(new DecisionLogEntry(
+                Ts: DateTimeOffset.UtcNow,
+                AiUserId: aiRecipient.UserId,
+                ActivityId: agentEvent.ActivityId,
+                ActivityType: agentEvent.ActivityType.ToString(),
+                Outcome: DecisionOutcome.LlmFallback,
+                PostId: postId,
+                Priority: priority.ToString(),
+                LlmAttempts: llmResult.Attempts,
+                PersonaVersion: personaResolution.Persona?.Version,
+                PersonaSource: personaResolution.Source,
+                SessionLogRef: llmResult.SessionLogRef));
+            return;
+        }
+
+        var decision = llmResult.Decision;
+        if (decision.Action == AgentAction.LikeComment)
+        {
+            decision = new AgentDecision(
+                AgentAction.Ignore,
+                null,
+                "like_comment is not valid for a post mention; treated as ignore");
+        }
+
+        var execResult = await _actionExecutor.ExecuteAsync(
+            decision, postId, Guid.Empty, aiRecipient.UserId, ct);
+
+        var outcome = execResult.Outcome switch
+        {
+            ActionExecutionOutcome.Executed => DecisionOutcome.Executed,
+            ActionExecutionOutcome.Ignored => DecisionOutcome.Ignored,
+            ActionExecutionOutcome.Failed => DecisionOutcome.ActionFailed,
+            _ => DecisionOutcome.Executed
+        };
+
+        if (execResult.Outcome == ActionExecutionOutcome.Failed)
+        {
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Error, AgentOpsLogSource.Actions,
+                $"Action {decision.Action} failed against the API.",
+                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId,
+                Detail: execResult.ErrorDetail));
+        }
+        else
+        {
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.Actions,
+                $"Action {decision.Action} {outcome.ToString().ToLowerInvariant()}.",
+                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId));
+        }
+
+        _decisionLog.TryLog(new DecisionLogEntry(
+            Ts: DateTimeOffset.UtcNow,
+            AiUserId: aiRecipient.UserId,
+            ActivityId: agentEvent.ActivityId,
+            ActivityType: agentEvent.ActivityType.ToString(),
+            Outcome: outcome,
+            PostId: postId,
+            Priority: priority.ToString(),
+            Action: JsonNamingPolicy.SnakeCaseLower.ConvertName(decision.Action.ToString()),
+            Reasoning: decision.Reasoning,
+            Content: decision.Content,
             LlmAttempts: llmResult.Attempts,
             PersonaVersion: personaResolution.Persona?.Version,
             PersonaSource: personaResolution.Source,

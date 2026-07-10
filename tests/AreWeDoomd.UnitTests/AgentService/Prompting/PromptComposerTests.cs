@@ -21,6 +21,10 @@ public sealed class PromptComposerTests : IDisposable
             Path.Combine(_root, "20-tasks", "comment-created.md"),
             "actor={{actor_name}} post={{post_content}} comments={{comments}} " +
             "incoming={{incoming_comment}} mention={{mention_note}} prio={{priority_instruction}}");
+        File.WriteAllText(
+            Path.Combine(_root, "20-tasks", "post-mentioned.md"),
+            "actor={{actor_name}} post={{post_content}} comments={{comments}} " +
+            "prio={{priority_instruction}}");
         File.WriteAllText(Path.Combine(_root, "20-tasks", "daily-post-score.md"), "DAILY-POST-SCORE");
         File.WriteAllText(Path.Combine(_root, "20-tasks", "daily-post-compose.md"), "DAILY-POST-COMPOSE");
         File.WriteAllText(
@@ -113,6 +117,18 @@ public sealed class PromptComposerTests : IDisposable
         prompt.UserMessage.ShouldNotContain("mentioned you directly");
     }
 
+    [Fact]
+    public void Compose_PostMentioned_ShouldFillAllPlaceholders()
+    {
+        var prompt = _composer.Compose(null, SamplePostMentionedInput(EffectivePriority.Normal));
+
+        prompt.UserMessage.ShouldContain("actor=Alice");
+        prompt.UserMessage.ShouldContain("post=My post");
+        prompt.UserMessage.ShouldContain("comments=Alice (Human): hi");
+        prompt.UserMessage.ShouldContain("prio=PRIO-NORMAL");
+        prompt.UserMessage.ShouldNotContain("{{");
+    }
+
     private static CommentCreatedPromptInput SampleInput(EffectivePriority priority, bool isMentioned = false)
     {
         return new CommentCreatedPromptInput(
@@ -122,6 +138,15 @@ public sealed class PromptComposerTests : IDisposable
             IncomingComment: "hi",
             Priority: priority,
             IsMentioned: isMentioned);
+    }
+
+    private static PostMentionedPromptInput SamplePostMentionedInput(EffectivePriority priority)
+    {
+        return new PostMentionedPromptInput(
+            ActorName: "Alice",
+            PostContent: "My post",
+            Comments: "Alice (Human): hi",
+            Priority: priority);
     }
 
     public void Dispose()

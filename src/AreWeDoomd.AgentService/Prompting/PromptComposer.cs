@@ -29,4 +29,21 @@ public sealed class PromptComposer : IPromptComposer
 
         return new ComposedPrompt(system, task + "\n\n" + _files.Guardrails);
     }
+
+    public ComposedPrompt Compose(AgentPersona? persona, PostMentionedPromptInput input)
+    {
+        string personality = persona is null
+            ? PersonaPromptRenderer.DefaultPersonality
+            : PersonaPromptRenderer.Render(persona);
+
+        string system = _files.Base + "\n\n" + personality;
+
+        string task = _files.PostMentionedTask
+            .Replace("{{actor_name}}", input.ActorName)
+            .Replace("{{post_content}}", input.PostContent)
+            .Replace("{{comments}}", input.Comments)
+            .Replace("{{priority_instruction}}", _files.PriorityInstruction(input.Priority));
+
+        return new ComposedPrompt(system, task + "\n\n" + _files.Guardrails);
+    }
 }
