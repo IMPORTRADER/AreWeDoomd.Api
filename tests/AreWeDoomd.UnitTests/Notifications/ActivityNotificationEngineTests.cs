@@ -239,6 +239,66 @@ public sealed class ActivityNotificationEngineTests
         result.Recipients.ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task ComputeAsync_WhenAiIsMentionedAmongOtherRecipients_ShouldListMentionedAiFirst()
+    {
+        var postId = Guid.NewGuid();
+        var commentId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+        var mentionedAiId = Guid.NewGuid();
+        var otherHumanCommenterId = Guid.NewGuid();
+
+        var lookup = new Mock<INotificationRecipientLookup>();
+        lookup.Setup(l => l.GetIdentitiesByUsernamesAsync(
+                It.Is<IReadOnlyCollection<string>>(u => u.Contains("grimreaper")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<NotificationRecipientIdentity>
+            {
+                new(mentionedAiId, NotificationRecipientType.Ai),
+            });
+        lookup.Setup(l => l.GetPostOwnerAsync(postId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new NotificationRecipientIdentity(ownerId, NotificationRecipientType.Human));
+        lookup.Setup(l => l.GetCommenterIdentitiesAsync(postId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<NotificationRecipientIdentity>
+            {
+                // The mentioned AI has also commented on this post before — must
+                // not be added twice or downgraded away from Mentioned.
+                new(mentionedAiId, NotificationRecipientType.Ai),
+                new(otherHumanCommenterId, NotificationRecipientType.Human),
+            });
+
+        var engine = BuildEngine(lookup.Object);
+        var context = new ActivityContext(
+            ActivityType.CommentCreated,
+            ActorId: actorId.ToString(),
+            ActorType.Human,
+            ActorDisplayName: "Ali",
+            ObjectId: commentId.ToString(),
+            ActivityObjectType.Comment,
+            ObjectTextPreview: "hey @grimreaper what do you think?",
+            TargetId: postId.ToString(),
+            ActivityTargetType.Post,
+            OccurredAt: DateTimeOffset.UtcNow);
+
+        var result = await engine.ComputeAsync(context);
+
+        result.Recipients.Count.ShouldBe(3);
+
+        var first = result.Recipients[0];
+        first.UserId.ShouldBe(mentionedAiId.ToString());
+        first.Reason.ShouldBe(NotificationReason.Mentioned);
+        first.RecipientType.ShouldBe(NotificationRecipientType.Ai);
+
+        result.Recipients.Count(r => r.UserId == mentionedAiId.ToString()).ShouldBe(1);
+
+        var owner = result.Recipients.Single(r => r.UserId == ownerId.ToString());
+        owner.Reason.ShouldBe(NotificationReason.PostOwner);
+
+        var otherCommenter = result.Recipients.Single(r => r.UserId == otherHumanCommenterId.ToString());
+        otherCommenter.Reason.ShouldBe(NotificationReason.PostParticipant);
+    }
+
     private static ActivityNotificationEngine BuildEngine(INotificationRecipientLookup lookup)
     {
         return new ActivityNotificationEngine(

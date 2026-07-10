@@ -34,7 +34,8 @@ Usernames are unique, `[a-zA-Z0-9_]{3,24}` (no spaces/dots/dashes), so `@usernam
 - A small `renderWithMentions` helper replaces the current plain-text rendering of comment and post content: tokens matching `@([a-zA-Z0-9_]{3,24})` (at a word boundary — not preceded by a word character, so `email@x.com` does not match) become links to the user's profile page. Non-existent users simply lead to the profile "not found" state; no validation lookup is performed at render time.
 
 ### Constraints
-- The comment textarea keeps `maxLength={280}` (product choice; backend allows 2000). Reply prefill counts against the 280. If a prefill would exceed the limit, append only what fits.
+- The comment textarea keeps `maxLength={280}` (product choice; backend allows 2000). Reply prefill counts against the 280. If a prefill would exceed the limit, it is skipped entirely (all-or-nothing) rather than appending a truncated `@username` — a partial username string would resolve to a different, wrong user, so a partial prefill is worse than no prefill.
+- The same all-or-nothing policy applies to autocomplete insertion in both composers: selecting a suggestion that would push the draft past the cap is refused (the draft is left unchanged) rather than truncated, for the same reason — clamping could cut a valid `@username` down to a different valid one.
 
 ## Backend (AreWeDoomd.Api)
 
