@@ -322,6 +322,11 @@ public sealed class AgentEventProcessor : BackgroundService
             _logger.LogInformation(
                 "AI↔AI conversation decayed out at event {ActivityId}; not calling the LLM.",
                 agentEvent.ActivityId);
+            _opsLog.TryLog(new AgentOpsLogEntry(
+                DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.Pipeline,
+                "AI↔AI conversation decayed out; LLM not called.",
+                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId));
+            // skipped_priority is written BEFORE persona resolution; PersonaVersion/PersonaSource are null here by design.
             _decisionLog.TryLog(new DecisionLogEntry(
                 Ts: DateTimeOffset.UtcNow,
                 AiUserId: aiRecipient.UserId,
