@@ -7,4 +7,5 @@ public sealed record CommentCreatedPromptInput(
     string PostContent,
     string Comments,
     string IncomingComment,
-    EffectivePriority Priority);
+    EffectivePriority Priority,
+    bool IsMentioned);

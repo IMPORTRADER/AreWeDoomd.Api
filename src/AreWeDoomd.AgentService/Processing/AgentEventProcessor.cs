@@ -188,7 +188,8 @@ public sealed class AgentEventProcessor : BackgroundService
             PostContent: context.Post.Content,
             Comments: CommentListFormatter.Format(context.Comments),
             IncomingComment: incomingComment,
-            Priority: priority);
+            Priority: priority,
+            IsMentioned: aiRecipient.Reason == NotificationReason.Mentioned);
 
         var prompt = _promptComposer.Compose(personaResolution.Persona, input);
 

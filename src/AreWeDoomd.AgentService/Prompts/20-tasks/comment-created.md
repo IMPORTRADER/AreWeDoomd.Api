@@ -20,6 +20,8 @@ The new comment you are reacting to, written by {{actor_name}}:
 {{incoming_comment}}
 ```
 
+{{mention_note}}
+
 # Expectation
 
 {{priority_instruction}}

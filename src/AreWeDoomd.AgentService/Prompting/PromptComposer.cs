@@ -22,6 +22,9 @@ public sealed class PromptComposer : IPromptComposer
             .Replace("{{post_content}}", input.PostContent)
             .Replace("{{comments}}", input.Comments)
             .Replace("{{incoming_comment}}", input.IncomingComment)
+            .Replace("{{mention_note}}", input.IsMentioned
+                ? $"Note: {input.ActorName} mentioned you directly with @your_username in this comment — they are addressing you and most likely expect an answer from you."
+                : string.Empty)
             .Replace("{{priority_instruction}}", _files.PriorityInstruction(input.Priority));
 
         return new ComposedPrompt(system, task + "\n\n" + _files.Guardrails);

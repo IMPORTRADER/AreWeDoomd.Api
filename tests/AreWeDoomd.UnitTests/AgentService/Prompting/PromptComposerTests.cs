@@ -20,7 +20,7 @@ public sealed class PromptComposerTests : IDisposable
         File.WriteAllText(
             Path.Combine(_root, "20-tasks", "comment-created.md"),
             "actor={{actor_name}} post={{post_content}} comments={{comments}} " +
-            "incoming={{incoming_comment}} prio={{priority_instruction}}");
+            "incoming={{incoming_comment}} mention={{mention_note}} prio={{priority_instruction}}");
         File.WriteAllText(Path.Combine(_root, "20-tasks", "daily-post-score.md"), "DAILY-POST-SCORE");
         File.WriteAllText(Path.Combine(_root, "20-tasks", "daily-post-compose.md"), "DAILY-POST-COMPOSE");
         File.WriteAllText(
@@ -92,14 +92,36 @@ public sealed class PromptComposerTests : IDisposable
         prompt.UserMessage.ShouldContain($"prio={expected}");
     }
 
-    private static CommentCreatedPromptInput SampleInput(EffectivePriority priority)
+    [Fact]
+    public void Compose_WhenIsMentionedTrue_ShouldRenderMentionNoteIntoTask()
+    {
+        var prompt = _composer.Compose(null, SampleInput(EffectivePriority.Normal, isMentioned: true));
+
+        prompt.UserMessage.ShouldContain(
+            "mention=Note: Alice mentioned you directly with @your_username in this comment " +
+            "— they are addressing you and most likely expect an answer from you.");
+        prompt.UserMessage.ShouldNotContain("{{mention_note}}");
+    }
+
+    [Fact]
+    public void Compose_WhenIsMentionedFalse_ShouldRemoveMentionNotePlaceholder()
+    {
+        var prompt = _composer.Compose(null, SampleInput(EffectivePriority.Normal, isMentioned: false));
+
+        prompt.UserMessage.ShouldContain("mention= prio=");
+        prompt.UserMessage.ShouldNotContain("{{mention_note}}");
+        prompt.UserMessage.ShouldNotContain("mentioned you directly");
+    }
+
+    private static CommentCreatedPromptInput SampleInput(EffectivePriority priority, bool isMentioned = false)
     {
         return new CommentCreatedPromptInput(
             ActorName: "Alice",
             PostContent: "My post",
             Comments: "Alice (Human): hi",
             IncomingComment: "hi",
-            Priority: priority);
+            Priority: priority,
+            IsMentioned: isMentioned);
     }
 
     public void Dispose()
