@@ -127,6 +127,118 @@ public sealed class ActivityNotificationEngineTests
             Times.Never);
     }
 
+    [Fact]
+    public async Task ComputeAsync_WhenCommentMentionsUser_ShouldAddMentionedRecipient()
+    {
+        var postId = Guid.NewGuid();
+        var commentId = Guid.NewGuid();
+        var mentionedId = Guid.NewGuid();
+
+        var lookup = new Mock<INotificationRecipientLookup>();
+        lookup.Setup(l => l.GetIdentitiesByUsernamesAsync(
+                It.Is<IReadOnlyCollection<string>>(u => u.Contains("selin")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<NotificationRecipientIdentity>
+            {
+                new(mentionedId, NotificationRecipientType.Ai),
+            });
+
+        var engine = BuildEngine(lookup.Object);
+        var context = new ActivityContext(
+            ActivityType.CommentCreated,
+            ActorId: Guid.NewGuid().ToString(),
+            ActorType.Human,
+            ActorDisplayName: "Ali",
+            ObjectId: commentId.ToString(),
+            ActivityObjectType.Comment,
+            ObjectTextPreview: "what do you think @selin?",
+            TargetId: postId.ToString(),
+            ActivityTargetType.Post,
+            OccurredAt: DateTimeOffset.UtcNow);
+
+        var result = await engine.ComputeAsync(context);
+
+        var mentioned = result.Recipients.Single(r => r.UserId == mentionedId.ToString());
+        mentioned.RecipientType.ShouldBe(NotificationRecipientType.Ai);
+        mentioned.Reason.ShouldBe(NotificationReason.Mentioned);
+        mentioned.Template.ShouldBe("user.mentioned");
+        mentioned.DedupeKey.ShouldBe($"comment.created:{commentId}:mentioned:{mentionedId}");
+        mentioned.Params["post_id"].ShouldBe(postId.ToString());
+        mentioned.Params["comment_id"].ShouldBe(commentId.ToString());
+    }
+
+    [Fact]
+    public async Task ComputeAsync_WhenPostOwnerIsAlsoMentioned_ShouldNotifyOnceWithMentionedReason()
+    {
+        var postId = Guid.NewGuid();
+        var commentId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+
+        var lookup = new Mock<INotificationRecipientLookup>();
+        lookup.Setup(l => l.GetPostOwnerAsync(postId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new NotificationRecipientIdentity(ownerId, NotificationRecipientType.Human));
+        lookup.Setup(l => l.GetIdentitiesByUsernamesAsync(
+                It.IsAny<IReadOnlyCollection<string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<NotificationRecipientIdentity>
+            {
+                new(ownerId, NotificationRecipientType.Human),
+            });
+
+        var engine = BuildEngine(lookup.Object);
+        var context = new ActivityContext(
+            ActivityType.CommentCreated,
+            ActorId: Guid.NewGuid().ToString(),
+            ActorType.Human,
+            ActorDisplayName: "Ali",
+            ObjectId: commentId.ToString(),
+            ActivityObjectType.Comment,
+            ObjectTextPreview: "@owner nice post",
+            TargetId: postId.ToString(),
+            ActivityTargetType.Post,
+            OccurredAt: DateTimeOffset.UtcNow);
+
+        var result = await engine.ComputeAsync(context);
+
+        result.Recipients.Count.ShouldBe(1);
+        result.Recipients[0].UserId.ShouldBe(ownerId.ToString());
+        result.Recipients[0].Reason.ShouldBe(NotificationReason.Mentioned);
+    }
+
+    [Fact]
+    public async Task ComputeAsync_WhenActorMentionsThemself_ShouldNotNotifyActor()
+    {
+        var postId = Guid.NewGuid();
+        var commentId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+
+        var lookup = new Mock<INotificationRecipientLookup>();
+        lookup.Setup(l => l.GetIdentitiesByUsernamesAsync(
+                It.IsAny<IReadOnlyCollection<string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<NotificationRecipientIdentity>
+            {
+                new(actorId, NotificationRecipientType.Human),
+            });
+
+        var engine = BuildEngine(lookup.Object);
+        var context = new ActivityContext(
+            ActivityType.CommentCreated,
+            ActorId: actorId.ToString(),
+            ActorType.Human,
+            ActorDisplayName: "Ali",
+            ObjectId: commentId.ToString(),
+            ActivityObjectType.Comment,
+            ObjectTextPreview: "talking about @myself here",
+            TargetId: postId.ToString(),
+            ActivityTargetType.Post,
+            OccurredAt: DateTimeOffset.UtcNow);
+
+        var result = await engine.ComputeAsync(context);
+
+        result.Recipients.ShouldBeEmpty();
+    }
+
     private static ActivityNotificationEngine BuildEngine(INotificationRecipientLookup lookup)
     {
         return new ActivityNotificationEngine(
