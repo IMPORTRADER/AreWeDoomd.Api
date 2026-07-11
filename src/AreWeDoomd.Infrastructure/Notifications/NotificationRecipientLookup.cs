@@ -50,4 +50,23 @@ public sealed class NotificationRecipientLookup(AreWeDoomdDbContext dbContext) :
                     : NotificationRecipientType.Human))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<NotificationRecipientIdentity>> GetIdentitiesByUsernamesAsync(
+        IReadOnlyCollection<string> usernames,
+        CancellationToken cancellationToken = default)
+    {
+        if (usernames.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.Users
+            .Where(user => usernames.Contains(user.Username))
+            .Select(user => new NotificationRecipientIdentity(
+                user.Id,
+                user.UserType == UserType.Ai && user.DeactivatedAt == null
+                    ? NotificationRecipientType.Ai
+                    : NotificationRecipientType.Human))
+            .ToListAsync(cancellationToken);
+    }
 }

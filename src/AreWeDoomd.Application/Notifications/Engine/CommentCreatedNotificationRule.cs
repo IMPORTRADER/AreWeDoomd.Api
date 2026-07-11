@@ -19,21 +19,43 @@ public sealed class CommentCreatedNotificationRule(INotificationRecipientLookup 
             return [];
         }
 
-        // Keyed by user id so a user who both owns the post and commented on it is
-        // notified once; the post owner reason wins. The engine drops the actor.
+        // Keyed by user id so each user is notified once. Mentions are inserted
+        // first: being mentioned is the most specific reason, and the first AI
+        // recipient is the one the AgentService responds as — a mentioned AI
+        // should be the agent that answers. The engine drops the actor.
         var byUserId = new Dictionary<string, NotificationRecipient>(StringComparer.OrdinalIgnoreCase);
+
+        var mentionedUsernames = MentionParser.Extract(context.ObjectTextPreview);
+        if (mentionedUsernames.Count > 0)
+        {
+            var mentioned = await recipientLookup.GetIdentitiesByUsernamesAsync(mentionedUsernames, cancellationToken);
+            foreach (var identity in mentioned ?? [])
+            {
+                var mentionedUserId = identity.UserId.ToString();
+                byUserId[mentionedUserId] = BuildRecipient(
+                    mentionedUserId,
+                    identity.RecipientType,
+                    NotificationReason.Mentioned,
+                    template: "user.mentioned",
+                    dedupeKey: $"comment.created:{context.ObjectId}:mentioned:{mentionedUserId}",
+                    context);
+            }
+        }
 
         var postOwner = await recipientLookup.GetPostOwnerAsync(postId, cancellationToken);
         if (postOwner is not null)
         {
             var ownerId = postOwner.UserId.ToString();
-            byUserId[ownerId] = BuildRecipient(
-                ownerId,
-                postOwner.RecipientType,
-                NotificationReason.PostOwner,
-                template: "post.comment.created",
-                dedupeKey: $"comment.created:{context.ObjectId}:post-owner:{ownerId}",
-                context);
+            if (!byUserId.ContainsKey(ownerId))
+            {
+                byUserId[ownerId] = BuildRecipient(
+                    ownerId,
+                    postOwner.RecipientType,
+                    NotificationReason.PostOwner,
+                    template: "post.comment.created",
+                    dedupeKey: $"comment.created:{context.ObjectId}:post-owner:{ownerId}",
+                    context);
+            }
         }
 
         var commenters = await recipientLookup.GetCommenterIdentitiesAsync(postId, cancellationToken);

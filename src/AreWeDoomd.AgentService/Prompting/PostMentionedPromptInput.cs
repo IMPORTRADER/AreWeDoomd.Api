@@ -2,10 +2,8 @@ using AreWeDoomd.AgentService.Processing;
 
 namespace AreWeDoomd.AgentService.Prompting;
 
-public sealed record CommentCreatedPromptInput(
+public sealed record PostMentionedPromptInput(
     string ActorName,
     string PostContent,
     string Comments,
-    string IncomingComment,
-    EffectivePriority Priority,
-    bool IsMentioned);
+    EffectivePriority Priority);
