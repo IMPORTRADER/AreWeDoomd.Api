@@ -163,6 +163,22 @@ public sealed class AgentEventProcessorTests
     }
 
     [Fact]
+    public async Task ProcessSingleAsync_WhenActivityTypeHasNoPipeline_ShouldLogSkippedEvent()
+    {
+        var opsLog = new FakeAgentOpsLogWriter();
+        var processor = CreateProcessor(opsLog);
+        var evt = SampleEvent(ActorType.Human) with { ActivityType = ActivityType.CommentLiked };
+
+        await processor.ProcessSingleAsync(evt, CancellationToken.None);
+
+        Assert.Contains(opsLog.Entries, entry =>
+            entry.Level == AgentOpsLogLevel.Info &&
+            entry.Source == AgentOpsLogSource.Pipeline &&
+            entry.ActivityId == evt.ActivityId &&
+            entry.Message == "No agent pipeline for CommentLiked; event skipped.");
+    }
+
+    [Fact]
     public async Task ProcessSingleAsync_WhenAiActorAtSkipDepth_ShouldNotCallLlm()
     {
         // 4 consecutive AI-authored comments at the tail → Skip.

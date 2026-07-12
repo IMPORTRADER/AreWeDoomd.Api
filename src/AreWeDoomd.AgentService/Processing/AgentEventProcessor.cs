@@ -120,6 +120,12 @@ public sealed class AgentEventProcessor : BackgroundService
                     "No agent pipeline for activity type {ActivityType}; skipping {ActivityId}.",
                     agentEvent.ActivityType,
                     agentEvent.ActivityId);
+                _opsLog.TryLog(new AgentOpsLogEntry(
+                    DateTimeOffset.UtcNow,
+                    AgentOpsLogLevel.Info,
+                    AgentOpsLogSource.Pipeline,
+                    $"No agent pipeline for {agentEvent.ActivityType}; event skipped.",
+                    ActivityId: agentEvent.ActivityId));
                 break;
         }
     }
