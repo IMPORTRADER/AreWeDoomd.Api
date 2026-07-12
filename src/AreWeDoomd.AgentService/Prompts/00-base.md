@@ -19,6 +19,7 @@ Rules:
 
 - Use an empty "actions" array (`[]`) for an intentional no-op.
 - Include at most three actions, with each action type appearing at most once.
+- Never like a post or comment authored by yourself.
 - Never wrap the JSON in markdown fences and never add commentary around it.
 - Write any reply in the same language as the conversation you are replying to.
 - Keep replies short and conversational: 1-3 sentences, like a real social platform comment.

@@ -141,6 +141,14 @@ public sealed class PromptComposerTests : IDisposable
     }
 
     [Fact]
+    public void Compose_WhenUsingPackagedPrompts_ShouldForbidLikingOwnPostsOrComments()
+    {
+        var prompt = PackagedComposer().Compose(null, SampleInput(EffectivePriority.Normal));
+
+        prompt.System.ShouldContain("Never like a post or comment authored by yourself.");
+    }
+
+    [Fact]
     public void Compose_WhenCommentCreated_ShouldIdentifyIncomingCommentAsLikeTarget()
     {
         var prompt = PackagedComposer().Compose(null, SampleInput(EffectivePriority.Normal));

@@ -249,6 +249,33 @@ public sealed class AgentEventProcessorTests
 
         _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
             e.Outcome == DecisionOutcome.Ignored && e.Actions!.Count == 0 && e.Reasoning == "not my thread")), Times.Once);
+        _actionExecutor.Verify(
+            e => e.ExecuteAsync(
+                It.IsAny<AgentActionDecision>(),
+                It.IsAny<Guid>(),
+                It.IsAny<Guid?>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ProcessSingleAsync_WhenExecutorUnexpectedlyIgnoresAction_ShouldLogActionFailedWithDiagnostic()
+    {
+        SetupLlmResponses("""{"actions":[{"type":"like_post"}],"reasoning":"r"}""");
+        _actionExecutor
+            .Setup(e => e.ExecuteAsync(It.IsAny<AgentActionDecision>(), PostId, CommentId, AiUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ActionExecutionResult(ActionExecutionOutcome.Ignored));
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
+
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Outcome == DecisionOutcome.ActionFailed &&
+            e.Action == "like_post" &&
+            e.ErrorDetail == "Executor returned Ignored for an attempted action.")), Times.Once);
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Outcome == DecisionOutcome.Ignored)), Times.Never);
     }
 
     [Fact]
@@ -264,6 +291,41 @@ public sealed class AgentEventProcessorTests
 
         _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
             e.Outcome == DecisionOutcome.ActionFailed && e.Action == "reply_comment" && e.Reasoning == "r" && e.ErrorDetail == "HTTP 500: boom")), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessSingleAsync_WhenPostMentionDecisionIncludesLikeComment_ShouldDropItThenExecuteReplyInOrder()
+    {
+        SetupLlmResponses("""{"actions":[{"type":"like_comment"},{"type":"reply_comment","content":"Hi!"}],"reasoning":"r"}""");
+        _promptComposer
+            .Setup(c => c.Compose(It.IsAny<AgentPersona?>(), It.IsAny<PostMentionedPromptInput>()))
+            .Returns(new ComposedPrompt("sys", "user"));
+        var executionOrder = new List<AgentAction>();
+        var loggedActions = new List<string?>();
+        _decisionLog
+            .Setup(w => w.TryLog(It.IsAny<DecisionLogEntry>()))
+            .Callback<DecisionLogEntry>(entry => loggedActions.Add(entry.Action));
+        _actionExecutor
+            .Setup(e => e.ExecuteAsync(It.IsAny<AgentActionDecision>(), PostId, null, AiUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((AgentActionDecision action, Guid _, Guid? _, string _, CancellationToken _) =>
+            {
+                executionOrder.Add(action.Action);
+                return new ActionExecutionResult(ActionExecutionOutcome.Executed);
+            });
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SamplePostMentionedEvent(), CancellationToken.None);
+
+        executionOrder.ShouldBe([AgentAction.ReplyComment]);
+        loggedActions.ShouldBe(["like_comment", "reply_comment"]);
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Outcome == DecisionOutcome.Dropped &&
+            e.Action == "like_comment" &&
+            e.Actions!.SequenceEqual(new[] { "like_comment", "reply_comment" }))), Times.Once);
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Outcome == DecisionOutcome.Executed &&
+            e.Action == "reply_comment" &&
+            e.Actions!.SequenceEqual(new[] { "like_comment", "reply_comment" }))), Times.Once);
     }
 
     [Fact]
@@ -461,6 +523,29 @@ public sealed class AgentEventProcessorTests
                     new Dictionary<string, string>(),
                     "dedupe",
                     NotificationPriority.Normal)
+            });
+    }
+
+    private static AgentEvent SamplePostMentionedEvent()
+    {
+        return new AgentEvent(
+            ActivityId: "act_post_mentioned",
+            ActivityType: ActivityType.PostCreated,
+            OccurredAt: DateTimeOffset.UtcNow,
+            Actor: new AgentEvent.ActorInfo("actor-id", ActorType.Human, "Alice"),
+            Content: new AgentEvent.ContentInfo(
+                PostId.ToString(), ActivityObjectType.Post, "What do you think?"),
+            Target: new AgentEvent.TargetInfo(PostId.ToString(), ActivityTargetType.Post),
+            Recipients: new List<AgentEvent.RecipientInfo>
+            {
+                new(
+                    AiUserId,
+                    NotificationRecipientType.Ai,
+                    NotificationReason.Mentioned,
+                    "post.created.mentioned",
+                    new Dictionary<string, string>(),
+                    "dedupe",
+                    NotificationPriority.High)
             });
     }
 }

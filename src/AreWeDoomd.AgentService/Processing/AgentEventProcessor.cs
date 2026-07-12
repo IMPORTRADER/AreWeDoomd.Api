@@ -405,12 +405,12 @@ public sealed class AgentEventProcessor : BackgroundService
             string actionName = JsonNamingPolicy.SnakeCaseLower.ConvertName(action.Action.ToString());
             if (!isAllowed(action))
             {
-                const string errorDetail = "like_comment is not valid for a post mention.";
+                const string droppedActionErrorDetail = "like_comment is not valid for a post mention.";
                 _opsLog.TryLog(new AgentOpsLogEntry(
                     DateTimeOffset.UtcNow, AgentOpsLogLevel.Warning, AgentOpsLogSource.Actions,
                     $"Action {actionName} dropped for this event.",
                     AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId,
-                    Detail: errorDetail));
+                    Detail: droppedActionErrorDetail));
                 _decisionLog.TryLog(new DecisionLogEntry(
                     Ts: DateTimeOffset.UtcNow,
                     AiUserId: aiRecipient.UserId,
@@ -424,7 +424,7 @@ public sealed class AgentEventProcessor : BackgroundService
                     PostId: postId,
                     CommentId: commentId,
                     Priority: priority.ToString(),
-                    ErrorDetail: errorDetail,
+                    ErrorDetail: droppedActionErrorDetail,
                     LlmAttempts: llmResult.Attempts,
                     PersonaVersion: personaResolution.Persona?.Version,
                     PersonaSource: personaResolution.Source,
@@ -437,18 +437,21 @@ public sealed class AgentEventProcessor : BackgroundService
             var outcome = execResult.Outcome switch
             {
                 ActionExecutionOutcome.Executed => DecisionOutcome.Executed,
-                ActionExecutionOutcome.Ignored => DecisionOutcome.Ignored,
+                ActionExecutionOutcome.Ignored => DecisionOutcome.ActionFailed,
                 ActionExecutionOutcome.Failed => DecisionOutcome.ActionFailed,
                 _ => DecisionOutcome.ActionFailed
             };
+            string? errorDetail = execResult.Outcome == ActionExecutionOutcome.Ignored
+                ? "Executor returned Ignored for an attempted action."
+                : execResult.ErrorDetail;
 
-            if (execResult.Outcome == ActionExecutionOutcome.Failed)
+            if (outcome == DecisionOutcome.ActionFailed)
             {
                 _opsLog.TryLog(new AgentOpsLogEntry(
                     DateTimeOffset.UtcNow, AgentOpsLogLevel.Error, AgentOpsLogSource.Actions,
                     $"Action {actionName} failed against the API.",
                     AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId,
-                    Detail: execResult.ErrorDetail));
+                    Detail: errorDetail));
             }
             else
             {
@@ -471,7 +474,7 @@ public sealed class AgentEventProcessor : BackgroundService
                 PostId: postId,
                 CommentId: commentId,
                 Priority: priority.ToString(),
-                ErrorDetail: execResult.Outcome == ActionExecutionOutcome.Failed ? execResult.ErrorDetail : null,
+                ErrorDetail: outcome == DecisionOutcome.ActionFailed ? errorDetail : null,
                 LlmAttempts: llmResult.Attempts,
                 PersonaVersion: personaResolution.Persona?.Version,
                 PersonaSource: personaResolution.Source,
