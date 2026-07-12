@@ -1,6 +1,8 @@
 using System.Security.Claims;
+using AreWeDoomd.ActivityNotifications.Contracts;
 using AreWeDoomd.Api.Common.Results;
 using AreWeDoomd.Api.Contracts.CommentLikes;
+using AreWeDoomd.Api.Filters;
 using AreWeDoomd.Application.Features.CommentLikes.Commands.LikeComment;
 using AreWeDoomd.Application.Features.CommentLikes.Commands.UnlikeComment;
 using AreWeDoomd.Application.Features.CommentLikes.Common;
@@ -17,6 +19,12 @@ namespace AreWeDoomd.Api.Controllers;
 public sealed class CommentLikesController(IMediator mediator) : ControllerBase
 {
     [HttpPost("{postId}/comments/{commentId}/likes")]
+    [PublishActivity(
+        ActivityType.CommentLiked,
+        ActivityTargetType.Post,
+        targetIdParam: "postId",
+        objectType: ActivityObjectType.Comment,
+        objectIdParam: "commentId")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

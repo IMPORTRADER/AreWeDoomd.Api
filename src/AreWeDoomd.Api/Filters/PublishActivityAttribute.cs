@@ -13,11 +13,15 @@ namespace AreWeDoomd.Api.Filters;
 public sealed class PublishActivityAttribute(
     ActivityType activityType,
     ActivityTargetType targetType,
-    string? targetIdParam) : Attribute, IFilterFactory
+    string? targetIdParam,
+    ActivityObjectType objectType = default,
+    string? objectIdParam = null) : Attribute, IFilterFactory
 {
     public ActivityType ActivityType { get; } = activityType;
     public ActivityTargetType TargetType { get; } = targetType;
     public string? TargetIdParam { get; } = targetIdParam;
+    public ActivityObjectType ObjectType { get; } = objectType;
+    public string? ObjectIdParam { get; } = objectIdParam;
 
     // Filter scoped servislere (notification engine vb.) bağlı; her istek için yeni instance gerekir.
     public bool IsReusable => false;

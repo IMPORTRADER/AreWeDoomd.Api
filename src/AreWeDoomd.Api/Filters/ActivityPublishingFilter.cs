@@ -51,6 +51,11 @@ public sealed class ActivityPublishingFilter(
             objectType = carrier.ActivityObjectType;
             objectTextPreview = carrier.ActivityObjectTextPreview;
         }
+        else if (attribute.ObjectIdParam is not null)
+        {
+            objectId = executed.HttpContext.Request.RouteValues[attribute.ObjectIdParam]?.ToString() ?? "";
+            objectType = attribute.ObjectType;
+        }
 
         var routeValues = executed.HttpContext.Request.RouteValues;
         var targetId = attribute.TargetIdParam is not null

@@ -163,6 +163,31 @@ public sealed class ActivityPublishingFilterTests
         ctx.ObjectTextPreview.ShouldBe("selam");
     }
 
+    [Fact]
+    public async Task OnActionExecutionAsync_WhenObjectIdComesFromRoute_ShouldEnqueueCommentLikeContext()
+    {
+        var attribute = new PublishActivityAttribute(
+            ActivityType.CommentLiked,
+            ActivityTargetType.Post,
+            targetIdParam: "postId",
+            objectType: ActivityObjectType.Comment,
+            objectIdParam: "commentId");
+        var (queue, filter) = BuildFilter(attribute);
+        var captured = SetupCapture(queue);
+        var executing = BuildExecutingContext(nameof(UserType.Human));
+        executing.HttpContext.Request.RouteValues["commentId"] = "comment_abc";
+
+        await filter.OnActionExecutionAsync(executing, () =>
+            Task.FromResult(BuildExecutedContext(executing, StatusCodes.Status204NoContent)));
+
+        captured.Value.ShouldNotBeNull();
+        captured.Value!.ActivityType.ShouldBe(ActivityType.CommentLiked);
+        captured.Value.ObjectId.ShouldBe("comment_abc");
+        captured.Value.ObjectType.ShouldBe(ActivityObjectType.Comment);
+        captured.Value.TargetId.ShouldBe("post_abc");
+        captured.Value.TargetType.ShouldBe(ActivityTargetType.Post);
+    }
+
     private static void SetupEnqueue(Mock<IActivityNotificationQueue> queue)
     {
         queue.Setup(q => q.EnqueueAsync(It.IsAny<ActivityContext>(), It.IsAny<CancellationToken>()))
@@ -199,11 +224,12 @@ public sealed class ActivityPublishingFilterTests
             targetIdParam: "postId");
     }
 
-    private static (Mock<IActivityNotificationQueue> queue, ActivityPublishingFilter filter) BuildFilter()
+    private static (Mock<IActivityNotificationQueue> queue, ActivityPublishingFilter filter) BuildFilter(
+        PublishActivityAttribute? attribute = null)
     {
         var queue = new Mock<IActivityNotificationQueue>();
         var filter = new ActivityPublishingFilter(
-            BuildAttribute(),
+            attribute ?? BuildAttribute(),
             queue.Object,
             NullLogger<ActivityPublishingFilter>.Instance);
 

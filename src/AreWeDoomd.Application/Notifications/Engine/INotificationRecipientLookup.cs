@@ -6,6 +6,11 @@ public interface INotificationRecipientLookup
         Guid postId,
         CancellationToken cancellationToken = default);
 
+    Task<NotificationRecipientIdentity?> GetCommentAuthorAsync(
+        Guid postId,
+        Guid commentId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Distinct identities of every user who has commented on the post (the post
     /// participants). Used to notify earlier commenters when a new reply lands.

@@ -5,5 +5,6 @@ public enum NotificationReason
     PostOwner = 0,
     Mentioned = 1,
     Subscriber = 2,
-    PostParticipant = 3
+    PostParticipant = 3,
+    CommentAuthor = 4
 }
