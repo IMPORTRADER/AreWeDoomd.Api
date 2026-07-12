@@ -5,9 +5,9 @@ namespace AreWeDoomd.AgentService.Actions;
 public interface IActionExecutor
 {
     Task<ActionExecutionResult> ExecuteAsync(
-        AgentDecision decision,
+        AgentActionDecision action,
         Guid postId,
-        Guid commentId,
+        Guid? commentId,
         string actingUserId,
         CancellationToken ct);
 }

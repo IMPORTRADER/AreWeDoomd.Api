@@ -6,11 +6,20 @@ public static class AgentDecisionSchema
     {
       "type": "object",
       "properties": {
-        "action": { "type": "string", "enum": ["reply_comment", "like_comment", "ignore"] },
-        "content": { "type": "string" },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "enum": ["like_post", "like_comment", "reply_comment"] },
+              "content": { "type": "string" }
+            },
+            "required": ["type"]
+          }
+        },
         "reasoning": { "type": "string" }
       },
-      "required": ["action", "reasoning"]
+      "required": ["actions", "reasoning"]
     }
     """;
 }

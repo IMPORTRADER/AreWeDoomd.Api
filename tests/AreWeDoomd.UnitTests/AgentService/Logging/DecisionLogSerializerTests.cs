@@ -16,6 +16,7 @@ public sealed class DecisionLogSerializerTests
             ActivityType: "CommentCreated",
             Outcome: DecisionOutcome.SkippedPriority,
             Action: "reply_comment",
+            Actions: ["like_comment", "reply_comment"],
             LlmAttempts: 2);
 
         string line = DecisionLogSerializer.Serialize(entry);
@@ -24,6 +25,7 @@ public sealed class DecisionLogSerializerTests
         line.ShouldContain("\"aiUserId\":\"ai-1\"");
         line.ShouldContain("\"activityType\":\"CommentCreated\"");
         line.ShouldContain("\"llmAttempts\":2");
+        line.ShouldContain("\"actions\":[\"like_comment\",\"reply_comment\"]");
         line.ShouldNotContain("\n");
     }
 

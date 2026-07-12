@@ -26,28 +26,30 @@ public sealed class ActionExecutor : IActionExecutor
     }
 
     public async Task<ActionExecutionResult> ExecuteAsync(
-        AgentDecision decision,
+        AgentActionDecision action,
         Guid postId,
-        Guid commentId,
+        Guid? commentId,
         string actingUserId,
         CancellationToken ct)
     {
-        if (decision.Action == AgentAction.Ignore)
+        if (action.Action == AgentAction.LikeComment && commentId is null)
         {
-            _logger.LogInformation(
-                "Agent decided to ignore. Reasoning: {Reasoning}",
-                decision.Reasoning);
-            return new ActionExecutionResult(ActionExecutionOutcome.Ignored);
+            return new ActionExecutionResult(
+                ActionExecutionOutcome.Failed,
+                "A comment id is required for like_comment.");
         }
 
         string baseUrl = _options.ApiBaseUrl.TrimEnd('/');
-        using HttpRequestMessage request = decision.Action switch
+        using HttpRequestMessage request = action.Action switch
         {
-            AgentAction.ReplyComment => BuildReplyRequest(baseUrl, postId, decision.Content!),
+            AgentAction.LikePost => new HttpRequestMessage(
+                HttpMethod.Post,
+                $"{baseUrl}/api/posts/{postId}/likes"),
             AgentAction.LikeComment => new HttpRequestMessage(
                 HttpMethod.Post,
                 $"{baseUrl}/api/posts/{postId}/comments/{commentId}/likes"),
-            _ => throw new InvalidOperationException($"Unsupported action {decision.Action}.")
+            AgentAction.ReplyComment => BuildReplyRequest(baseUrl, postId, action.Content!),
+            _ => throw new InvalidOperationException($"Unsupported action {action.Action}.")
         };
 
         request.Headers.Add(AgentNotificationHubConstants.SecretHeaderName, _options.SharedSecret);
@@ -61,10 +63,9 @@ public sealed class ActionExecutor : IActionExecutor
             if (response.IsSuccessStatusCode)
             {
                 _logger.LogInformation(
-                    "Agent action {Action} executed for post {PostId}. Reasoning: {Reasoning}",
-                    decision.Action,
-                    postId,
-                    decision.Reasoning);
+                    "Agent action {Action} executed for post {PostId}.",
+                    action.Action,
+                    postId);
                 return new ActionExecutionResult(ActionExecutionOutcome.Executed);
             }
             else
@@ -72,7 +73,7 @@ public sealed class ActionExecutor : IActionExecutor
                 string body = await response.Content.ReadAsStringAsync(ct);
                 _logger.LogError(
                     "Agent action {Action} failed with status {StatusCode}: {Body}",
-                    decision.Action,
+                    action.Action,
                     (int)response.StatusCode,
                     body);
                 string errorDetail = $"HTTP {(int)response.StatusCode}: {(body.Length > 500 ? body[..500] : body)}";
@@ -85,7 +86,7 @@ public sealed class ActionExecutor : IActionExecutor
         }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException)
         {
-            _logger.LogError(ex, "Agent action {Action} failed on transport", decision.Action);
+            _logger.LogError(ex, "Agent action {Action} failed on transport", action.Action);
             return new ActionExecutionResult(ActionExecutionOutcome.Failed, ex.Message);
         }
     }

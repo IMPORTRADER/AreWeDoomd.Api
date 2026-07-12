@@ -2,7 +2,7 @@ namespace AreWeDoomd.AgentService.Decisions;
 
 public enum AgentAction
 {
-    Ignore = 0,
-    ReplyComment = 1,
-    LikeComment = 2
+    LikePost = 0,
+    LikeComment = 1,
+    ReplyComment = 2
 }

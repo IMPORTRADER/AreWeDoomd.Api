@@ -9,82 +9,105 @@ public sealed class DecisionParserTests
     private readonly DecisionParser _parser = new();
 
     [Fact]
-    public void Parse_WhenValidReply_ShouldReturnReplyDecision()
+    public void Parse_WhenActionsArrayIsEmpty_ShouldReturnEmptyDecision()
     {
-        var text = """{"action":"reply_comment","content":"Nice point!","reasoning":"friendly"}""";
-
-        var decision = _parser.Parse(text);
+        var decision = _parser.Parse("""{"actions":[],"reasoning":"nothing to add"}""");
 
         decision.ShouldNotBeNull();
-        decision!.Action.ShouldBe(AgentAction.ReplyComment);
-        decision.Content.ShouldBe("Nice point!");
+        decision!.Actions.ShouldBeEmpty();
+        decision.Reasoning.ShouldBe("nothing to add");
+    }
+
+    [Fact]
+    public void Parse_WhenActionsAreValid_ShouldPreserveTheirOrder()
+    {
+        var decision = _parser.Parse("""
+            {"actions":[{"type":"like_post"},{"type":"like_comment"},{"type":"reply_comment","content":"Nice point!"}],"reasoning":"friendly"}
+            """);
+
+        decision.ShouldNotBeNull();
+        decision!.Actions.ShouldBe([
+            new AgentActionDecision(AgentAction.LikePost, null),
+            new AgentActionDecision(AgentAction.LikeComment, null),
+            new AgentActionDecision(AgentAction.ReplyComment, "Nice point!")
+        ]);
         decision.Reasoning.ShouldBe("friendly");
     }
 
     [Fact]
-    public void Parse_WhenValidIgnore_ShouldReturnIgnoreDecision()
+    public void Parse_WhenReplyHasNoContent_ShouldDropOnlyReply()
     {
-        var text = """{"action":"ignore","reasoning":"nothing to add"}""";
-
-        var decision = _parser.Parse(text);
+        var decision = _parser.Parse("""
+            {"actions":[{"type":"like_post"},{"type":"reply_comment","content":"  "},{"type":"like_comment"}],"reasoning":"agree"}
+            """);
 
         decision.ShouldNotBeNull();
-        decision!.Action.ShouldBe(AgentAction.Ignore);
-        decision.Content.ShouldBeNull();
+        decision!.Actions.ShouldBe([
+            new AgentActionDecision(AgentAction.LikePost, null),
+            new AgentActionDecision(AgentAction.LikeComment, null)
+        ]);
     }
 
     [Fact]
-    public void Parse_WhenValidLike_ShouldReturnLikeDecision()
+    public void Parse_WhenActionTypeIsDuplicated_ShouldRetainItOnlyOnce()
     {
-        var text = """{"action":"like_comment","reasoning":"agree"}""";
-
-        var decision = _parser.Parse(text);
+        var decision = _parser.Parse("""
+            {"actions":[{"type":"like_post"},{"type":"like_post"},{"type":"like_comment"}],"reasoning":"agree"}
+            """);
 
         decision.ShouldNotBeNull();
-        decision!.Action.ShouldBe(AgentAction.LikeComment);
+        decision!.Actions.ShouldBe([
+            new AgentActionDecision(AgentAction.LikePost, null),
+            new AgentActionDecision(AgentAction.LikeComment, null)
+        ]);
     }
 
     [Fact]
-    public void Parse_WhenWrappedInMarkdownFences_ShouldStillParse()
+    public void Parse_WhenMoreThanThreeActionsAreValid_ShouldLimitResultsToThree()
     {
-        var text = """
-        ```json
-        {"action":"ignore","reasoning":"fenced"}
-        ```
-        """;
-
-        var decision = _parser.Parse(text);
+        var decision = _parser.Parse("""
+            {"actions":[{"type":"like_post"},{"type":"like_comment"},{"type":"reply_comment","content":"One"},{"type":"reply_comment","content":"Two"}],"reasoning":"engaged"}
+            """);
 
         decision.ShouldNotBeNull();
-        decision!.Action.ShouldBe(AgentAction.Ignore);
+        decision!.Actions.ShouldBe([
+            new AgentActionDecision(AgentAction.LikePost, null),
+            new AgentActionDecision(AgentAction.LikeComment, null),
+            new AgentActionDecision(AgentAction.ReplyComment, "One")
+        ]);
     }
 
     [Fact]
-    public void Parse_WhenUnknownAction_ShouldReturnNull()
+    public void Parse_WhenOnlyUnknownActionsAreSupplied_ShouldReturnEmptyDecision()
     {
-        var text = """{"action":"delete_post","reasoning":"nope"}""";
+        var decision = _parser.Parse("""{"actions":[{"type":"delete_post"}],"reasoning":"nope"}""");
 
-        _parser.Parse(text).ShouldBeNull();
+        decision.ShouldNotBeNull();
+        decision!.Actions.ShouldBeEmpty();
     }
 
     [Fact]
-    public void Parse_WhenReplyWithoutContent_ShouldReturnNull()
+    public void Parse_WhenWrappedInMarkdownFences_ShouldParseActions()
     {
-        var text = """{"action":"reply_comment","content":"  ","reasoning":"oops"}""";
+        var decision = _parser.Parse("""
+            ```json
+            {"actions":[{"type":"like_post"}],"reasoning":"fenced"}
+            ```
+            """);
 
-        _parser.Parse(text).ShouldBeNull();
+        decision.ShouldNotBeNull();
+        decision!.Actions.ShouldBe([new AgentActionDecision(AgentAction.LikePost, null)]);
     }
 
     [Fact]
-    public void Parse_WhenMalformedJson_ShouldReturnNull()
+    public void Parse_WhenJsonIsMalformed_ShouldReturnNull()
     {
         _parser.Parse("not json at all").ShouldBeNull();
     }
 
     [Fact]
-    public void Parse_WhenNullOrWhitespace_ShouldReturnNull()
+    public void Parse_WhenActionsArrayIsMissing_ShouldReturnNull()
     {
-        _parser.Parse(null).ShouldBeNull();
-        _parser.Parse("   ").ShouldBeNull();
+        _parser.Parse("""{"reasoning":"missing actions"}""").ShouldBeNull();
     }
 }

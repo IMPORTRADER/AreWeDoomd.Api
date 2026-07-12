@@ -129,6 +129,33 @@ public sealed class PromptComposerTests : IDisposable
         prompt.UserMessage.ShouldNotContain("{{");
     }
 
+    [Fact]
+    public void Compose_WhenUsingPackagedPrompts_ShouldIncludeMultiActionContract()
+    {
+        var prompt = PackagedComposer().Compose(null, SampleInput(EffectivePriority.Normal));
+
+        prompt.System.ShouldContain("\"actions\"");
+        prompt.System.ShouldContain("like_post");
+        prompt.System.ShouldContain("like_comment");
+        prompt.System.ShouldContain("reply_comment");
+    }
+
+    [Fact]
+    public void Compose_WhenCommentCreated_ShouldIdentifyIncomingCommentAsLikeTarget()
+    {
+        var prompt = PackagedComposer().Compose(null, SampleInput(EffectivePriority.Normal));
+
+        prompt.UserMessage.ShouldContain("like_comment targets the incoming comment");
+    }
+
+    [Fact]
+    public void Compose_WhenPostMentioned_ShouldForbidLikeComment()
+    {
+        var prompt = PackagedComposer().Compose(null, SamplePostMentionedInput(EffectivePriority.Normal));
+
+        prompt.UserMessage.ShouldContain("like_comment is forbidden");
+    }
+
     private static CommentCreatedPromptInput SampleInput(EffectivePriority priority, bool isMentioned = false)
     {
         return new CommentCreatedPromptInput(
@@ -147,6 +174,11 @@ public sealed class PromptComposerTests : IDisposable
             PostContent: "My post",
             Comments: "Alice (Human): hi",
             Priority: priority);
+    }
+
+    private static PromptComposer PackagedComposer()
+    {
+        return new PromptComposer(new PromptFileSet(Path.Combine(AppContext.BaseDirectory, "Prompts")));
     }
 
     public void Dispose()

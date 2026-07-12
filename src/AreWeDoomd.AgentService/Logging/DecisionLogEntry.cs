@@ -7,6 +7,7 @@ public sealed record DecisionLogEntry(
     string ActivityType,
     DecisionOutcome Outcome,
     string? Action = null,
+    IReadOnlyList<string>? Actions = null,
     string? Reasoning = null,
     string? Content = null,
     Guid? PostId = null,

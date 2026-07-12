@@ -1,6 +1,5 @@
 namespace AreWeDoomd.AgentService.Decisions;
 
 internal sealed record DecisionWire(
-    string? Action,
-    string? Content,
+    IReadOnlyList<ActionWire>? Actions,
     string? Reasoning);

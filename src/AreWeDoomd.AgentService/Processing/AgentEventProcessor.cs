@@ -235,50 +235,16 @@ public sealed class AgentEventProcessor : BackgroundService
             return;
         }
 
-        var execResult = await _actionExecutor.ExecuteAsync(
-            llmResult.Decision, postId, commentId, aiRecipient.UserId, ct);
-
-        var outcome = execResult.Outcome switch
-        {
-            ActionExecutionOutcome.Executed => DecisionOutcome.Executed,
-            ActionExecutionOutcome.Ignored => DecisionOutcome.Ignored,
-            ActionExecutionOutcome.Failed => DecisionOutcome.ActionFailed,
-            _ => DecisionOutcome.Executed
-        };
-
-        if (execResult.Outcome == ActionExecutionOutcome.Failed)
-        {
-            _opsLog.TryLog(new AgentOpsLogEntry(
-                DateTimeOffset.UtcNow, AgentOpsLogLevel.Error, AgentOpsLogSource.Actions,
-                $"Action {llmResult.Decision.Action} failed against the API.",
-                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId,
-                Detail: execResult.ErrorDetail));
-        }
-        else
-        {
-            _opsLog.TryLog(new AgentOpsLogEntry(
-                DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.Actions,
-                $"Action {llmResult.Decision.Action} {outcome.ToString().ToLowerInvariant()}.",
-                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId));
-        }
-
-        _decisionLog.TryLog(new DecisionLogEntry(
-            Ts: DateTimeOffset.UtcNow,
-            AiUserId: aiRecipient.UserId,
-            ActivityId: agentEvent.ActivityId,
-            ActivityType: agentEvent.ActivityType.ToString(),
-            Outcome: outcome,
-            PostId: postId,
-            CommentId: commentId,
-            Priority: priority.ToString(),
-            Action: JsonNamingPolicy.SnakeCaseLower.ConvertName(llmResult.Decision.Action.ToString()),
-            Reasoning: llmResult.Decision.Reasoning,
-            Content: llmResult.Decision.Content,
-            LlmAttempts: llmResult.Attempts,
-            PersonaVersion: personaResolution.Persona?.Version,
-            PersonaSource: personaResolution.Source,
-            SessionLogRef: llmResult.SessionLogRef,
-            ErrorDetail: execResult.Outcome == ActionExecutionOutcome.Failed ? execResult.ErrorDetail : null));
+        await ExecuteDecisionActionsAsync(
+            agentEvent,
+            aiRecipient,
+            llmResult,
+            personaResolution,
+            priority,
+            postId,
+            commentId,
+            action => true,
+            ct);
     }
 
     private async Task ProcessPostMentionedAsync(
@@ -387,58 +353,130 @@ public sealed class AgentEventProcessor : BackgroundService
             return;
         }
 
-        var decision = llmResult.Decision;
-        if (decision.Action == AgentAction.LikeComment)
+        await ExecuteDecisionActionsAsync(
+            agentEvent,
+            aiRecipient,
+            llmResult,
+            personaResolution,
+            priority,
+            postId,
+            null,
+            action => action.Action != AgentAction.LikeComment,
+            ct);
+    }
+
+    private async Task ExecuteDecisionActionsAsync(
+        AgentEvent agentEvent,
+        AgentEvent.RecipientInfo aiRecipient,
+        LlmDecisionResult llmResult,
+        PersonaResolution personaResolution,
+        EffectivePriority priority,
+        Guid postId,
+        Guid? commentId,
+        Func<AgentActionDecision, bool> isAllowed,
+        CancellationToken ct)
+    {
+        IReadOnlyList<string> actionNames = llmResult.Decision.Actions
+            .Select(action => JsonNamingPolicy.SnakeCaseLower.ConvertName(action.Action.ToString()))
+            .ToList();
+
+        if (llmResult.Decision.Actions.Count == 0)
         {
-            decision = new AgentDecision(
-                AgentAction.Ignore,
-                null,
-                "like_comment is not valid for a post mention; treated as ignore");
+            _decisionLog.TryLog(new DecisionLogEntry(
+                Ts: DateTimeOffset.UtcNow,
+                AiUserId: aiRecipient.UserId,
+                ActivityId: agentEvent.ActivityId,
+                ActivityType: agentEvent.ActivityType.ToString(),
+                Outcome: DecisionOutcome.Ignored,
+                Actions: actionNames,
+                Reasoning: llmResult.Decision.Reasoning,
+                PostId: postId,
+                CommentId: commentId,
+                Priority: priority.ToString(),
+                LlmAttempts: llmResult.Attempts,
+                PersonaVersion: personaResolution.Persona?.Version,
+                PersonaSource: personaResolution.Source,
+                SessionLogRef: llmResult.SessionLogRef));
+            return;
         }
 
-        var execResult = await _actionExecutor.ExecuteAsync(
-            decision, postId, Guid.Empty, aiRecipient.UserId, ct);
-
-        var outcome = execResult.Outcome switch
+        foreach (AgentActionDecision action in llmResult.Decision.Actions)
         {
-            ActionExecutionOutcome.Executed => DecisionOutcome.Executed,
-            ActionExecutionOutcome.Ignored => DecisionOutcome.Ignored,
-            ActionExecutionOutcome.Failed => DecisionOutcome.ActionFailed,
-            _ => DecisionOutcome.Executed
-        };
+            string actionName = JsonNamingPolicy.SnakeCaseLower.ConvertName(action.Action.ToString());
+            if (!isAllowed(action))
+            {
+                const string errorDetail = "like_comment is not valid for a post mention.";
+                _opsLog.TryLog(new AgentOpsLogEntry(
+                    DateTimeOffset.UtcNow, AgentOpsLogLevel.Warning, AgentOpsLogSource.Actions,
+                    $"Action {actionName} dropped for this event.",
+                    AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId,
+                    Detail: errorDetail));
+                _decisionLog.TryLog(new DecisionLogEntry(
+                    Ts: DateTimeOffset.UtcNow,
+                    AiUserId: aiRecipient.UserId,
+                    ActivityId: agentEvent.ActivityId,
+                    ActivityType: agentEvent.ActivityType.ToString(),
+                    Outcome: DecisionOutcome.Dropped,
+                    Action: actionName,
+                    Actions: actionNames,
+                    Reasoning: llmResult.Decision.Reasoning,
+                    Content: action.Content,
+                    PostId: postId,
+                    CommentId: commentId,
+                    Priority: priority.ToString(),
+                    ErrorDetail: errorDetail,
+                    LlmAttempts: llmResult.Attempts,
+                    PersonaVersion: personaResolution.Persona?.Version,
+                    PersonaSource: personaResolution.Source,
+                    SessionLogRef: llmResult.SessionLogRef));
+                continue;
+            }
 
-        if (execResult.Outcome == ActionExecutionOutcome.Failed)
-        {
-            _opsLog.TryLog(new AgentOpsLogEntry(
-                DateTimeOffset.UtcNow, AgentOpsLogLevel.Error, AgentOpsLogSource.Actions,
-                $"Action {decision.Action} failed against the API.",
-                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId,
-                Detail: execResult.ErrorDetail));
+            var execResult = await _actionExecutor.ExecuteAsync(
+                action, postId, commentId, aiRecipient.UserId, ct);
+            var outcome = execResult.Outcome switch
+            {
+                ActionExecutionOutcome.Executed => DecisionOutcome.Executed,
+                ActionExecutionOutcome.Ignored => DecisionOutcome.Ignored,
+                ActionExecutionOutcome.Failed => DecisionOutcome.ActionFailed,
+                _ => DecisionOutcome.ActionFailed
+            };
+
+            if (execResult.Outcome == ActionExecutionOutcome.Failed)
+            {
+                _opsLog.TryLog(new AgentOpsLogEntry(
+                    DateTimeOffset.UtcNow, AgentOpsLogLevel.Error, AgentOpsLogSource.Actions,
+                    $"Action {actionName} failed against the API.",
+                    AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId,
+                    Detail: execResult.ErrorDetail));
+            }
+            else
+            {
+                _opsLog.TryLog(new AgentOpsLogEntry(
+                    DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.Actions,
+                    $"Action {actionName} {outcome.ToString().ToLowerInvariant()}.",
+                    AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId));
+            }
+
+            _decisionLog.TryLog(new DecisionLogEntry(
+                Ts: DateTimeOffset.UtcNow,
+                AiUserId: aiRecipient.UserId,
+                ActivityId: agentEvent.ActivityId,
+                ActivityType: agentEvent.ActivityType.ToString(),
+                Outcome: outcome,
+                Action: actionName,
+                Actions: actionNames,
+                Reasoning: llmResult.Decision.Reasoning,
+                Content: action.Content,
+                PostId: postId,
+                CommentId: commentId,
+                Priority: priority.ToString(),
+                ErrorDetail: execResult.Outcome == ActionExecutionOutcome.Failed ? execResult.ErrorDetail : null,
+                LlmAttempts: llmResult.Attempts,
+                PersonaVersion: personaResolution.Persona?.Version,
+                PersonaSource: personaResolution.Source,
+                SessionLogRef: llmResult.SessionLogRef));
         }
-        else
-        {
-            _opsLog.TryLog(new AgentOpsLogEntry(
-                DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.Actions,
-                $"Action {decision.Action} {outcome.ToString().ToLowerInvariant()}.",
-                AiUserId: aiRecipient.UserId, ActivityId: agentEvent.ActivityId));
-        }
-
-        _decisionLog.TryLog(new DecisionLogEntry(
-            Ts: DateTimeOffset.UtcNow,
-            AiUserId: aiRecipient.UserId,
-            ActivityId: agentEvent.ActivityId,
-            ActivityType: agentEvent.ActivityType.ToString(),
-            Outcome: outcome,
-            PostId: postId,
-            Priority: priority.ToString(),
-            Action: JsonNamingPolicy.SnakeCaseLower.ConvertName(decision.Action.ToString()),
-            Reasoning: decision.Reasoning,
-            Content: decision.Content,
-            LlmAttempts: llmResult.Attempts,
-            PersonaVersion: personaResolution.Persona?.Version,
-            PersonaSource: personaResolution.Source,
-            SessionLogRef: llmResult.SessionLogRef,
-            ErrorDetail: execResult.Outcome == ActionExecutionOutcome.Failed ? execResult.ErrorDetail : null));
     }
 
     private async Task<LlmDecisionResult> GetDecisionAsync(
@@ -499,12 +537,12 @@ public sealed class AgentEventProcessor : BackgroundService
             if (decision is not null)
             {
                 _logger.LogInformation(
-                    "Agent decision: {Action}. Reasoning: {Reasoning}",
-                    decision.Action,
+                    "Agent decision: {Actions}. Reasoning: {Reasoning}",
+                    string.Join(", ", decision.Actions.Select(action => action.Action)),
                     decision.Reasoning);
                 _opsLog.TryLog(new AgentOpsLogEntry(
                     DateTimeOffset.UtcNow, AgentOpsLogLevel.Info, AgentOpsLogSource.LlmProvider,
-                    $"{chatProvider.Name} responded in {sw.ElapsedMilliseconds} ms; decision: {decision.Action}.",
+                    $"{chatProvider.Name} responded in {sw.ElapsedMilliseconds} ms; decision: {string.Join(", ", decision.Actions.Select(action => action.Action))}.",
                     AiUserId: aiUserId.ToString(), ActivityId: activityId));
                 return new LlmDecisionResult(decision, attempt, LlmDecisionSource.Parsed, null, lastSessionRef);
             }
@@ -521,8 +559,7 @@ public sealed class AgentEventProcessor : BackgroundService
         }
 
         var fallback = new AgentDecision(
-            AgentAction.Ignore,
-            null,
+            [],
             "fallback: provider failed or returned invalid JSON twice");
 
         return new LlmDecisionResult(

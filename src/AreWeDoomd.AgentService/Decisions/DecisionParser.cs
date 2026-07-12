@@ -26,30 +26,44 @@ public sealed class DecisionParser
             return null;
         }
 
-        if (wire is null)
+        if (wire?.Actions is null)
         {
             return null;
         }
 
-        AgentAction? action = wire.Action?.Trim().ToLowerInvariant() switch
-        {
-            "reply_comment" => AgentAction.ReplyComment,
-            "like_comment" => AgentAction.LikeComment,
-            "ignore" => AgentAction.Ignore,
-            _ => null
-        };
+        var actions = new List<AgentActionDecision>();
+        var seenActions = new HashSet<AgentAction>();
 
-        if (action is null)
+        foreach (ActionWire? actionWire in wire.Actions)
         {
-            return null;
+            AgentAction? action = actionWire?.Type?.Trim().ToLowerInvariant() switch
+            {
+                "like_post" => AgentAction.LikePost,
+                "like_comment" => AgentAction.LikeComment,
+                "reply_comment" => AgentAction.ReplyComment,
+                _ => null
+            };
+
+            if (action is null || seenActions.Contains(action.Value))
+            {
+                continue;
+            }
+
+            if (action == AgentAction.ReplyComment && string.IsNullOrWhiteSpace(actionWire!.Content))
+            {
+                continue;
+            }
+
+            actions.Add(new AgentActionDecision(action.Value, actionWire!.Content));
+            seenActions.Add(action.Value);
+
+            if (actions.Count == 3)
+            {
+                break;
+            }
         }
 
-        if (action == AgentAction.ReplyComment && string.IsNullOrWhiteSpace(wire.Content))
-        {
-            return null;
-        }
-
-        return new AgentDecision(action.Value, wire.Content, wire.Reasoning);
+        return new AgentDecision(actions, wire.Reasoning);
     }
 
     private static string ExtractJson(string text)

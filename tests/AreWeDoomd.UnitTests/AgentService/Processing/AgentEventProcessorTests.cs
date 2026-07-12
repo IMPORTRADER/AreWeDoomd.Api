@@ -45,7 +45,7 @@ public sealed class AgentEventProcessorTests
             .Setup(c => c.Compose(It.IsAny<AgentPersona?>(), It.IsAny<CommentCreatedPromptInput>()))
             .Returns(new ComposedPrompt("sys", "user"));
         _actionExecutor
-            .Setup(e => e.ExecuteAsync(It.IsAny<AgentDecision>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(e => e.ExecuteAsync(It.IsAny<AgentActionDecision>(), It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ActionExecutionResult(ActionExecutionOutcome.Executed));
         _llmSettings
             .Setup(l => l.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
@@ -58,14 +58,14 @@ public sealed class AgentEventProcessorTests
     [Fact]
     public async Task ProcessSingleAsync_WhenLlmReturnsReply_ShouldExecuteReply()
     {
-        SetupLlmResponses("""{"action":"reply_comment","content":"Hi!","reasoning":"r"}""");
+        SetupLlmResponses("""{"actions":[{"type":"reply_comment","content":"Hi!"}],"reasoning":"r"}""");
         var processor = CreateProcessor();
 
         await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
 
         _actionExecutor.Verify(
             e => e.ExecuteAsync(
-                It.Is<AgentDecision>(d => d.Action == AgentAction.ReplyComment && d.Content == "Hi!"),
+                It.Is<AgentActionDecision>(d => d.Action == AgentAction.ReplyComment && d.Content == "Hi!"),
                 PostId,
                 CommentId,
                 AiUserId,
@@ -74,11 +74,40 @@ public sealed class AgentEventProcessorTests
     }
 
     [Fact]
+    public async Task ProcessSingleAsync_WhenActionsAreOrdered_ShouldExecuteAndLogEachAction()
+    {
+        SetupLlmResponses("""{"actions":[{"type":"like_comment"},{"type":"reply_comment","content":"Hi!"}],"reasoning":"r"}""");
+        var executionOrder = new List<AgentAction>();
+        _actionExecutor
+            .Setup(e => e.ExecuteAsync(It.IsAny<AgentActionDecision>(), PostId, CommentId, AiUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((AgentActionDecision action, Guid _, Guid? _, string _, CancellationToken _) =>
+            {
+                executionOrder.Add(action.Action);
+                return action.Action == AgentAction.LikeComment
+                    ? new ActionExecutionResult(ActionExecutionOutcome.Failed, "boom")
+                    : new ActionExecutionResult(ActionExecutionOutcome.Executed);
+            });
+        var processor = CreateProcessor();
+
+        await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
+
+        executionOrder.ShouldBe([AgentAction.LikeComment, AgentAction.ReplyComment]);
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Action == "like_comment" &&
+            e.Outcome == DecisionOutcome.ActionFailed &&
+            e.Actions!.SequenceEqual(new[] { "like_comment", "reply_comment" }))), Times.Once);
+        _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
+            e.Action == "reply_comment" &&
+            e.Outcome == DecisionOutcome.Executed &&
+            e.Actions!.SequenceEqual(new[] { "like_comment", "reply_comment" }))), Times.Once);
+    }
+
+    [Fact]
     public async Task ProcessSingleAsync_WhenFirstLlmOutputInvalid_ShouldRetryOnce()
     {
         SetupLlmResponses(
             "this is not json",
-            """{"action":"like_comment","reasoning":"r"}""");
+            """{"actions":[{"type":"like_comment"}],"reasoning":"r"}""");
         var processor = CreateProcessor();
 
         await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
@@ -88,7 +117,7 @@ public sealed class AgentEventProcessorTests
             Times.Exactly(2));
         _actionExecutor.Verify(
             e => e.ExecuteAsync(
-                It.Is<AgentDecision>(d => d.Action == AgentAction.LikeComment),
+                It.Is<AgentActionDecision>(d => d.Action == AgentAction.LikeComment),
                 PostId,
                 CommentId,
                 AiUserId,
@@ -106,9 +135,9 @@ public sealed class AgentEventProcessorTests
 
         _actionExecutor.Verify(
             e => e.ExecuteAsync(
-                It.IsAny<AgentDecision>(),
+                It.IsAny<AgentActionDecision>(),
                 It.IsAny<Guid>(),
-                It.IsAny<Guid>(),
+                It.IsAny<Guid?>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
@@ -149,9 +178,9 @@ public sealed class AgentEventProcessorTests
             Times.Never);
         _actionExecutor.Verify(
             e => e.ExecuteAsync(
-                It.IsAny<AgentDecision>(),
+                It.IsAny<AgentActionDecision>(),
                 It.IsAny<Guid>(),
-                It.IsAny<Guid>(),
+                It.IsAny<Guid?>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
@@ -178,9 +207,9 @@ public sealed class AgentEventProcessorTests
     [Fact]
     public async Task ProcessSingleAsync_WhenReplyExecuted_ShouldLogExecutedOutcomeOnce()
     {
-        SetupLlmResponses("""{"action":"reply_comment","content":"Hi!","reasoning":"r"}""");
+        SetupLlmResponses("""{"actions":[{"type":"reply_comment","content":"Hi!"}],"reasoning":"r"}""");
         _actionExecutor
-            .Setup(e => e.ExecuteAsync(It.IsAny<AgentDecision>(), PostId, CommentId, AiUserId, It.IsAny<CancellationToken>()))
+            .Setup(e => e.ExecuteAsync(It.IsAny<AgentActionDecision>(), PostId, CommentId, AiUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ActionExecutionResult(ActionExecutionOutcome.Executed));
         var processor = CreateProcessor();
 
@@ -206,31 +235,28 @@ public sealed class AgentEventProcessorTests
         _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
             e.Outcome == DecisionOutcome.LlmFailed && e.LlmAttempts == 2)), Times.Once);
         _actionExecutor.Verify(
-            e => e.ExecuteAsync(It.IsAny<AgentDecision>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            e => e.ExecuteAsync(It.IsAny<AgentActionDecision>(), It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
     [Fact]
-    public async Task ProcessSingleAsync_WhenLlmIgnores_ShouldLogIgnoredOutcome()
+    public async Task ProcessSingleAsync_WhenLlmReturnsNoActions_ShouldLogIgnoredOutcome()
     {
-        SetupLlmResponses("""{"action":"ignore","reasoning":"not my thread"}""");
-        _actionExecutor
-            .Setup(e => e.ExecuteAsync(It.IsAny<AgentDecision>(), PostId, CommentId, AiUserId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ActionExecutionResult(ActionExecutionOutcome.Ignored));
+        SetupLlmResponses("""{"actions":[],"reasoning":"not my thread"}""");
         var processor = CreateProcessor();
 
         await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
 
         _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
-            e.Outcome == DecisionOutcome.Ignored && e.Action == "ignore" && e.Reasoning == "not my thread")), Times.Once);
+            e.Outcome == DecisionOutcome.Ignored && e.Actions!.Count == 0 && e.Reasoning == "not my thread")), Times.Once);
     }
 
     [Fact]
     public async Task ProcessSingleAsync_WhenActionFails_ShouldLogActionFailedWithDetail()
     {
-        SetupLlmResponses("""{"action":"reply_comment","content":"Hi!","reasoning":"r"}""");
+        SetupLlmResponses("""{"actions":[{"type":"reply_comment","content":"Hi!"}],"reasoning":"r"}""");
         _actionExecutor
-            .Setup(e => e.ExecuteAsync(It.IsAny<AgentDecision>(), PostId, CommentId, AiUserId, It.IsAny<CancellationToken>()))
+            .Setup(e => e.ExecuteAsync(It.IsAny<AgentActionDecision>(), PostId, CommentId, AiUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ActionExecutionResult(ActionExecutionOutcome.Failed, "HTTP 500: boom"));
         var processor = CreateProcessor();
 
@@ -251,7 +277,7 @@ public sealed class AgentEventProcessorTests
         _decisionLog.Verify(w => w.TryLog(It.Is<DecisionLogEntry>(e =>
             e.Outcome == DecisionOutcome.LlmFallback && e.LlmAttempts == 2)), Times.Once);
         _actionExecutor.Verify(
-            e => e.ExecuteAsync(It.IsAny<AgentDecision>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            e => e.ExecuteAsync(It.IsAny<AgentActionDecision>(), It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -281,7 +307,7 @@ public sealed class AgentEventProcessorTests
         _personaProvider
             .Setup(p => p.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PersonaResolution(persona, PersonaSource.Api));
-        SetupLlmResponses("""{"action":"reply_comment","content":"Hi!","reasoning":"r"}""");
+        SetupLlmResponses("""{"actions":[{"type":"reply_comment","content":"Hi!"}],"reasoning":"r"}""");
         var processor = CreateProcessor();
 
         await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
@@ -297,7 +323,7 @@ public sealed class AgentEventProcessorTests
     public async Task ProcessSingleAsync_WhenNoPersona_ShouldComposeWithNullAndStampDefaultSource()
     {
         // _personaProvider default mock returns PersonaResolution(null, "default")
-        SetupLlmResponses("""{"action":"ignore","reasoning":"n/a"}""");
+        SetupLlmResponses("""{"actions":[],"reasoning":"n/a"}""");
         var processor = CreateProcessor();
 
         await processor.ProcessSingleAsync(SampleEvent(ActorType.Human), CancellationToken.None);
@@ -331,7 +357,7 @@ public sealed class AgentEventProcessorTests
     [Fact]
     public async Task ProcessSingleAsync_LogsLlmRequestAndDecision_ToOpsLog()
     {
-        SetupLlmResponses("""{"action":"reply_comment","content":"Hi!","reasoning":"r"}""");
+        SetupLlmResponses("""{"actions":[{"type":"reply_comment","content":"Hi!"}],"reasoning":"r"}""");
         var opsLog = new FakeAgentOpsLogWriter();
         var processor = CreateProcessor(opsLog);
 

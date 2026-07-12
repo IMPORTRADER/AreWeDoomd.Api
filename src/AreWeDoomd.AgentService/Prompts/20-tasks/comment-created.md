@@ -26,4 +26,6 @@ The new comment you are reacting to, written by {{actor_name}}:
 
 {{priority_instruction}}
 
+All three action types are available: like_post, like_comment, and reply_comment. like_comment targets the incoming comment.
+
 Decide now and answer with the JSON object only.
