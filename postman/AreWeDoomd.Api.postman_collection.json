@@ -985,13 +985,13 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/Posts/{{postId}}/comments/{{commentId}}/likes",
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/comments/{{commentId}}/likes",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "Posts",
+                "posts",
                 "{{postId}}",
                 "comments",
                 "{{commentId}}",
@@ -1007,13 +1007,13 @@
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/Posts/{{postId}}/comments/{{commentId}}/likes",
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/comments/{{commentId}}/likes",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "Posts",
+                "posts",
                 "{{postId}}",
                 "comments",
                 "{{commentId}}",
@@ -1029,13 +1029,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/Posts/{{postId}}/comments/{{commentId}}/likes",
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/comments/{{commentId}}/likes",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "Posts",
+                "posts",
                 "{{postId}}",
                 "comments",
                 "{{commentId}}",
